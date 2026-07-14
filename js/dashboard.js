@@ -78,7 +78,7 @@
             });
 
             // Toggle submenu saat ini
-            if (submenu) {
+                if (submenu) {
                 if (submenu.classList.contains('open')) {
                     // Close
                     submenu.style.maxHeight = submenu.scrollHeight + 'px';
@@ -95,6 +95,37 @@
                         submenu.removeEventListener('transitionend', fn);
                     });
                     parent.classList.add('open');
+                }
+            }
+        });
+    });
+
+    /* =========================================================
+       2b. SUB-PARENT (Nested Submenu — Bimbingan & Pengguna)
+       ========================================================= */
+    document.querySelectorAll('.sub-parent').forEach(function (subParent) {
+        subParent.addEventListener('click', function (e) {
+            e.preventDefault();
+            var targetId = subParent.getAttribute('data-target');
+            var nestedSub = document.getElementById(targetId);
+
+            if (nestedSub) {
+                if (nestedSub.classList.contains('open')) {
+                    // Close
+                    nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
+                    nestedSub.offsetHeight;
+                    nestedSub.style.maxHeight = '0px';
+                    nestedSub.classList.remove('open');
+                    subParent.classList.remove('active');
+                } else {
+                    // Open
+                    nestedSub.classList.add('open');
+                    nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
+                    subParent.classList.add('active');
+                    nestedSub.addEventListener('transitionend', function fn() {
+                        nestedSub.style.maxHeight = 'none';
+                        nestedSub.removeEventListener('transitionend', fn);
+                    });
                 }
             }
         });
