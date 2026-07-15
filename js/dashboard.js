@@ -499,4 +499,50 @@
         });
     }
 
+    /* =========================================================
+       5. AUTO-OPEN SIDEBAR PARENT YANG PUNYA CHILD AKTIF
+       ========================================================= */
+    function autoOpenActiveParent() {
+        var currentPage = window.location.search; // ex: '?page=beranda' atau '?page=mhs-skripsi'
+
+        // Cari semua sub-item yang aktif
+        document.querySelectorAll('.nav-submenu .sub-item.active').forEach(function (activeItem) {
+            var submenu = activeItem.closest('.nav-submenu');
+            if (submenu) {
+                var parentId = submenu.id.replace('sub-', '');
+                var parentBtn = document.querySelector('.nav-parent[data-target="' + parentId + '"]');
+                if (parentBtn && !parentBtn.classList.contains('open')) {
+                    parentBtn.classList.add('open');
+                }
+                if (submenu && !submenu.classList.contains('open')) {
+                    submenu.classList.add('open');
+                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                    setTimeout(function () {
+                        submenu.style.maxHeight = 'none';
+                    }, 350);
+                }
+            }
+        });
+
+        // Auto-open sub-parent (nested) jika ada child aktif
+        document.querySelectorAll('.nav-submenu .sub-parent.active').forEach(function (activeSub) {
+            var nestedId = activeSub.getAttribute('data-target');
+            var nestedSub = document.getElementById(nestedId);
+            if (nestedSub && !nestedSub.classList.contains('open')) {
+                nestedSub.classList.add('open');
+                nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
+                setTimeout(function () {
+                    nestedSub.style.maxHeight = 'none';
+                }, 350);
+                activeSub.classList.add('active');
+            }
+        });
+    }
+
+    // Jalankan saat DOM siap
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autoOpenActiveParent);
+    } else {
+        autoOpenActiveParent();
+    }
 })();

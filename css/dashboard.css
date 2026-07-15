@@ -358,6 +358,18 @@ a { text-decoration: none; }
     opacity: 1;
 }
 
+/* Alias .app-area = .main-wrapper (karena index.php pakai class ini) */
+.app-area {
+    @extend .main-wrapper;
+}
+.app-area {
+    margin-left: var(--sidebar-width);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: margin-left var(--transition-med) ease;
+}
+
 /* ======================================================
    MAIN WRAPPER
    ====================================================== */
@@ -817,6 +829,7 @@ a { text-decoration: none; }
     .nav-submenu { display: none !important; }
 
     .main-wrapper { margin-left: var(--sidebar-collapsed-width); }
+    .app-area { margin-left: var(--sidebar-collapsed-width); }
 
     .kpi-card {
         flex-direction: column;
@@ -849,6 +862,7 @@ a { text-decoration: none; }
     .sidebar-nav > .nav-group > .nav-item { justify-content: flex-start; padding: 10px 14px; }
 
     .main-wrapper { margin-left: 0; }
+    .app-area { margin-left: 0; }
     .hamburger-btn { display: inline-flex; }
     .content-area { padding: 14px; }
     .top-navbar { padding: 0 14px; gap: 8px; }
