@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard SIATEK v3.0</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ===================== SIDEBAR ===================== -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <i class="bi bi-cpu-fill"></i>
+            </div>
+            <span class="brand-text">SIATEK</span>
+            <button class="btn sidebar-close-btn d-lg-none" id="sidebarCloseBtn">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Nav -->
+        <nav class="sidebar-nav">
+            <!-- 1. Beranda -->
+            <div class="nav-group">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <i class="bi bi-grid-1x2-fill nav-icon"></i>
+                    <span class="nav-label">Beranda</span>
+                </a>
+            </div>
+
+            <!-- 2. Pengelolaan -->
+            <div class="nav-group">
+                <button class="nav-item nav-parent" data-target="sub-pengelolaan">
+                    <i class="bi bi-folder-fill nav-icon"></i>
+                    <span class="nav-label">Pengelolaan</span>
+                    <i class="bi bi-chevron-right nav-chevron"></i>
+                </button>
+                <div class="nav-submenu" id="sub-pengelolaan">
+                    <div class="sub-section-header">Data Mahasiswa &amp; Alumni</div>
+                    <a href="#" class="sub-item" data-page="mhs-skripsi">
+                        <i class="bi bi-journal-text sub-icon"></i>
+                        <span class="sub-text">Skripsi</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="mhs-kp">
+                        <i class="bi bi-briefcase sub-icon"></i>
+                        <span class="sub-text">Kerja Praktek</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="mhs-verifikasi">
+                        <i class="bi bi-clipboard-check sub-icon"></i>
+                        <span class="sub-text">Verifikasi Berkas</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="mhs-alumni">
+                        <i class="bi bi-mortarboard sub-icon"></i>
+                        <span class="sub-text">Data Alumni</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="mhs-kegiatan">
+                        <i class="bi bi-calendar-event sub-icon"></i>
+                        <span class="sub-text">Kegiatan</span>
+                    </a>
+
+                    <div class="sub-section-header sub-section-header--with-divider">Master &amp; Pengaturan</div>
+
+                    <!-- Data Bimbingan (parent) -->
+                    <button class="sub-item sub-parent" data-target="sub-bimbingan">
+                        <i class="bi bi-people sub-icon"></i>
+                        <span class="sub-text">Data Bimbingan</span>
+                        <i class="bi bi-chevron-right sub-chevron"></i>
+                    </button>
+                    <div class="nav-submenu nav-submenu--nested" id="sub-bimbingan">
+                        <a href="#" class="sub-item" data-page="bimbingan-skripsi">
+                            <i class="bi bi-journal-check sub-icon"></i>
+                            <span class="sub-text">Bimbingan Skripsi</span>
+                        </a>
+                        <a href="#" class="sub-item" data-page="bimbingan-kp">
+                            <i class="bi bi-briefcase sub-icon"></i>
+                            <span class="sub-text">Bimbingan Kerja Praktek</span>
+                        </a>
+                        <a href="#" class="sub-item" data-page="bimbingan-pa">
+                            <i class="bi bi-person sub-icon"></i>
+                            <span class="sub-text">Bimbingan Penasihat Akademik</span>
+                        </a>
+                    </div>
+
+                    <!-- Data Pengguna (parent) -->
+                    <button class="sub-item sub-parent" data-target="sub-pengguna">
+                        <i class="bi bi-person-badge sub-icon"></i>
+                        <span class="sub-text">Data Pengguna</span>
+                        <i class="bi bi-chevron-right sub-chevron"></i>
+                    </button>
+                    <div class="nav-submenu nav-submenu--nested" id="sub-pengguna">
+                        <a href="#" class="sub-item" data-page="pengguna-mahasiswa">
+                            <i class="bi bi-person sub-icon"></i>
+                            <span class="sub-text">Pengguna Mahasiswa</span>
+                        </a>
+                        <a href="#" class="sub-item" data-page="pengguna-dosen">
+                            <i class="bi bi-person-workspace sub-icon"></i>
+                            <span class="sub-text">Pengguna Dosen</span>
+                        </a>
+                    </div>
+
+                    <a href="#" class="sub-item" data-page="pengelolaan-broadcast">
+                        <i class="bi bi-megaphone sub-icon"></i>
+                        <span class="sub-text">Broadcast</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 3. Pangkalan Data -->
+            <div class="nav-group">
+                <button class="nav-item nav-parent" data-target="sub-pangkalan">
+                    <i class="bi bi-database-fill nav-icon"></i>
+                    <span class="nav-label">Pangkalan Data</span>
+                    <i class="bi bi-chevron-right nav-chevron"></i>
+                </button>
+                <div class="nav-submenu" id="sub-pangkalan">
+                    <a href="#" class="sub-item" data-page="pd-pendidikan">
+                        <i class="bi bi-book-fill sub-icon"></i>Pendidikan &amp; Pengajaran
+                    </a>
+                    <a href="#" class="sub-item" data-page="pd-penelitian">
+                        <i class="bi bi-search sub-icon"></i>Penelitian
+                    </a>
+                    <a href="#" class="sub-item" data-page="pd-pengabdian">
+                        <i class="bi bi-heart-fill sub-icon"></i>Pengabdian
+                    </a>
+                    <a href="#" class="sub-item" data-page="pd-penunjang">
+                        <i class="bi bi-tools sub-icon"></i>Data Penunjang
+                    </a>
+                    <a href="#" class="sub-item" data-page="pd-arsip">
+                        <i class="bi bi-archive-fill sub-icon"></i>Arsip Lain
+                    </a>
+                    <a href="#" class="sub-item" data-page="pd-skp">
+                        <i class="bi bi-file-earmark-text-fill sub-icon"></i>SKP
+                    </a>
+                </div>
+            </div>
+
+            <!-- 4. Biodata -->
+            <div class="nav-group">
+                <a href="#" class="nav-item" data-page="biodata">
+                    <i class="bi bi-person-circle nav-icon"></i>
+                    <span class="nav-label">Biodata</span>
+                </a>
+            </div>
+
+            <!-- 5. Jadwal Kuliah -->
+            <div class="nav-group">
+                <a href="#" class="nav-item" data-page="jadwal">
+                    <i class="bi bi-calendar-week-fill nav-icon"></i>
+                    <span class="nav-label">Jadwal Kuliah</span>
+                </a>
+            </div>
+
+            <!-- 6. Sinkronisasi Sister -->
+            <div class="nav-group">
+                <a href="#" class="nav-item" data-page="sister">
+                    <i class="bi bi-arrow-repeat nav-icon"></i>
+                    <span class="nav-label">Sinkronisasi Sister</span>
+                </a>
+            </div>
+
+            <!-- 7. Jurusan -->
+            <div class="nav-group">
+                <button class="nav-item nav-parent" data-target="sub-jurusan">
+                    <i class="bi bi-building nav-icon"></i>
+                    <span class="nav-label">Jurusan</span>
+                    <i class="bi bi-chevron-right nav-chevron"></i>
+                </button>
+                <div class="nav-submenu" id="sub-jurusan">
+                    <a href="#" class="sub-item" data-page="jurusan-arsip">
+                        <i class="bi bi-archive sub-icon"></i>
+                        <span class="sub-text">Arsip</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-berita">
+                        <i class="bi bi-newspaper sub-icon"></i>
+                        <span class="sub-text">Berita</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-tridharma">
+                        <i class="bi bi-three-dots sub-icon"></i>
+                        <span class="sub-text">Data Tridharma</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-dok-akademik">
+                        <i class="bi bi-file-earmark-text sub-icon"></i>
+                        <span class="sub-text">Dokumen Akademik</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-dok-akreditasi">
+                        <i class="bi bi-patch-check sub-icon"></i>
+                        <span class="sub-text">Dokumen Akreditas</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-dok-lkps">
+                        <i class="bi bi-file-earmark-bar-graph sub-icon"></i>
+                        <span class="sub-text">Dokumen LKPS</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-jadwal">
+                        <i class="bi bi-calendar-week sub-icon"></i>
+                        <span class="sub-text">Jadwal Kuliah</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-kerjasama">
+                        <i class="bi bi-handshake sub-icon"></i>
+                        <span class="sub-text">Kerja Sama</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-keuangan">
+                        <i class="bi bi-currency-dollar sub-icon"></i>
+                        <span class="sub-text">Keuangan</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-kurikulum">
+                        <i class="bi bi-book sub-icon"></i>
+                        <span class="sub-text">Kurikulum</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-laporan">
+                        <i class="bi bi-graph-up sub-icon"></i>
+                        <span class="sub-text">Laporan Kinerja</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-matkul-rps">
+                        <i class="bi bi-journal-code sub-icon"></i>
+                        <span class="sub-text">Matakuliah / RPS</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-matkul-mbkm">
+                        <i class="bi bi-globe sub-icon"></i>
+                        <span class="sub-text">Matakuliah MBKM</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-organisasi">
+                        <i class="bi bi-people sub-icon"></i>
+                        <span class="sub-text">Organisasi</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-peminjaman">
+                        <i class="bi bi-arrow-left-right sub-icon"></i>
+                        <span class="sub-text">Peminjaman</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-program-extra">
+                        <i class="bi bi-stars sub-icon"></i>
+                        <span class="sub-text">Program Extra</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-skp">
+                        <i class="bi bi-file-earmark-text sub-icon"></i>
+                        <span class="sub-text">SKP</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-surat">
+                        <i class="bi bi-envelope sub-icon"></i>
+                        <span class="sub-text">Surat</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-surat-penunjukkan">
+                        <i class="bi bi-file-earmark-check sub-icon"></i>
+                        <span class="sub-text">Surat Penunjukkan</span>
+                    </a>
+                    <a href="#" class="sub-item" data-page="jurusan-tracer">
+                        <i class="bi bi-geo-alt sub-icon"></i>
+                        <span class="sub-text">Tracer Studi</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <a href="#" class="nav-item nav-logout">
+                <i class="bi bi-box-arrow-right nav-icon"></i>
+                <span class="nav-label">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- ===================== MAIN CONTENT ===================== -->
+    <div class="main-wrapper">
+
+        <!-- Top Navbar -->
+        <header class="top-navbar">
+            <button class="btn hamburger-btn" id="hamburgerBtn">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <div class="navbar-title">
+                <h1 class="h5 mb-0">Beranda</h1>
+                <small class="text-muted d-none d-sm-block">Sistem Informasi Akademik Teknik Elektro &amp; Komputer</small>
+            </div>
+            <div class="navbar-actions d-flex align-items-center gap-2 gap-sm-3">
+                <button class="btn btn-icon position-relative" title="Notifikasi">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+                <div class="user-profile d-flex align-items-center gap-2">
+                    <img src="https://ui-avatars.com/api/?name=Ridwan+Kadir&background=0d6efd&color=fff&size=36" alt="Avatar" class="avatar-img">
+                    <div class="user-info d-none d-sm-block">
+                        <span class="user-name fw-semibold d-block" style="font-size:.85rem;">Ridwan Kadir</span>
+                        <small class="text-muted" style="font-size:.7rem;">Administrator</small>
+                    </div>
+                    <i class="bi bi-chevron-down text-muted d-none d-sm-block" style="font-size:.7rem;"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="content-area">
+
+            <!-- ===== KPI Summary Cards ===== -->
+            <section class="mb-4">
+                <div class="kpi-row">
+                    <a href="#" class="kpi-card card-kpi card-kpi--info">
+                        <div class="card-kpi-icon"><i class="bi bi-people-fill"></i></div>
+                        <div class="card-kpi-body">
+                            <span class="card-kpi-value" data-skeleton="true">2.847</span>
+                            <span class="card-kpi-label">Mahasiswa Aktif</span>
+                        </div>
+                    </a>
+                    <a href="#" class="kpi-card card-kpi card-kpi--success">
+                        <div class="card-kpi-icon"><i class="bi bi-person-workspace"></i></div>
+                        <div class="card-kpi-body">
+                            <span class="card-kpi-value" data-skeleton="true">142</span>
+                            <span class="card-kpi-label">Dosen Terdaftar</span>
+                        </div>
+                    </a>
+                    <a href="#" class="kpi-card card-kpi card-kpi--primary">
+                        <div class="card-kpi-icon"><i class="bi bi-mortarboard-fill"></i></div>
+                        <div class="card-kpi-body">
+                            <span class="card-kpi-value" data-skeleton="true">38</span>
+                            <span class="card-kpi-label">Bimbingan Skripsi Aktif</span>
+                        </div>
+                    </a>
+                    <a href="#" class="kpi-card card-kpi card-kpi--danger">
+                        <div class="card-kpi-icon"><i class="bi bi-pen-fill"></i></div>
+                        <div class="card-kpi-body">
+                            <span class="card-kpi-value" data-skeleton="true">7</span>
+                            <span class="card-kpi-label">Menunggu TTD</span>
+                        </div>
+                        <span class="card-kpi-badge badge-flash">Penting</span>
+                    </a>
+                    <a href="#" class="kpi-card card-kpi card-kpi--whatsapp">
+                        <div class="card-kpi-icon"><i class="bi bi-whatsapp"></i></div>
+                        <div class="card-kpi-body">
+                            <span class="card-kpi-value" data-skeleton="true">156</span>
+                            <span class="card-kpi-label">WA Terkirim (Hari Ini)</span>
+                        </div>
+                    </a>
+                </div>
+            </section>
+
+            <!-- ===== Charts Row 2x2 ===== -->
+            <section class="mb-4">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h6 class="chart-card-title"><i class="bi bi-bar-chart-fill me-1"></i>Angkatan Mahasiswa</h6>
+                                <small class="text-muted">S1 Teknik Elektro vs Teknik Komputer (2009–2025)</small>
+                            </div>
+                            <div class="chart-card-body">
+                                <canvas id="chartAngkatan"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h6 class="chart-card-title"><i class="bi bi-pie-chart-fill me-1"></i>Progress Skripsi</h6>
+                                <small class="text-muted">Distribusi tahapan bimbingan saat ini</small>
+                            </div>
+                            <div class="chart-card-body chart-card-body--center">
+                                <canvas id="chartSkripsi"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h6 class="chart-card-title"><i class="bi bi-graph-up-arrow me-1"></i>Sinkronisasi Sister</h6>
+                                <small class="text-muted">Tren pembaruan data (Pendidikan, Penelitian, Pengabdian)</small>
+                            </div>
+                            <div class="chart-card-body">
+                                <canvas id="chartSister"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h6 class="chart-card-title"><i class="bi bi-bar-chart-line-fill me-1"></i>Beban Kerja Operasional</h6>
+                                <small class="text-muted">Broadcast &amp; dokumen diproses (7 hari terakhir)</small>
+                            </div>
+                            <div class="chart-card-body">
+                                <canvas id="chartBeban"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Bottom Feed & Shortcuts ===== -->
+            <section class="mb-4">
+                <div class="row g-3">
+                    <!-- Tanda Tangan Digital -->
+                    <div class="col-12 col-xl-5">
+                        <div class="feed-card">
+                            <div class="feed-card-header">
+                                <h6 class="feed-card-title"><i class="bi bi-pen-fill me-1"></i>Tanda Tangan Digital</h6>
+                                <a href="#" class="feed-card-action">Lihat Semua <i class="bi bi-arrow-right"></i></a>
+                            </div>
+                            <div class="feed-card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover feed-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th style="font-size:.78rem;">Mahasiswa</th>
+                                                <th style="font-size:.78rem;">No. Surat</th>
+                                                <th style="font-size:.78rem;" class="text-end">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="font-size:.82rem;">Ahmad Fauzi</td>
+                                                <td style="font-size:.82rem;">SK-2026/0847</td>
+                                                <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-size:.82rem;">Siti Nurhaliza</td>
+                                                <td style="font-size:.82rem;">SK-2026/0851</td>
+                                                <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-size:.82rem;">Budi Santoso</td>
+                                                <td style="font-size:.82rem;">SK-2026/0855</td>
+                                                <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-size:.82rem;">Dewi Lestari</td>
+                                                <td style="font-size:.82rem;">SK-2026/0860</td>
+                                                <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-size:.82rem;">Rizky Pratama</td>
+                                                <td style="font-size:.82rem;">SK-2026/0863</td>
+                                                <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Broadcast Terbaru -->
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="feed-card">
+                            <div class="feed-card-header">
+                                <h6 class="feed-card-title"><i class="bi bi-whatsapp me-1"></i>Broadcast Terbaru</h6>
+                                <a href="#" class="feed-card-action">Arsip <i class="bi bi-arrow-right"></i></a>
+                            </div>
+                            <div class="feed-card-body">
+                                <div class="broadcast-item mb-3">
+                                    <div class="d-flex justify-content-between mb-1 gap-2">
+                                        <small class="fw-semibold">Semua Dosen</small>
+                                        <span class="badge badge-success-subtle text-success">Terkirim</span>
+                                    </div>
+                                    <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Dimohon kehadiran seluruh dosen pada rapat..."</p>
+                                    <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>2 jam lalu</small>
+                                </div>
+                                <hr>
+                                <div class="broadcast-item mb-3">
+                                    <div class="d-flex justify-content-between mb-1 gap-2">
+                                        <small class="fw-semibold">Mahasiswa Aktif</small>
+                                        <span class="badge badge-success-subtle text-success">Terkirim</span>
+                                    </div>
+                                    <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Jadwal ujian semester genap telah dipublikasikan..."</p>
+                                    <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>5 jam lalu</small>
+                                </div>
+                                <hr>
+                                <div class="broadcast-item">
+                                    <div class="d-flex justify-content-between mb-1 gap-2">
+                                        <small class="fw-semibold">Bimbingan Skripsi</small>
+                                        <span class="badge badge-warning-subtle text-warning">Terjadwal</span>
+                                    </div>
+                                    <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Pengingat jadwal bimbingan skripsi minggu ini..."</p>
+                                    <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>Kemarin</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Mahasiswa Baru -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <div class="feed-card">
+                            <div class="feed-card-header">
+                                <h6 class="feed-card-title"><i class="bi bi-person-plus-fill me-1"></i>Mahasiswa Baru</h6>
+                                <a href="#" class="feed-card-action">Detail <i class="bi bi-arrow-right"></i></a>
+                            </div>
+                            <div class="feed-card-body">
+                                <div class="student-log-item d-flex align-items-center gap-2 mb-3">
+                                    <div class="student-avatar" style="background:#e7f1ff; color:#0d6efd;">AF</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Ahmad Fauzi</small>
+                                        <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100001 • T. Elektro</small>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
+                                </div>
+                                <div class="student-log-item d-flex align-items-center gap-2 mb-3">
+                                    <div class="student-avatar" style="background:#f0f8e8; color:#198754;">SN</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Siti Nurhaliza</small>
+                                        <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100002 • T. Komputer</small>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
+                                </div>
+                                <div class="student-log-item d-flex align-items-center gap-2 mb-3">
+                                    <div class="student-avatar" style="background:#fef3e2; color:#fd7e14;">BS</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Budi Santoso</small>
+                                        <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100003 • T. Elektro</small>
+                                    </div>
+                                    <span class="badge bg-info-subtle text-info" style="font-size:.68rem;">Pending</span>
+                                </div>
+                                <div class="student-log-item d-flex align-items-center gap-2 mb-3">
+                                    <div class="student-avatar" style="background:#fce4ec; color:#dc3545;">DL</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Dewi Lestari</small>
+                                        <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100004 • T. Komputer</small>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
+                                </div>
+                                <div class="student-log-item d-flex align-items-center gap-2">
+                                    <div class="student-avatar" style="background:#f3e8fd; color:#6f42c1;">RP</div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Rizky Pratama</small>
+                                        <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100005 • T. Elektro</small>
+                                    </div>
+                                    <span class="badge bg-warning-subtle text-warning" style="font-size:.68rem;">Revisi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Classic Widgets (Pengumuman & Agenda) ===== -->
+            <section class="mb-4">
+                <div class="row g-3">
+                    <!-- Pengumuman -->
+                    <div class="col-12 col-lg-5">
+                        <div class="feed-card feed-card--collapsible" id="announcementWidget">
+                            <div class="feed-card-header">
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="feed-card-title mb-0"><i class="bi bi-megaphone-fill me-1"></i>Pengumuman</h6>
+                                    <button class="btn btn-sm btn-link text-muted p-0" title="Edit Pengumuman">
+                                        <i class="bi bi-gear"></i>
+                                    </button>
+                                </div>
+                                <button class="btn btn-sm btn-link text-muted p-0 ms-auto" id="announcementToggle" title="Sembunyikan/Tampilkan">
+                                    <i class="bi bi-chevron-up"></i>
+                                </button>
+                            </div>
+                            <div class="feed-card-body" id="announcementBody">
+                                <div class="announcement-item mb-3">
+                                    <span class="badge bg-primary mb-1" style="font-size:.65rem;">Baru</span>
+                                    <p class="mb-0 mt-1" style="font-size:.82rem;"><strong>Rapat Koordinasi Semester Genap 2025/2026</strong></p>
+                                    <small class="text-muted" style="font-size:.72rem;">Diumumkan, 10 Juli 2026</small>
+                                </div>
+                                <hr>
+                                <div class="announcement-item mb-3">
+                                    <p class="mb-0" style="font-size:.82rem;"><strong>Jadwal UTS Semester Genap Telah Dipublikasikan</strong></p>
+                                    <small class="text-muted" style="font-size:.72rem;">Diumumkan, 8 Juli 2026</small>
+                                </div>
+                                <hr>
+                                <div class="announcement-item">
+                                    <p class="mb-0" style="font-size:.82rem;"><strong>Pendaftaran Yudisium Periode Agustus 2026 Dibuka</strong></p>
+                                    <small class="text-muted" style="font-size:.72rem;">Diumumkan, 5 Juli 2026</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agenda / Kalender Mini -->
+                    <div class="col-12 col-lg-7">
+                        <div class="feed-card">
+                            <div class="feed-card-header">
+                                <h6 class="feed-card-title"><i class="bi bi-calendar-week me-1"></i>Agenda</h6>
+                                <div class="d-flex align-items-center gap-2 ms-auto">
+                                    <button class="btn btn-sm btn-link text-dark p-0" id="calPrev"><i class="bi bi-chevron-left"></i></button>
+                                    <span class="fw-semibold" style="font-size:.85rem;" id="calMonthYear">Juli 2026</span>
+                                    <button class="btn btn-sm btn-link text-dark p-0" id="calNext"><i class="bi bi-chevron-right"></i></button>
+                                </div>
+                            </div>
+                            <div class="feed-card-body">
+                                <div class="calendar-grid" id="calendarGrid">
+                                    <!-- Diisi oleh JS -->
+                                </div>
+                                <div class="mt-3">
+                                    <small class="text-muted d-block mb-2"><strong>Agenda Mendatang:</strong></small>
+                                    <div class="agenda-item d-flex align-items-center gap-2 mb-2">
+                                        <span class="agenda-dot agenda-dot--exam"></span>
+                                        <small style="font-size:.78rem;"><strong>14 Juli</strong> — UTS Semester Genap 2025/2026</small>
+                                    </div>
+                                    <div class="agenda-item d-flex align-items-center gap-2 mb-2">
+                                        <span class="agenda-dot agenda-dot--advising"></span>
+                                        <small style="font-size:.78rem;"><strong>18 Juli</strong> — Bimbingan Skripsi Batch 3</small>
+                                    </div>
+                                    <div class="agenda-item d-flex align-items-center gap-2">
+                                        <span class="agenda-dot agenda-dot--exam"></span>
+                                        <small style="font-size:.78rem;"><strong>21 Juli</strong> — Ujian Praktek Pemrograman</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Sinkronisasi Sister Status ===== -->
+            <section class="mb-4">
+                <div class="feed-card">
+                    <div class="feed-card-header">
+                        <h6 class="feed-card-title"><i class="bi bi-arrow-repeat me-1"></i>Status Sinkronisasi Sister</h6>
+                        <button class="btn btn-sm btn-primary ms-auto"><i class="bi bi-arrow-repeat me-1"></i>Sinkronisasi Sekarang</button>
+                    </div>
+                    <div class="feed-card-body p-0">
+                        <div class="row g-0 sister-grid">
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Pendidikan &amp; Pengajaran</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">12 Jul 2026, 08:30 • 247 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Penelitian</span>
+                                        <span class="badge bg-warning-subtle text-warning">Sinkron</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">10 Jul 2026, 14:15 • 89 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Pengabdian</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">11 Jul 2026, 09:45 • 156 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Data Penunjang</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">11 Jul 2026, 09:50 • 34 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Arsip Lain</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">11 Jul 2026, 09:55 • 18 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">SKP</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">11 Jul 2026, 10:00 • 42 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Data Dosen</span>
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">12 Jul 2026, 07:00 • 142 record</small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                                <div class="sister-status-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span style="font-size:.82rem;">Data Mahasiswa</span>
+                                        <span class="badge bg-danger-subtle text-danger">Perlu</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.72rem;">05 Jul 2026, 11:20 • 2.847 record</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <small>&copy; 2026 SIATEK v3.0 — Laboratorium Teknik Elektro &amp; Komputer</small>
+        </footer>
+    </div>
+
+    <!-- ===================== MODAL: Tanda Tangan Digital ===================== -->
+    <div class="modal fade" id="signModal" tabindex="-1" aria-labelledby="signModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="signModalLabel"><i class="bi bi-pen-fill me-2"></i>Tanda Tangan Digital</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-shield-check text-primary" style="font-size:2.5rem;"></i>
+                    </div>
+                    <p class="text-center mb-3" style="font-size:.88rem;">Anda akan menandatangani surat berikut:</p>
+                    <div class="signature-preview p-3 rounded-3 bg-light mb-3">
+                        <p class="mb-1" style="font-size:.82rem;"><strong>Mahasiswa:</strong> Ahmad Fauzi</p>
+                        <p class="mb-1" style="font-size:.82rem;"><strong>No. Surat:</strong> SK-2026/0847</p>
+                        <p class="mb-0" style="font-size:.82rem;"><strong>Jenis:</strong> Surat Keterangan Lulus</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="confirmSignCheck">
+                        <label class="form-check-label" for="confirmSignCheck" style="font-size:.82rem;">Saya yakin dokumen ini sudah benar untuk ditandatangani.</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnConfirmSign"><i class="bi bi-pen-fill me-1"></i> Konfirmasi &amp; Tanda Tangan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== SCRIPTS ===================== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
