@@ -24,7 +24,7 @@
 
 ### 1.2 Modul Pengelolaan — Data Mahasiswa/Alumni (5 tab)
 
-1. **Skripsi** — Accordion list mahasiswa. Filter: Prodi (Semua/S1 Elektro/S1 Komputer) + Status (22 status).
+1. **Skripsi** — Accordion list mahasiswa. Filter: Prodi (Semua/S1 Elektro/S1 Komputer/D3 Elektro) + Status (22 status).
 2. **Kerja Praktek** — Sama struktur dengan Skripsi, tapi alur KP.
 3. **Verifikasi Berkas** — Queue berkas yang perlu diverifikasi admin.
 4. **Data Alumni** — List mahasiswa yang sudah lulus.
@@ -77,7 +77,7 @@ Fase 5: YUDISIUM
 
 ### 1.5 Master Data
 
-- **Prodi:** S1 Teknik Elektro, S1 Teknik Komputer
+- **Prodi:** S1 Teknik Elektro, S1 Teknik Komputer, D3 Teknik Elektro
 - **Ruangan (8):** Lab. Elektronika & Komunikasi, Lab. Komputer 1, Lab. Komputer 2, Lab. Teknik Kendali, Lab. Tenaga Listrik, Lab. Unprotect, R.K 2.11, R.K 3.16
 - **Pengumuman:** Sender + message (timeline)
 - **Agenda:** Kalender event
@@ -317,12 +317,11 @@ class SkripsiTransition {
 │  Selamat pagi, Pak Ridwan 👋                                       │
 │  Senin, 29 Juni 2026                                              │
 ├──────────────────────────────────────────────────────────────────┤
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐                    │
-│ │ 247     │ │ 12      │ │ 5       │ │ 89%     │                    │
-│ │ Mhs Aktif│ │ Antrean │ │ Sidang  │ │ Sister  │                    │
-│ │         │ │ Verif   │ │ Minggu  │ │ Sync    │                    │
-│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                    │
-├──────────────────────────────────────────────────────────────────┤
+│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐  │
+│ │1.124 │ │ 978  │ │ 745  │ │ 142  │ │  38  │ │  24  │ │  7   │  │
+│ │TE    │ │TK    │ │PTE   │ │Dosen │ │Skripsi│ │ KP   │ │TTD  │  │
+│ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘  │
+��──────────────────────────────────────────────────────────────────┤
 │ ┌────────────────────────────┐ ┌─────────────────────────────┐   │
 │ │ 📢 Pengumuman Terbaru       │ │ 📅 Jadwal Hari Ini           │   │
 │ │ ────────────────────────  │ │ Senin, 29 Juni 2026         │   │
@@ -575,3 +574,16 @@ Sebelum lanjut eksekusi, butuh klarifikasi:
 
 **Dokumen ini: `/tmp/siatek-inventory.md` + blueprint ini**
 **Tersimpan di:** `/tmp/siatek-blueprint.md`
+
+---
+
+## 10. CHANGELOG
+
+### 2026-07-16
+- **BREAKING:** Hapus KPI card "WA Terkirim (Hari Ini)" dari dashboard — panel WA terkirim tidak lagi relevan
+- **ADDED:** Section "Distribusi Mahasiswa per Prodi" di dashboard — menampilkan 3 prodi: S1 Teknik Elektro (1.124), S1 Teknik Komputer (978), D3 Teknik Elektro (745)
+- **UPDATED:** KPI "Mahasiswa Aktif" total: 2.847 (dari 247)
+- **UPDATED:** Chart "Angkatan Mahasiswa" sekarang mencakup 3 prodi (tambahan D3 Teknik Elektro)
+- **UPDATED:** Master Data prodi: S1 Teknik Elektro, S1 Teknik Komputer, D3 Teknik Elektro
+- **UPDATED:** Filter modul Skripsi/KP: tambahkan D3 Elektro
+- **UPDATED:** Wireframe Dashboard (4.2) menampilkan KPI cards + distribusi per prodi

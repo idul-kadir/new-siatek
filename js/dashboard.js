@@ -250,22 +250,24 @@
     Chart.defaults.scale.grid.color = 'rgba(0,0,0,0.05)';
     Chart.defaults.scale.grid.drawBorder = false;
 
-    /* 5a. Angkatan */
+    /* 5a. Angkatan — 5 tahun terakhir, sejajar (bukan tumpuk) */
     (function () {
         var ctx = document.getElementById('chartAngkatan');
         if (!ctx) return;
 
-        var years = ['2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
-        var elektro =  [120,135,142,150,168,175,190,210,225,240,255,270,285,310,340,365,390];
-        var komputer = [80, 90, 95,105,115,125,140,155,170,185,200,215,230,250,270,290,310];
+        var years = ['2021','2022','2023','2024','2025'];
+        var elektro   = [285,310,340,365,390];
+        var komputer  = [230,250,270,290,310];
+        var d3elektro = [85,90,92,95,98];
 
         new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: years,
                 datasets: [
-                    { label: 'S1 Teknik Elektro',  data: elektro,  backgroundColor: 'rgba(13,110,253,0.85)', borderRadius: 3, maxBarThickness: 28 },
-                    { label: 'S1 Teknik Komputer', data: komputer, backgroundColor: 'rgba(99,102,241,0.85)', borderRadius: 3, maxBarThickness: 28 }
+                    { label: 'Teknik Elektro',    data: elektro,    backgroundColor: 'rgba(13,110,253,0.85)', borderRadius: 3, maxBarThickness: 28 },
+                    { label: 'Teknik Komputer',    data: komputer,   backgroundColor: 'rgba(99,102,241,0.85)', borderRadius: 3, maxBarThickness: 28 },
+                    { label: 'Pendidikan Teknik Elektro', data: d3elektro, backgroundColor: 'rgba(25,135,84,0.85)', borderRadius: 3, maxBarThickness: 28 }
                 ]
             },
             options: {
@@ -277,33 +279,33 @@
                     tooltip: { backgroundColor: '#1e293b', titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 }
                 },
                 scales: {
-                    x: { stacked: true, ticks: { maxRotation: 45, autoSkip: true } },
-                    y: { stacked: true, beginAtZero: true }
+                    x: { stacked: false, ticks: { maxRotation: 0 } },
+                    y: { stacked: false, beginAtZero: true }
                 },
                 animation: { easing: 'easeInQuad', duration: 1200 }
             }
         });
     })();
 
-    /* 5b. Skripsi */
+    /* 5b. Skripsi & KP — 4 kategori */
     (function () {
         var ctx = document.getElementById('chartSkripsi');
         if (!ctx) return;
 
-        var data = [12, 14, 6, 6];
+        var data = [24, 38, 18, 12];
         var total = data.reduce(function (a, b) { return a + b; }, 0);
 
         new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Proposal', 'Penelitian', 'Yudisium', 'Selesai'],
+                labels: ['Kerja Praktek', 'Proposal Skripsi', 'Hasil Penelitian', 'Tutup'],
                 datasets: [{
                     data: data,
                     backgroundColor: [
+                        'rgba(13,202,240,0.85)',
                         'rgba(13,110,253,0.85)',
                         'rgba(251,191,36,0.85)',
-                        'rgba(168,85,247,0.85)',
-                        'rgba(25,135,84,0.85)'
+                        'rgba(168,85,247,0.85)'
                     ],
                     borderWidth: 2,
                     borderColor: '#fff',
@@ -345,7 +347,7 @@
                     c.fillText(total, w / 2, h / 2 - 8);
                     c.font = '500 ' + Math.round(h * 0.055) + 'px "Inter", system-ui, sans-serif';
                     c.fillStyle = '#6b7280';
-                    c.fillText('Total Skripsi', w / 2, h / 2 + 18);
+                    c.fillText('Total Aktif', w / 2, h / 2 + 18);
                     c.restore();
                 }
             }]

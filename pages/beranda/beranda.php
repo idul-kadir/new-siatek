@@ -13,24 +13,45 @@
     <section class="mb-4">
         <div class="kpi-row">
             <a href="#" class="kpi-card card-kpi card-kpi--info">
-                <div class="card-kpi-icon"><i class="bi bi-people-fill"></i></div>
+                <div class="card-kpi-icon"><i class="bi bi-diagram-3-fill"></i></div>
                 <div class="card-kpi-body">
-                    <span class="card-kpi-value" data-skeleton="true">2.847</span>
-                    <span class="card-kpi-label">Mahasiswa Aktif</span>
+                    <span class="card-kpi-value" data-skeleton="true">1.124</span>
+                    <span class="card-kpi-label">Teknik Elektro</span>
+                </div>
+            </a>
+            <a href="#" class="kpi-card card-kpi card-kpi--primary">
+                <div class="card-kpi-icon"><i class="bi bi-laptop-fill"></i></div>
+                <div class="card-kpi-body">
+                    <span class="card-kpi-value" data-skeleton="true">978</span>
+                    <span class="card-kpi-label">Teknik Komputer</span>
                 </div>
             </a>
             <a href="#" class="kpi-card card-kpi card-kpi--success">
+                <div class="card-kpi-icon"><i class="bi bi-building"></i></div>
+                <div class="card-kpi-body">
+                    <span class="card-kpi-value" data-skeleton="true">745</span>
+                    <span class="card-kpi-label">Pendidikan Teknik Elektro</span>
+                </div>
+            </a>
+            <a href="#" class="kpi-card card-kpi card-kpi--warning">
                 <div class="card-kpi-icon"><i class="bi bi-person-workspace"></i></div>
                 <div class="card-kpi-body">
                     <span class="card-kpi-value" data-skeleton="true">142</span>
                     <span class="card-kpi-label">Dosen Terdaftar</span>
                 </div>
             </a>
-            <a href="#" class="kpi-card card-kpi card-kpi--primary">
+            <a href="#" class="kpi-card card-kpi card-kpi--info">
                 <div class="card-kpi-icon"><i class="bi bi-mortarboard-fill"></i></div>
                 <div class="card-kpi-body">
                     <span class="card-kpi-value" data-skeleton="true">38</span>
-                    <span class="card-kpi-label">Bimbingan Skripsi Aktif</span>
+                    <span class="card-kpi-label">Skripsi Aktif</span>
+                </div>
+            </a>
+            <a href="#" class="kpi-card card-kpi card-kpi--primary">
+                <div class="card-kpi-icon"><i class="bi bi-briefcase-fill"></i></div>
+                <div class="card-kpi-body">
+                    <span class="card-kpi-value" data-skeleton="true">24</span>
+                    <span class="card-kpi-label">KP Aktif</span>
                 </div>
             </a>
             <a href="#" class="kpi-card card-kpi card-kpi--danger">
@@ -40,13 +61,6 @@
                     <span class="card-kpi-label">Menunggu TTD</span>
                 </div>
                 <span class="card-kpi-badge badge-flash">Penting</span>
-            </a>
-            <a href="#" class="kpi-card card-kpi card-kpi--whatsapp">
-                <div class="card-kpi-icon"><i class="bi bi-whatsapp"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value" data-skeleton="true">156</span>
-                    <span class="card-kpi-label">WA Terkirim (Hari Ini)</span>
-                </div>
             </a>
         </div>
     </section>
@@ -58,7 +72,7 @@
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <h6 class="chart-card-title"><i class="bi bi-bar-chart-fill me-1"></i>Angkatan Mahasiswa</h6>
-                        <small class="text-muted">S1 Teknik Elektro vs Teknik Komputer (2009–2025)</small>
+                        <small class="text-muted">Angkatan mahasiswa 5 tahun terakhir (sejajar per prodi)</small>
                     </div>
                     <div class="chart-card-body">
                         <canvas id="chartAngkatan"></canvas>
@@ -68,8 +82,8 @@
             <div class="col-12 col-lg-6">
                 <div class="chart-card">
                     <div class="chart-card-header">
-                        <h6 class="chart-card-title"><i class="bi bi-pie-chart-fill me-1"></i>Progress Skripsi</h6>
-                        <small class="text-muted">Distribusi tahapan bimbingan saat ini</small>
+                        <h6 class="chart-card-title"><i class="bi bi-pie-chart-fill me-1"></i>Ringkasan Aktif</h6>
+                        <small class="text-muted">Distribusi KP &amp; Skripsi per fase saat ini</small>
                     </div>
                     <div class="chart-card-body chart-card-body--center">
                         <canvas id="chartSkripsi"></canvas>
@@ -105,140 +119,145 @@
     <section class="mb-4">
         <div class="row g-3">
             <!-- Tanda Tangan Digital -->
-            <div class="col-12 col-xl-5">
+            <div class="col-12 col-xl-4">
                 <div class="feed-card">
                     <div class="feed-card-header">
                         <h6 class="feed-card-title"><i class="bi bi-pen-fill me-1"></i>Tanda Tangan Digital</h6>
                         <a href="#" class="feed-card-action">Lihat Semua <i class="bi bi-arrow-right"></i></a>
                     </div>
-                    <div class="feed-card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover feed-table mb-0">
-                                <thead>
-                                    <tr>
-                                        <th style="font-size:.78rem;">Mahasiswa</th>
-                                        <th style="font-size:.78rem;">No. Surat</th>
-                                        <th style="font-size:.78rem;" class="text-end">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td style="font-size:.82rem;">Ahmad Fauzi</td>
-                                        <td style="font-size:.82rem;">SK-2026/0847</td>
-                                        <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-size:.82rem;">Siti Nurhaliza</td>
-                                        <td style="font-size:.82rem;">SK-2026/0851</td>
-                                        <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-size:.82rem;">Budi Santoso</td>
-                                        <td style="font-size:.82rem;">SK-2026/0855</td>
-                                        <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-size:.82rem;">Dewi Lestari</td>
-                                        <td style="font-size:.82rem;">SK-2026/0860</td>
-                                        <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-size:.82rem;">Rizky Pratama</td>
-                                        <td style="font-size:.82rem;">SK-2026/0863</td>
-                                        <td class="text-end"><button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="feed-card-body">
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Ahmad Fauzi <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;">SK-2026/0847</span></small>
+                                <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Surat Penunjukan Pembimbing — Proposal</p>
+                        </div>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Siti Nurhaliza <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;">SK-2026/0851</span></small>
+                                <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Surat Penunjukan Penguji — Hasil</p>
+                        </div>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Budi Santoso <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;">SK-2026/0855</span></small>
+                                <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Surat Penugasan Pembimbing — KP</p>
+                        </div>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Dewi Lestari <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;">SK-2026/0860</span></small>
+                                <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Surat Penunjukan Penguji — Tutup</p>
+                        </div>
+                        <hr>
+                        <div class="broadcast-item">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Rizky Pratama <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;">SK-2026/0863</span></small>
+                                <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Surat Keterangan Lulus — Yudisium</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Broadcast Terbaru -->
-            <div class="col-12 col-md-6 col-xl-4">
+            <!-- Log Aktivitas Skripsi -->
+            <div class="col-12 col-xl-4">
                 <div class="feed-card">
                     <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-whatsapp me-1"></i>Broadcast Terbaru</h6>
-                        <a href="#" class="feed-card-action">Arsip <i class="bi bi-arrow-right"></i></a>
+                        <h6 class="feed-card-title"><i class="bi bi-journal-text me-1"></i>Log Aktivitas Skripsi</h6>
+                        <a href="#" class="feed-card-action">Semua <i class="bi bi-arrow-right"></i></a>
                     </div>
                     <div class="feed-card-body">
                         <div class="broadcast-item mb-3">
                             <div class="d-flex justify-content-between mb-1 gap-2">
-                                <small class="fw-semibold">Semua Dosen</small>
-                                <span class="badge badge-success-subtle text-success">Terkirim</span>
+                                <small class="fw-semibold">Mariska Palakum</small>
+                                <span class="badge bg-primary-subtle text-primary">Proposal</span>
                             </div>
-                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Dimohon kehadiran seluruh dosen pada rapat..."</p>
-                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>2 jam lalu</small>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Mengunggah laporan proposal &amp; lembar bimbingan</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>1 jam lalu</small>
                         </div>
                         <hr>
                         <div class="broadcast-item mb-3">
                             <div class="d-flex justify-content-between mb-1 gap-2">
-                                <small class="fw-semibold">Mahasiswa Aktif</small>
-                                <span class="badge badge-success-subtle text-success">Terkirim</span>
+                                <small class="fw-semibold">Yusfiyah F Daud</small>
+                                <span class="badge bg-success-subtle text-success">Tutup</span>
                             </div>
-                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Jadwal ujian semester genap telah dipublikasikan..."</p>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Verifikasi lembar pembimbing disetujui</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>3 jam lalu</small>
+                        </div>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Salsabila Buka</small>
+                                <span class="badge bg-info-subtle text-info">KP</span>
+                            </div>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Membuat surat penunjukan pembimbing</p>
                             <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>5 jam lalu</small>
                         </div>
                         <hr>
                         <div class="broadcast-item">
                             <div class="d-flex justify-content-between mb-1 gap-2">
-                                <small class="fw-semibold">Bimbingan Skripsi</small>
-                                <span class="badge badge-warning-subtle text-warning">Terjadwal</span>
+                                <small class="fw-semibold">Nur Uyun I Yusuf</small>
+                                <span class="badge bg-warning-subtle text-warning">Hasil</span>
                             </div>
-                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">"Pengingat jadwal bimbingan skripsi minggu ini..."</p>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Mengupload berita acara &amp; lembar penilaian hasil</p>
                             <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>Kemarin</small>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Log Mahasiswa Baru -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <!-- Log Kerja Praktek -->
+            <div class="col-12 col-xl-4">
                 <div class="feed-card">
                     <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-person-plus-fill me-1"></i>Mahasiswa Baru</h6>
-                        <a href="#" class="feed-card-action">Detail <i class="bi bi-arrow-right"></i></a>
+                        <h6 class="feed-card-title"><i class="bi bi-briefcase-fill me-1"></i>Log Kerja Praktek</h6>
+                        <a href="#" class="feed-card-action">Semua <i class="bi bi-arrow-right"></i></a>
                     </div>
                     <div class="feed-card-body">
-                        <div class="student-log-item d-flex align-items-center gap-2 mb-3">
-                            <div class="student-avatar" style="background:#e7f1ff; color:#0d6efd;">AF</div>
-                            <div class="flex-grow-1 min-w-0">
-                                <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Ahmad Fauzi</small>
-                                <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100001 • T. Elektro</small>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Andi Wijaya</small>
+                                <span class="badge bg-primary-subtle text-primary">Penugasan</span>
                             </div>
-                            <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Mengunggah surat keterangan magang &amp; lembar bimbingan</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>2 jam lalu</small>
                         </div>
-                        <div class="student-log-item d-flex align-items-center gap-2 mb-3">
-                            <div class="student-avatar" style="background:#f0f8e8; color:#198754;">SN</div>
-                            <div class="flex-grow-1 min-w-0">
-                                <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Siti Nurhaliza</small>
-                                <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100002 • T. Komputer</small>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Dina Rahmawati</small>
+                                <span class="badge bg-success-subtle text-success">Pelaksanaan</span>
                             </div>
-                            <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Verifikasi laporan tengah magang disetujui</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>4 jam lalu</small>
                         </div>
-                        <div class="student-log-item d-flex align-items-center gap-2 mb-3">
-                            <div class="student-avatar" style="background:#fef3e2; color:#fd7e14;">BS</div>
-                            <div class="flex-grow-1 min-w-0">
-                                <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Budi Santoso</small>
-                                <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100003 • T. Elektro</small>
+                        <hr>
+                        <div class="broadcast-item mb-3">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Fajar Hidayat</small>
+                                <span class="badge bg-info-subtle text-info">Laporan</span>
                             </div>
-                            <span class="badge bg-info-subtle text-info" style="font-size:.68rem;">Pending</span>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Mengupload laporan akhir KP &amp; lembar penilaian</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>6 jam lalu</small>
                         </div>
-                        <div class="student-log-item d-flex align-items-center gap-2 mb-3">
-                            <div class="student-avatar" style="background:#fce4ec; color:#dc3545;">DL</div>
-                            <div class="flex-grow-1 min-w-0">
-                                <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Dewi Lestari</small>
-                                <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100004 • T. Komputer</small>
+                        <hr>
+                        <div class="broadcast-item">
+                            <div class="d-flex justify-content-between mb-1 gap-2">
+                                <small class="fw-semibold">Bayu Taufik</small>
+                                <span class="badge bg-danger-subtle text-danger">Sidang</span>
                             </div>
-                            <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">Verifikasi</span>
-                        </div>
-                        <div class="student-log-item d-flex align-items-center gap-2">
-                            <div class="student-avatar" style="background:#f3e8fd; color:#6f42c1;">RP</div>
-                            <div class="flex-grow-1 min-w-0">
-                                <small class="fw-semibold d-block text-truncate" style="font-size:.82rem;">Rizky Pratama</small>
-                                <small class="text-muted d-block text-truncate" style="font-size:.72rem;">NIM: 2025100005 • T. Elektro</small>
-                            </div>
-                            <span class="badge bg-warning-subtle text-warning" style="font-size:.68rem;">Revisi</span>
+                            <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;">Membuat surat penunjukan penguji sidang KP</p>
+                            <small class="text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>Kemarin</small>
                         </div>
                     </div>
                 </div>

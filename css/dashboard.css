@@ -489,7 +489,7 @@ a { text-decoration: none; }
 
 @media (min-width: 576px)  { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 992px)  { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 1200px) { .kpi-row { grid-template-columns: repeat(5, 1fr); } }
+@media (min-width: 1200px) { .kpi-row { grid-template-columns: repeat(7, 1fr); } }
 
 /* ======================================================
    KPI CARDS
@@ -528,8 +528,8 @@ a { text-decoration: none; }
 .card-kpi--primary { border-color: #c7d2fe; }
 .card-kpi--primary .card-kpi-icon { background: #eef2ff; color: #6366f1; }
 
-.card-kpi--whatsapp { border-color: #bbf7d0; }
-.card-kpi--whatsapp .card-kpi-icon { background: #f0fdf4; color: var(--color-whatsapp); }
+.card-kpi--warning { border-color: #fde68a; }
+.card-kpi--warning .card-kpi-icon { background: #fffbeb; color: var(--color-warning); }
 
 .card-kpi-icon {
     width: 48px;
@@ -563,6 +563,9 @@ a { text-decoration: none; }
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ---------- Prodi Card Sub-label (legacy, tidak dipakai lagi) ---------- */
+/* Disatukan ke KPI row utama */
 
 .card-kpi-badge {
     font-size: 0.6rem;
@@ -631,6 +634,16 @@ a { text-decoration: none; }
 }
 
 .feed-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+
+/* ---------- Equal height di row feed-card ========== */
+.row.g-3 > [class*="col"] {
+    display: flex;
+    flex-direction: column;
+}
+
+.row.g-3 > [class*="col"] > .feed-card {
+    flex: 1 1 auto;
+}
 
 .feed-card-header {
     padding: 14px 18px;
