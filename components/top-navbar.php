@@ -1,32 +1,31 @@
 <?php
 /**
- * Top Navbar — Statis
+ * Top Navbar — Statis (Tailwind)
  * Variabel: $pageTitle (string) — judul halaman di navbar
  */
-
 $pageTitle = $pageTitle ?? 'Beranda';
 ?>
 
-<header class="top-navbar">
-    <button class="btn hamburger-btn" id="hamburgerBtn">
-        <i class="bi bi-list fs-4"></i>
-    </button>
-    <div class="navbar-title">
-        <h1 class="h5 mb-0"><?= htmlspecialchars($pageTitle) ?></h1>
-        <small class="text-muted d-none d-sm-block">Sistem Informasi Akademik Teknik Elektro &amp; Komputer</small>
-    </div>
-    <div class="navbar-actions d-flex align-items-center gap-2 gap-sm-3">
-        <button class="btn btn-icon position-relative" title="Notifikasi">
-            <i class="bi bi-bell-fill"></i>
-            <span class="notification-badge">3</span>
+<header class="bg-white h-16 border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10 flex-shrink-0">
+
+    <!-- Left: hamburger + judul -->
+    <div class="flex items-center gap-3 min-w-0">
+        <button id="hamburgerBtn" class="md:hidden text-slate-600 hover:text-slate-900 text-xl leading-none px-2" aria-label="Buka menu">
+            <i class="fas fa-bars"></i>
         </button>
-        <div class="user-profile d-flex align-items-center gap-2">
-            <img src="https://ui-avatars.com/api/?name=Ridwan+Kadir&background=0d6efd&color=fff&size=36" alt="Avatar" class="avatar-img">
-            <div class="user-info d-none d-sm-block">
-                <span class="user-name fw-semibold d-block" style="font-size:.85rem;">Ridwan Kadir</span>
-                <small class="text-muted" style="font-size:.7rem;">Administrator</small>
-            </div>
-            <i class="bi bi-chevron-down text-muted d-none d-sm-block" style="font-size:.7rem;"></i>
+        <div class="min-w-0">
+            <h2 class="text-base sm:text-lg font-semibold text-slate-900 tracking-tight truncate"><?= htmlspecialchars($pageTitle) ?></h2>
+            <p class="text-xs text-slate-500 hidden sm:block">Sistem Informasi Administrasi Teknik Elektro dan Komputer</p>
+        </div>
+    </div>
+
+    <!-- Right: user -->
+    <div class="flex items-center gap-3 cursor-pointer">
+        <img src="https://ui-avatars.com/api/?background=f97316&color=fff&name=A" alt="User"
+             class="w-8 h-8 rounded-full">
+        <div class="hidden md:block leading-tight">
+            <p class="text-sm font-medium text-slate-900">Admin Dept</p>
+            <p class="text-xs text-slate-500">Super Admin</p>
         </div>
     </div>
 </header>

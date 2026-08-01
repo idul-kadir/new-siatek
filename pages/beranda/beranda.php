@@ -1,9 +1,10 @@
 <?php
 /**
- * Halaman Beranda — Dashboard utama dengan KPI cards, charts, feeds, dll.
+ * Halaman Beranda — Dashboard utama (Tailwind, mengikuti template.html).
  *
- * Semua data diambil langsung dari database (tabel prodi, mahasiswa, dosen,
- * skripsi, kp, pengumuman, agenda, surat_penunjukkan, arsip_*, broadcast).
+ * Query DB tetap dari versi Bootstrap (data mahasiswa, dosen, skripsi, kp,
+ * surat_penunjukkan, pengumuman, agenda, dsb). Konten visual dirender
+ * dengan class Tailwind agar match dengan template.html.
  */
 
 require_once __DIR__ . '/../../koneksi.php';
@@ -12,11 +13,11 @@ require_once __DIR__ . '/../../koneksi.php';
    QUERY SEMUA DATA YANG DIPERLUKAN
    ================================================================ */
 
-// --- KPI: Prodi & Mahasiswa (hanya yang aktif, maksimal 7 tahun / angkatan >= 2019) ---
+// --- KPI: Prodi & Mahasiswa (aktif, 7 tahun terakhir) ---
 $qProdi = mysqli_query($koneksi, "SELECT * FROM prodi ORDER BY nama");
 $prodiList = [];
 $totalMhs = 0;
-$aktifSince = date('Y') - 7; // 7 tahun terakhir
+$aktifSince = date('Y') - 7;
 while ($p = mysqli_fetch_assoc($qProdi)) {
     $q = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE prodi='" . mysqli_real_escape_string($koneksi, $p['kode']) . "' AND angkatan >= $aktifSince AND status='Aktif'");
     $r = mysqli_fetch_assoc($q);
@@ -34,59 +35,37 @@ $qKpAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM kp WHERE status='a
 $kpAktif = (int)mysqli_fetch_assoc($qKpAktif)['c'];
 
 // --- Surat Penunjukkan (TTD) ---
-// KPI "Menunggu TTD" = total surat penunjukkan yang kolom ttd-nya masih kosong
 $qTTDPending = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM surat_penunjukkan WHERE ttd='' OR ttd IS NULL");
 $ttdPendingTotal = (int)mysqli_fetch_assoc($qTTDPending)['c'];
 
-// Feed: tampilkan 5 surat terbaru yang masih menunggu TTD
+// Feed: 5 surat terbaru yang masih menunggu TTD
 $qTTD = mysqli_query($koneksi, "SELECT sp.*, m.nama FROM surat_penunjukkan sp LEFT JOIN mahasiswa m ON sp.nim=m.nim WHERE sp.ttd='' OR sp.ttd IS NULL ORDER BY sp.id DESC LIMIT 5");
 $ttdItems = [];
 while ($t = mysqli_fetch_assoc($qTTD)) {
     $ttdItems[] = $t;
 }
 
-// --- Pengumuman (latest) ---
-$qAnn = mysqli_query($koneksi, "SELECT p.*, d.nama AS penulis FROM pengumuman p LEFT JOIN dosen d ON p.nip=d.nip ORDER BY p.id DESC LIMIT 5");
-$annItems = [];
-while ($a = mysqli_fetch_assoc($qAnn)) {
-    $a['tanggal_fmt'] = @date('d M Y', $a['tanggal']);
-    $a['status_short'] = strlen($a['status']) > 120 ? substr($a['status'], 0, 120) . '...' : $a['status'];
-    $annItems[] = $a;
+// --- Chart 1: Angkatan Mahasiswa (7 tahun terakhir, per prodi) ---
+// Range tahun penuh 7 tahun terakhir (ascending) — walau belum ada data di DB
+$thnSekarang = (int)date('Y');
+$recentYears = [];
+for ($y = $thnSekarang - 6; $y <= $thnSekarang; $y++) {
+    $recentYears[] = (string)$y;
 }
 
-// --- Agenda (upcoming) ---
-$nowTs = time();
-$qAgenda = mysqli_query($koneksi, "SELECT a.*, d.nama AS penulis FROM agenda a LEFT JOIN dosen d ON a.penulis=d.nip WHERE a.tanggal > $nowTs ORDER BY a.tanggal ASC LIMIT 10");
-$agendaItems = [];
-while ($g = mysqli_fetch_assoc($qAgenda)) {
-    $g['tanggal_fmt'] = @date('d M Y', $g['tanggal']);
-    $g['bulan_indo'] = date('F', $g['tanggal']);
-    $g['hari_indo'] = date('l', $g['tanggal']);
-    $agendaItems[] = $g;
-}
-
-// --- Chart 1: Angkatan Mahasiswa (5 tahun terakhir, per prodi) ---
-// hanya yang aktif dan angkatan <= 7 tahun terakhir
-$aktifSince = date('Y') - 7;
+$qAngkatan = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE status='Aktif' AND angkatan >= " . ($thnSekarang - 6) . " GROUP BY angkatan");
 $angkatanTotal = [];
-$qAngkatan = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE status='Aktif' AND angkatan >= $aktifSince GROUP BY angkatan ORDER BY angkatan DESC");
 while ($a = mysqli_fetch_assoc($qAngkatan)) {
     $angkatanTotal[(int)$a['angkatan']] = (int)$a['c'];
 }
+
 $angkatanPerProdi = [];
 foreach ($prodiList as $pr) {
-    $q = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE prodi='" . mysqli_real_escape_string($koneksi, $pr['kode']) . "' AND status='Aktif' AND angkatan >= $aktifSince GROUP BY angkatan ORDER BY angkatan DESC");
+    $q = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE prodi='" . mysqli_real_escape_string($koneksi, $pr['kode']) . "' AND status='Aktif' AND angkatan >= " . ($thnSekarang - 6) . " GROUP BY angkatan");
     while ($a = mysqli_fetch_assoc($q)) {
         $angkatanPerProdi[$pr['kode']][(int)$a['angkatan']] = (int)$a['c'];
     }
 }
-// Ambil 5 tahun terakhir
-$recentYears = [];
-$keys = array_keys($angkatanTotal);
-for ($i = 0; $i < 5 && $i < count($keys); $i++) {
-    $recentYears[] = (string)$keys[$i];
-}
-// Siapkan data per prodi untuk chart
 $chartDatasetLabels = [];
 $chartDatasetValues = [];
 foreach ($prodiList as $pr) {
@@ -98,281 +77,240 @@ foreach ($prodiList as $pr) {
     $chartDatasetValues[] = $vals;
 }
 
-// --- Chart 2: Ringkasan Aktif (Skripsi/KP per fase) ---
-// Mahasiswa skripsi bergerak: proposal → hasil → tutup.
-// Jika sudah di tutup, artinya sudah lewat hasil dan proposal.
-// Jika sudah di hasil (tapi belum tutup), artinya sedang di tahap hasil.
-// Disinkronkan dengan tabel skripsi: hanya mahasiswa dengan skripsi.status='aktif'
-// dan angkatan <= 7 tahun terakhir yang dihitung (sesuai definisi "aktif").
-$aktifSince = date('Y') - 7;
+// --- Chart 2 doughnut: Distribusi konsentrasi (mahasiswa per prodi) ---
+$concentrationLabels = [];
+$concentrationValues = [];
+foreach ($prodiList as $pr) {
+    $concentrationLabels[] = $pr['nama'];
+    $concentrationValues[] = (int)$pr['mahasiswa'];
+}
+$concentrationTotal = array_sum($concentrationValues);
 
-$qTutup = mysqli_query($koneksi, "SELECT COUNT(DISTINCT t.nim) AS c
-                                   FROM tutup t
-                                   INNER JOIN skripsi s ON t.nim=s.nim
-                                   INNER JOIN mahasiswa m ON t.nim=m.nim
-                                   WHERE s.status='aktif' AND m.angkatan >= $aktifSince");
-$tutupCount = (int)mysqli_fetch_assoc($qTutup)['c'];
-
-$qHasil = mysqli_query($koneksi, "SELECT COUNT(DISTINCT h.nim) AS c
-                                   FROM hasil h
-                                   INNER JOIN skripsi s ON h.nim=s.nim
-                                   INNER JOIN mahasiswa m ON h.nim=m.nim
-                                   LEFT JOIN tutup t ON h.nim=t.nim
-                                   WHERE s.status='aktif' AND m.angkatan >= $aktifSince
-                                   AND t.nim IS NULL");
-$hasilCount = (int)mysqli_fetch_assoc($qHasil)['c'];
-
-$qProp = mysqli_query($koneksi, "SELECT COUNT(DISTINCT p.nim) AS c
-                                   FROM proposal p
-                                   INNER JOIN skripsi s ON p.nim=s.nim
-                                   INNER JOIN mahasiswa m ON p.nim=m.nim
-                                   LEFT JOIN hasil h ON p.nim=h.nim
-                                   LEFT JOIN tutup t ON p.nim=t.nim
-                                   WHERE s.status='aktif' AND m.angkatan >= $aktifSince
-                                   AND h.nim IS NULL AND t.nim IS NULL");
-$propCount = (int)mysqli_fetch_assoc($qProp)['c'];
-$ringkesData = [
-    'Kerja Praktek' => $kpAktif,
-    'Proposal Skripsi' => $propCount,
-    'Hasil Penelitian' => $hasilCount,
-    'Tutup' => $tutupCount,
-];
-$ringkesTotal = array_sum($ringkesData);
-
-// --- Chart 3: Sinkronisasi Sister DIHAPUS ---
-// --- Chart 4: Beban Kerja Operasional DIHAPUS ---
-
-/* ================================================================
-   HELPER: Format bulan Indonesia
-   ================================================================ */
-function bulanIndo($ts) {
-    $bulans = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    return $bulans[date('n', $ts) - 1] . ' ' . date('Y', $ts);
+// --- Agenda (upcoming) — dipakai untuk jadwal lab ---
+$nowTs = time();
+$qAgenda = mysqli_query($koneksi, "SELECT a.*, d.nama AS penulis FROM agenda a LEFT JOIN dosen d ON a.penulis=d.nip WHERE a.tanggal > $nowTs ORDER BY a.tanggal ASC LIMIT 4");
+$agendaItems = [];
+while ($g = mysqli_fetch_assoc($qAgenda)) {
+    $g['tanggal_fmt'] = date('d M Y', $g['tanggal']);
+    $agendaItems[] = $g;
 }
 
+/* ================================================================
+   HELPER
+   ================================================================ */
+function timeAgo($ts) {
+    $diff = time() - (int)$ts;
+    if ($diff < 60) return 'baru saja';
+    if ($diff < 3600) return floor($diff / 60) . ' menit lalu';
+    if ($diff < 86400) return floor($diff / 3600) . ' jam lalu';
+    return floor($diff / 86400) . ' hari lalu';
+}
+
+$hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+$bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+$today_label = $hari[(int)date('w')] . ', ' . (int)date('d') . ' ' . $bulan[(int)date('n')] . ' ' . date('Y');
+
+/* Palet warna kartu KPI (colorful) */
+$kpiPalettes = [
+    [
+        'icon' => 'fa-users',       'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
+        'card_bg' => 'bg-gradient-to-br from-blue-500 to-blue-700',
+        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
+    ],
+    [
+        'icon' => 'fa-user-tie',    'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
+        'card_bg' => 'bg-gradient-to-br from-emerald-500 to-emerald-700',
+        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
+    ],
+    [
+        'icon' => 'fa-book',        'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
+        'card_bg' => 'bg-gradient-to-br from-orange-500 to-orange-600',
+        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
+    ],
+    [
+        'icon' => 'fa-briefcase',   'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
+        'card_bg' => 'bg-gradient-to-br from-purple-500 to-purple-700',
+        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
+    ],
+];
 ?>
 
-<main class="content-area">
+<main class="flex-1 overflow-y-auto bg-slate-50">
 
-    <!-- ===== KPI Summary Cards ===== -->
-    <section class="mb-4">
-        <div class="kpi-row">
-            <?php foreach ($prodiList as $idx => $pr): ?>
-            <a href="#" class="kpi-card card-kpi <?= ['card-kpi--info','card-kpi--primary','card-kpi--success'][$idx % 3] ?>">
-                <div class="card-kpi-icon"><i class="bi bi-diagram-3-fill"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value"><?= number_format($pr['mahasiswa']) ?></span>
-                    <span class="card-kpi-label"><?= htmlspecialchars($pr['nama']) ?></span>
+    <div class="p-8 space-y-6">
+
+        <!-- ============ Banner Welcome ============ -->
+        <div class="bg-[#1a365d] p-6 rounded-xl shadow-sm flex flex-col justify-center text-white relative overflow-hidden min-h-[120px]">
+            <div class="relative z-10">
+                <h3 class="text-xl font-semibold mb-1">Selamat Datang di SIATEK, Admin</h3>
+                <p class="text-slate-300 text-sm font-normal">
+                    Pantau aktivitas administrasi, akademik, dan laboratorium departemen hari ini.
+                </p>
+            </div>
+            <div class="absolute -right-12 -bottom-12 w-48 h-48 bg-white/5 rounded-full"></div>
+            <div class="absolute -right-24 -top-24 w-64 h-64 bg-white/5 rounded-full"></div>
+        </div>
+
+        <!-- ============ Quick Stats (4 KPI) ============ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <?php
+            $kpis = [
+                ['Total Mahasiswa',   $totalMhs,      'Aktif',    0],
+                ['Dosen &amp; Staff', $dosenAktif,    'Terdaftar', 1],
+                ['Skripsi Aktif',     $skripsiAktif,  'Berjalan',  2],
+                ['KP Aktif',          $kpAktif,       'Berjalan',  3],
+            ];
+            foreach ($kpis as $i => [$label, $val, $badge, $pi]):
+                $pal = $kpiPalettes[$pi];
+            ?>
+            <div class="<?= $pal['card_bg'] ?> p-5 rounded-xl card-shadow card-hover flex flex-col justify-between h-32 relative overflow-hidden">
+                <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full"></div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div class="w-10 h-10 <?= $pal['icon_bg'] ?> rounded-lg flex items-center justify-center <?= $pal['icon_text'] ?>">
+                        <i class="fas <?= $pal['icon'] ?> text-sm"></i>
+                    </div>
+                    <span class="<?= $pal['badge_bg'] ?> <?= $pal['badge_text'] ?> px-2 py-0.5 rounded-full text-xs font-medium"><?= $badge ?></span>
                 </div>
-            </a>
+                <div class="relative z-10">
+                    <p class="<?= $pal['label'] ?> text-xs font-normal"><?= $label ?></p>
+                    <h3 class="text-2xl font-bold <?= $pal['value'] ?> mt-0.5"><?= number_format($val) ?></h3>
+                </div>
+            </div>
             <?php endforeach; ?>
-
-            <a href="#" class="kpi-card card-kpi card-kpi--warning">
-                <div class="card-kpi-icon"><i class="bi bi-person-workspace"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value"><?= number_format($dosenAktif) ?></span>
-                    <span class="card-kpi-label">Dosen Terdaftar</span>
-                </div>
-            </a>
-
-            <a href="#" class="kpi-card card-kpi card-kpi--info">
-                <div class="card-kpi-icon"><i class="bi bi-mortarboard-fill"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value"><?= number_format($skripsiAktif) ?></span>
-                    <span class="card-kpi-label">Skripsi Aktif</span>
-                </div>
-            </a>
-
-            <a href="#" class="kpi-card card-kpi card-kpi--primary">
-                <div class="card-kpi-icon"><i class="bi bi-briefcase-fill"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value"><?= number_format($kpAktif) ?></span>
-                    <span class="card-kpi-label">KP Aktif</span>
-                </div>
-            </a>
-
-            <a href="#" class="kpi-card card-kpi card-kpi--danger">
-                <div class="card-kpi-icon"><i class="bi bi-pen-fill"></i></div>
-                <div class="card-kpi-body">
-                    <span class="card-kpi-value"><?= number_format($ttdPendingTotal) ?></span>
-                    <span class="card-kpi-label">Menunggu TTD</span>
-                </div>
-                <span class="card-kpi-badge badge-flash">Penting</span>
-            </a>
         </div>
-    </section>
 
-    <!-- ===== Charts Row 1x2 ===== -->
-    <section class="mb-4">
-        <div class="row g-3">
-            <div class="col-12 col-lg-6">
-                <div class="chart-card">
-                    <div class="chart-card-header">
-                        <h6 class="chart-card-title"><i class="bi bi-bar-chart-fill me-1"></i>Angkatan Mahasiswa</h6>
-                        <small class="text-muted">Angkatan mahasiswa 5 tahun terakhir</small>
+        <!-- ============ Charts ============ -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- Main Chart -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl card-shadow">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="font-semibold text-slate-900 text-base">Tren Pendaftaran Mahasiswa Baru</h3>
+                        <p class="text-xs text-slate-500 mt-1">Data 7 tahun terakhir per prodi</p>
                     </div>
-                    <div class="chart-card-body">
-                        <canvas id="chartAngkatan"></canvas>
-                    </div>
+                </div>
+                <div style="height: 260px">
+                    <canvas id="enrollmentChart"></canvas>
                 </div>
             </div>
-            <div class="col-12 col-lg-6">
-                <div class="chart-card">
-                    <div class="chart-card-header">
-                        <h6 class="chart-card-title"><i class="bi bi-pie-chart-fill me-1"></i>Ringkasan Aktif</h6>
-                        <small class="text-muted">Distribusi KP &amp; Skripsi per fase saat ini</small>
-                    </div>
-                    <div class="chart-card-body chart-card-body--center">
-                        <canvas id="chartSkripsi"></canvas>
-                    </div>
+
+            <!-- Side Chart -->
+            <div class="bg-white p-6 rounded-xl card-shadow">
+                <div class="mb-6">
+                    <h3 class="font-semibold text-slate-900 text-base">Distribusi Konsentrasi</h3>
+                    <p class="text-xs text-slate-500 mt-1">Berdasarkan program studi</p>
+                </div>
+                <div style="height: 260px">
+                    <canvas id="concentrationChart"></canvas>
                 </div>
             </div>
         </div>
-    </section>
 
-    <!-- ===== Tanda Tangan Digital (empty log section replaced) ===== -->
-    <section class="mb-4">
-        <div class="row g-3">
-            <!-- Tanda Tangan Digital -->
-            <div class="col-12 col-xl-4">
-                <div class="feed-card">
-                    <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-pen-fill me-1"></i>Tanda Tangan Digital</h6>
-                        <a href="#" class="feed-card-action">Lihat Semua <i class="bi bi-arrow-right"></i></a>
+        <!-- ============ Table & Schedule ============ -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+            <!-- Tabel Pengajuan Judul Skripsi / TTD -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl card-shadow overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="font-semibold text-slate-900 text-base">Surat Menunggu Tanda Tangan</h3>
+                        <p class="text-xs text-slate-500 mt-1">Mahasiswa yang mengajukan dokumen resmi</p>
                     </div>
-                    <div class="feed-card-body">
-                        <?php if (count($ttdItems) > 0): ?>
-                            <?php foreach ($ttdItems as $t): ?>
-                            <div class="broadcast-item mb-3">
-                                <div class="d-flex justify-content-between mb-1 gap-2">
-                                    <small class="fw-semibold"><?= htmlspecialchars($t['nama'] ?: $t['nim']) ?> <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400;"><?= htmlspecialchars($t['no_surat']) ?></span></small>
-                                    <button class="btn btn-sm btn-signature" data-bs-toggle="modal" data-bs-target="#signModal">TTD</button>
-                                </div>
-                                <p class="broadcast-snippet mb-0" style="font-size:.8rem; color:#6c757d;"><?= htmlspecialchars($t['keterangan'] ?: 'Surat Penunjukkan') ?> — NIM <?= htmlspecialchars($t['nim']) ?></p>
-                            </div>
-                            <?php if ($t != end($ttdItems)): ?><hr><?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <p class="text-muted text-center py-3" style="font-size:.85rem;">Belum ada surat menunggu tanda tangan.</p>
-                        <?php endif; ?>
-                    </div>
+                    <a href="index.php?page=jurusan-surat-penunjukkan" class="text-xs text-[#1a365d] font-medium hover:text-[#f97316] transition">Lihat Semua</a>
                 </div>
-            </div>
-
-            <!-- Log Aktivitas Skripsi -->
-            <div class="col-12 col-xl-4">
-                <div class="feed-card">
-                    <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-journal-text me-1"></i>Log Aktivitas Skripsi</h6>
-                        <a href="#" class="feed-card-action">Semua <i class="bi bi-arrow-right"></i></a>
-                    </div>
-                    <div class="feed-card-body">
-                        <p class="text-muted text-center py-3" style="font-size:.85rem;">Belum ada aktivitas terbaru.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Log Kerja Praktek -->
-            <div class="col-12 col-xl-4">
-                <div class="feed-card">
-                    <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-briefcase-fill me-1"></i>Log Kerja Praktek</h6>
-                        <a href="#" class="feed-card-action">Semua <i class="bi bi-arrow-right"></i></a>
-                    </div>
-                    <div class="feed-card-body">
-                        <p class="text-muted text-center py-3" style="font-size:.85rem;">Belum ada aktivitas terbaru.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ===== Pengumuman & Agenda ===== -->
-    <section class="mb-4">
-        <div class="row g-3">
-            <!-- Pengumuman -->
-            <div class="col-12 col-lg-5">
-                <div class="feed-card feed-card--collapsible" id="announcementWidget">
-                    <div class="feed-card-header">
-                        <div class="d-flex align-items-center gap-2">
-                            <h6 class="feed-card-title mb-0"><i class="bi bi-megaphone-fill me-1"></i>Pengumuman</h6>
-                            <button class="btn btn-sm btn-link text-muted p-0" title="Edit Pengumuman">
-                                <i class="bi bi-gear"></i>
-                            </button>
-                        </div>
-                        <button class="btn btn-sm btn-link text-muted p-0 ms-auto" id="announcementToggle" title="Sembunyikan/Tampilkan">
-                            <i class="bi bi-chevron-up"></i>
-                        </button>
-                    </div>
-                    <div class="feed-card-body" id="announcementBody">
-                        <?php if (count($annItems) > 0): ?>
-                            <?php foreach ($annItems as $i => $a): ?>
-                            <div class="announcement-item mb-3">
-                                <?php if ($i === 0): ?><span class="badge bg-primary mb-1" style="font-size:.65rem;">Baru</span><?php endif; ?>
-                                <p class="mb-0 mt-1" style="font-size:.82rem;"><strong><?= nl2br(htmlspecialchars($a['status_short'])) ?></strong></p>
-                                <small class="text-muted" style="font-size:.72rem;">Diumumkan, <?= $a['tanggal_fmt'] ?></small>
-                            </div>
-                            <?php if ($i < count($annItems) - 1): ?><hr><?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <p class="text-muted text-center py-3" style="font-size:.85rem;">Tidak ada pengumuman.</p>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Agenda / Kalender Mini -->
-            <div class="col-12 col-lg-7">
-                <div class="feed-card">
-                    <div class="feed-card-header">
-                        <h6 class="feed-card-title"><i class="bi bi-calendar-week me-1"></i>Agenda</h6>
-                        <div class="d-flex align-items-center gap-2 ms-auto">
-                            <button class="btn btn-sm btn-link text-dark p-0" id="calPrev"><i class="bi bi-chevron-left"></i></button>
-                            <span class="fw-semibold" style="font-size:.85rem;" id="calMonthYear"><?= bulanIndo(time()) ?></span>
-                            <button class="btn btn-sm btn-link text-dark p-0" id="calNext"><i class="bi bi-chevron-right"></i></button>
-                        </div>
-                    </div>
-                    <div class="feed-card-body">
-                        <div class="calendar-grid" id="calendarGrid">
-                            <!-- Diisi oleh JS -->
-                        </div>
-                        <div class="mt-3">
-                            <small class="text-muted d-block mb-2"><strong>Agenda Mendatang:</strong></small>
-                            <?php if (count($agendaItems) > 0): ?>
-                                <?php foreach ($agendaItems as $i => $g): ?>
-                                <div class="agenda-item d-flex align-items-center gap-2 mb-2">
-                                    <span class="agenda-dot agenda-dot--exam"></span>
-                                    <small style="font-size:.78rem;"><strong><?= date('d M', $g['tanggal']) ?></strong> — <?= htmlspecialchars($g['agenda']) ?></small>
-                                </div>
-                                <?php if ($i >= 4): break; endif; ?>
-                                <?php endforeach; ?>
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-slate-500 text-xs border-b border-slate-200">
+                                <th class="py-3 px-2 font-medium uppercase tracking-wider">NIM</th>
+                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Mahasiswa</th>
+                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Keterangan</th>
+                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm text-slate-700 font-normal">
+                            <?php if (count($ttdItems) === 0): ?>
+                                <tr>
+                                    <td colspan="4" class="py-6 px-2 text-center text-slate-400 text-xs">Tidak ada surat yang menunggu tanda tangan.</td>
+                                </tr>
                             <?php else: ?>
-                                <small class="text-muted d-block" style="font-size:.78rem;">Tidak ada agenda mendatang.</small>
+                                <?php foreach ($ttdItems as $t):
+                                    $inisial = strtoupper(substr($t['nama'] ?: ($t['nim'] ?? '?'), 0, 2));
+                                    $warnaBg = ['1a365d','10b981','f97316','dc2626','6366f1','7c3aed'];
+                                    $bg = $warnaBg[crc32($t['nim'] ?? $inisial) % count($warnaBg)];
+                                ?>
+                                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                                    <td class="py-3 px-2 text-slate-500"><?= htmlspecialchars($t['nim']) ?></td>
+                                    <td class="py-3 px-2">
+                                        <div class="flex items-center space-x-3">
+                                            <img src="https://ui-avatars.com/api/?background=<?= $bg ?>&color=fff&name=<?= urlencode($inisial) ?>&size=32"
+                                                 class="w-7 h-7 rounded-full" alt="Avatar">
+                                            <span class="text-slate-900"><?= htmlspecialchars($t['nama'] ?: $t['nim']) ?></span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-2 text-slate-600"><?= htmlspecialchars($t['keterangan'] ?: 'Surat Penunjukkan') ?></td>
+                                    <td class="py-3 px-2">
+                                        <span class="bg-orange-50 text-[#f97316] px-2.5 py-1 rounded-full text-xs font-medium">Pending</span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
                             <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jadwal Lab Hari Ini -->
+            <div class="bg-white p-6 rounded-xl card-shadow">
+                <div class="mb-5">
+                    <h3 class="font-semibold text-slate-900 text-base">Agenda Mendatang</h3>
+                    <p class="text-xs text-slate-500 mt-1"><?= htmlspecialchars($today_label) ?></p>
+                </div>
+                <div class="space-y-5">
+                    <?php if (count($agendaItems) === 0): ?>
+                        <p class="text-xs text-slate-400 text-center py-4">Tidak ada agenda mendatang.</p>
+                    <?php else: ?>
+                        <?php
+                        $totalA = count($agendaItems);
+                        foreach ($agendaItems as $i => $g):
+                            $pct = max(25, 100 - ($i * (100 / max(1, $totalA))));
+                            $colorClass = $i === 0 ? '[#f97316]' : ($i === 1 ? '[#1a365d]' : 'green-600');
+                            $bgClass = $i === 0 ? 'bg-[#f97316]' : ($i === 1 ? 'bg-[#1a365d]' : 'bg-green-500');
+                        ?>
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-sm text-slate-900 truncate"><?= htmlspecialchars($g['agenda']) ?></span>
+                                <span class="text-xs font-medium text-<?= $colorClass ?>"><?= round($pct) ?>%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5">
+                                <div class="<?= $bgClass ?> h-1.5 rounded-full" style="width: <?= round($pct) ?>%"></div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1.5 font-normal">
+                                <?= htmlspecialchars($g['tanggal_fmt']) ?> · oleh <?= htmlspecialchars($g['penulis'] ?: '—') ?>
+                            </p>
                         </div>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
-    </section>
 
+    </div>
 </main>
 
-<!-- ===== Chart.js Inline Data (dari PHP) ===== -->
+<!-- Data untuk Chart.js -->
 <script>
-// Data chart dari database — dashboard.js akan membaca ini via window.__berandaData
 window.__berandaData = {
-    /* Chart 1: Angkatan */
-    angkatan: {
+    /* Chart 1: Enrollment per prodi (line chart) */
+    enrollment: {
         labels: <?= json_encode($recentYears) ?>,
         datasetLabels: <?= json_encode($chartDatasetLabels) ?>,
         values: <?= json_encode($chartDatasetValues) ?>
     },
-    /* Chart 2: Ringkasan Aktif */
-    ringkasan: {
-        labels: <?= json_encode(array_keys($ringkesData)) ?>,
-        values: <?= json_encode(array_values($ringkesData)) ?>,
-        total: <?= $ringkesTotal ?>
+    /* Chart 2: Distribusi konsentrasi (doughnut) */
+    concentration: {
+        labels: <?= json_encode($concentrationLabels) ?>,
+        values: <?= json_encode($concentrationValues) ?>
     }
 };
 </script>

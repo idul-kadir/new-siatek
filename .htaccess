@@ -1,0 +1,67 @@
+# ==========================================================
+# SIATEK v3.0 - Pretty URL Rewrite
+# Memetakan /dashboard, /mhs-skripsi, dll ke index.php?page=X
+# ==========================================================
+
+RewriteEngine On
+RewriteBase /redesain-siatek/
+
+# Jangan rewrite file/folder eksis
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Root → dashboard
+RewriteRule ^$ index.php?page=dashboard [L,QSA]
+
+# --- Top-level ---
+RewriteRule ^dashboard/?$   index.php?page=dashboard [L,QSA]
+RewriteRule ^biodata/?$     index.php?page=biodata [L,QSA]
+RewriteRule ^jadwal/?$      index.php?page=jadwal [L,QSA]
+RewriteRule ^sister/?$      index.php?page=sister [L,QSA]
+
+# --- Pengelolaan ---
+RewriteRule ^mhs-skripsi/?$          index.php?page=mhs-skripsi [L,QSA]
+RewriteRule ^mhs-kp/?$               index.php?page=mhs-kp [L,QSA]
+RewriteRule ^mhs-verifikasi/?$       index.php?page=mhs-verifikasi [L,QSA]
+RewriteRule ^mhs-alumni/?$           index.php?page=mhs-alumni [L,QSA]
+RewriteRule ^mhs-kegiatan/?$         index.php?page=mhs-kegiatan [L,QSA]
+RewriteRule ^bimbingan-skripsi/?$    index.php?page=bimbingan-skripsi [L,QSA]
+RewriteRule ^bimbingan-kp/?$         index.php?page=bimbingan-kp [L,QSA]
+RewriteRule ^bimbingan-pa/?$         index.php?page=bimbingan-pa [L,QSA]
+RewriteRule ^pengguna-mahasiswa/?$   index.php?page=pengguna-mahasiswa [L,QSA]
+RewriteRule ^pengguna-dosen/?$       index.php?page=pengguna-dosen [L,QSA]
+RewriteRule ^pengelolaan-broadcast/?$ index.php?page=pengelolaan-broadcast [L,QSA]
+
+# --- Pangkalan Data ---
+RewriteRule ^pd-pendidikan/?$  index.php?page=pd-pendidikan [L,QSA]
+RewriteRule ^pd-penelitian/?$  index.php?page=pd-penelitian [L,QSA]
+RewriteRule ^pd-pengabdian/?$  index.php?page=pd-pengabdian [L,QSA]
+RewriteRule ^pd-penunjang/?$   index.php?page=pd-penunjang [L,QSA]
+RewriteRule ^pd-arsip/?$       index.php?page=pd-arsip [L,QSA]
+RewriteRule ^pd-skp/?$         index.php?page=pd-skp [L,QSA]
+
+# --- Jurusan ---
+RewriteRule ^jurusan-arsip/?$              index.php?page=jurusan-arsip [L,QSA]
+RewriteRule ^jurusan-berita/?$             index.php?page=jurusan-berita [L,QSA]
+RewriteRule ^jurusan-tridharma/?$          index.php?page=jurusan-tridharma [L,QSA]
+RewriteRule ^jurusan-dok-akademik/?$       index.php?page=jurusan-dok-akademik [L,QSA]
+RewriteRule ^jurusan-dok-akreditasi/?$     index.php?page=jurusan-dok-akreditasi [L,QSA]
+RewriteRule ^jurusan-dok-lkps/?$           index.php?page=jurusan-dok-lkps [L,QSA]
+RewriteRule ^jurusan-jadwal/?$             index.php?page=jurusan-jadwal [L,QSA]
+RewriteRule ^jurusan-kerjasama/?$          index.php?page=jurusan-kerjasama [L,QSA]
+RewriteRule ^jurusan-keuangan/?$           index.php?page=jurusan-keuangan [L,QSA]
+RewriteRule ^jurusan-kurikulum/?$          index.php?page=jurusan-kurikulum [L,QSA]
+RewriteRule ^jurusan-laporan/?$            index.php?page=jurusan-laporan [L,QSA]
+RewriteRule ^jurusan-matkul-rps/?$         index.php?page=jurusan-matkul-rps [L,QSA]
+RewriteRule ^jurusan-matkul-mbkm/?$        index.php?page=jurusan-matkul-mbkm [L,QSA]
+RewriteRule ^jurusan-organisasi/?$         index.php?page=jurusan-organisasi [L,QSA]
+RewriteRule ^jurusan-peminjaman/?$         index.php?page=jurusan-peminjaman [L,QSA]
+RewriteRule ^jurusan-program-extra/?$      index.php?page=jurusan-program-extra [L,QSA]
+RewriteRule ^jurusan-skp/?$                index.php?page=jurusan-skp [L,QSA]
+RewriteRule ^jurusan-surat/?$              index.php?page=jurusan-surat [L,QSA]
+RewriteRule ^jurusan-surat-penunjukkan/?$  index.php?page=jurusan-surat-penunjukkan [L,QSA]
+RewriteRule ^jurusan-tracer/?$             index.php?page=jurusan-tracer [L,QSA]
+
+# Fallback: slug apapun yang tidak di-match di atas → ke index.php (router handle)
+RewriteRule ^([a-z0-9][a-z0-9\-]+)/?$ index.php?page=$1 [L,QSA]

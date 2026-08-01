@@ -1,268 +1,194 @@
 <?php
 /**
- * Sidebar Navigation — Statis (dimuat ulang tiap halaman tapi isinya sama)
+ * Sidebar Navigation - Statis (Tailwind) - Pretty URL.
  *
- * Cara pakai:  di index.php → include 'components/sidebar.php';
- *
- * Variabel $activePage (string) akan otomatis menandai menu aktif
- * dengan class "active" — diset oleh router di index.php sebelum include ini.
+ * Setiap link menggunakan base href dari index.php (lihat <base href>),
+ * sehingga href="/dashboard" akan jadi "/redesain-siatek/dashboard"
+ * dan di-rewrite oleh .htaccess ke index.php?page=dashboard.
  */
-
-$activePage = $activePage ?? ''; // ex: "dashboard", "mhs-skripsi", "jurusan-arsip", dst.
+$activePage = $activePage ?? '';
 ?>
 
 <!-- Sidebar Overlay (mobile) -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="modal-overlay md:!flex md:!hidden" id="sidebarOverlay" style="background:rgba(15,23,42,0.5); z-index:1040; padding:0;"></div>
 
-<aside class="sidebar" id="sidebar">
-    <!-- Logo -->
-    <div class="sidebar-brand">
-        <div class="brand-icon">
-            <i class="bi bi-cpu-fill"></i>
+<aside id="sidebar" class="sidebar-bg w-64 flex-shrink-0 flex-col overflow-y-auto sidebar-scroll hidden md:flex md:relative md:translate-x-0 z-20">
+
+    <!-- Brand -->
+    <div class="h-16 flex items-center justify-between px-5 border-b border-white/10 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-[#f97316] rounded-lg flex items-center justify-center text-white text-lg">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <div>
+                <h1 class="font-semibold text-white text-base leading-tight tracking-wide">SIATEK</h1>
+                <p class="text-xs text-slate-400">T. Elektro &amp; Komputer</p>
+            </div>
         </div>
-        <span class="brand-text">SIATEK</span>
-        <button class="btn sidebar-close-btn d-lg-none" id="sidebarCloseBtn">
-            <i class="bi bi-x-lg"></i>
+        <button class="md:hidden text-slate-400 hover:text-white text-xl leading-none" id="sidebarCloseBtn" aria-label="Close menu">
+            <i class="fas fa-times"></i>
         </button>
     </div>
 
     <!-- Nav -->
-    <nav class="sidebar-nav">
+    <nav class="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
+
         <!-- 1. Beranda -->
-        <div class="nav-group">
-            <a href="index.php?page=dashboard" class="nav-item <?= $activePage === 'dashboard' ? 'active' : '' ?>">
-                <i class="bi bi-grid-1x2-fill nav-icon"></i>
-                <span class="nav-label">Beranda</span>
-            </a>
-        </div>
+        <a href="/dashboard" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $activePage === 'dashboard' ? 'nav-active' : '' ?>">
+            <i class="fas fa-home w-5 text-center text-base"></i>
+            <span class="flex-1">Dashboard</span>
+        </a>
 
         <!-- 2. Pengelolaan -->
-        <div class="nav-group">
-            <button class="nav-item nav-parent" data-target="sub-pengelolaan">
-                <i class="bi bi-folder-fill nav-icon"></i>
-                <span class="nav-label">Pengelolaan</span>
-                <i class="bi bi-chevron-right nav-chevron"></i>
+        <?php
+        $pengelolaanPages = ['mhs-skripsi','mhs-kp','mhs-verifikasi','mhs-alumni','mhs-kegiatan',
+                             'bimbingan-skripsi','bimbingan-kp','bimbingan-pa',
+                             'pengguna-mahasiswa','pengguna-dosen','pengelolaan-broadcast'];
+        $pengelolaanActive = in_array($activePage, $pengelolaanPages, true);
+        ?>
+        <div>
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pengelolaanActive ? 'open' : '' ?>" data-target="sub-pengelolaan">
+                <i class="fas fa-folder w-5 text-center text-base"></i>
+                <span class="flex-1 text-left">Pengelolaan</span>
+                <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
             </button>
-            <div class="nav-submenu" id="sub-pengelolaan">
-                <div class="sub-section-header">Data Mahasiswa &amp; Alumni</div>
-                <a href="index.php?page=mhs-skripsi" class="sub-item <?= $activePage === 'mhs-skripsi' ? 'active' : '' ?>">
-                    <i class="bi bi-journal-text sub-icon"></i>
-                    <span class="sub-text">Skripsi</span>
-                </a>
-                <a href="index.php?page=mhs-kp" class="sub-item <?= $activePage === 'mhs-kp' ? 'active' : '' ?>">
-                    <i class="bi bi-briefcase sub-icon"></i>
-                    <span class="sub-text">Kerja Praktek</span>
-                </a>
-                <a href="index.php?page=mhs-verifikasi" class="sub-item <?= $activePage === 'mhs-verifikasi' ? 'active' : '' ?>">
-                    <i class="bi bi-clipboard-check sub-icon"></i>
-                    <span class="sub-text">Verifikasi Berkas</span>
-                </a>
-                <a href="index.php?page=mhs-alumni" class="sub-item <?= $activePage === 'mhs-alumni' ? 'active' : '' ?>">
-                    <i class="bi bi-mortarboard sub-icon"></i>
-                    <span class="sub-text">Data Alumni</span>
-                </a>
-                <a href="index.php?page=mhs-kegiatan" class="sub-item <?= $activePage === 'mhs-kegiatan' ? 'active' : '' ?>">
-                    <i class="bi bi-calendar-event sub-icon"></i>
-                    <span class="sub-text">Kegiatan</span>
-                </a>
+            <div class="nav-submenu <?= $pengelolaanActive ? 'open' : '' ?>" id="sub-pengelolaan">
+                <div class="nav-section-header">Data Mahasiswa &amp; Alumni</div>
+                <a href="/mhs-skripsi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-skripsi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Skripsi</span></a>
+                <a href="/mhs-kp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-briefcase w-5 text-center text-sm opacity-70"></i><span>Kerja Praktek</span></a>
+                <a href="/mhs-verifikasi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-verifikasi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-clipboard w-5 text-center text-sm opacity-70"></i><span>Verifikasi Berkas</span></a>
+                <a href="/mhs-alumni" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-alumni' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-graduation-cap w-5 text-center text-sm opacity-70"></i><span>Data Alumni</span></a>
+                <a href="/mhs-kegiatan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kegiatan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-calendar w-5 text-center text-sm opacity-70"></i><span>Kegiatan</span></a>
 
-                <div class="sub-section-header sub-section-header--with-divider">Master &amp; Pengaturan</div>
+                <div class="nav-section-header border-t border-white/5 mt-2 pt-3">Master &amp; Pengaturan</div>
 
-                <!-- Data Bimbingan (parent) -->
-                <button class="sub-item sub-parent" data-target="sub-bimbingan">
-                    <i class="bi bi-people sub-icon"></i>
-                    <span class="sub-text">Data Bimbingan</span>
-                    <i class="bi bi-chevron-right sub-chevron"></i>
+                <!-- Bimbingan (nested) -->
+                <?php $bimbPages = ['bimbingan-skripsi','bimbingan-kp','bimbingan-pa']; $bimbActive = in_array($activePage, $bimbPages, true); ?>
+                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $bimbActive ? 'open' : '' ?>" data-target="sub-bimbingan">
+                    <i class="fas fa-users w-5 text-center text-sm opacity-70"></i>
+                    <span class="flex-1 text-left">Data Bimbingan</span>
+                    <i class="fas fa-chevron-right sub-chevron text-xs opacity-50"></i>
                 </button>
-                <div class="nav-submenu nav-submenu--nested" id="sub-bimbingan">
-                    <a href="index.php?page=bimbingan-skripsi" class="sub-item <?= $activePage === 'bimbingan-skripsi' ? 'active' : '' ?>">
-                        <i class="bi bi-journal-check sub-icon"></i>
-                        <span class="sub-text">Bimbingan Skripsi</span>
-                    </a>
-                    <a href="index.php?page=bimbingan-kp" class="sub-item <?= $activePage === 'bimbingan-kp' ? 'active' : '' ?>">
-                        <i class="bi bi-briefcase sub-icon"></i>
-                        <span class="sub-text">Bimbingan Kerja Praktek</span>
-                    </a>
-                    <a href="index.php?page=bimbingan-pa" class="sub-item <?= $activePage === 'bimbingan-pa' ? 'active' : '' ?>">
-                        <i class="bi bi-person sub-icon"></i>
-                        <span class="sub-text">Bimbingan Penasihat Akademik</span>
-                    </a>
+                <div class="nav-submenu--nested <?= $bimbActive ? 'open' : '' ?>" id="sub-bimbingan">
+                    <a href="/bimbingan-skripsi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'bimbingan-skripsi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Bimbingan Skripsi</span></a>
+                    <a href="/bimbingan-kp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'bimbingan-kp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-briefcase w-5 text-center text-sm opacity-70"></i><span>Bimbingan KP</span></a>
+                    <a href="/bimbingan-pa" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'bimbingan-pa' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-user w-5 text-center text-sm opacity-70"></i><span>Bimbingan PA</span></a>
                 </div>
 
-                <!-- Data Pengguna (parent) -->
-                <button class="sub-item sub-parent" data-target="sub-pengguna">
-                    <i class="bi bi-person-badge sub-icon"></i>
-                    <span class="sub-text">Data Pengguna</span>
-                    <i class="bi bi-chevron-right sub-chevron"></i>
+                <!-- Pengguna (nested) -->
+                <?php $pengPages = ['pengguna-mahasiswa','pengguna-dosen']; $pengActive = in_array($activePage, $pengPages, true); ?>
+                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $pengActive ? 'open' : '' ?>" data-target="sub-pengguna">
+                    <i class="fas fa-id-card w-5 text-center text-sm opacity-70"></i>
+                    <span class="flex-1 text-left">Data Pengguna</span>
+                    <i class="fas fa-chevron-right sub-chevron text-xs opacity-50"></i>
                 </button>
-                <div class="nav-submenu nav-submenu--nested" id="sub-pengguna">
-                    <a href="index.php?page=pengguna-mahasiswa" class="sub-item <?= $activePage === 'pengguna-mahasiswa' ? 'active' : '' ?>">
-                        <i class="bi bi-person sub-icon"></i>
-                        <span class="sub-text">Pengguna Mahasiswa</span>
-                    </a>
-                    <a href="index.php?page=pengguna-dosen" class="sub-item <?= $activePage === 'pengguna-dosen' ? 'active' : '' ?>">
-                        <i class="bi bi-person-workspace sub-icon"></i>
-                        <span class="sub-text">Pengguna Dosen</span>
-                    </a>
+                <div class="nav-submenu--nested <?= $pengActive ? 'open' : '' ?>" id="sub-pengguna">
+                    <a href="/pengguna-mahasiswa" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pengguna-mahasiswa' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-user w-5 text-center text-sm opacity-70"></i><span>Pengguna Mahasiswa</span></a>
+                    <a href="/pengguna-dosen" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pengguna-dosen' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-user-tie w-5 text-center text-sm opacity-70"></i><span>Pengguna Dosen</span></a>
                 </div>
 
-                <a href="index.php?page=pengelolaan-broadcast" class="sub-item <?= $activePage === 'pengelolaan-broadcast' ? 'active' : '' ?>">
-                    <i class="bi bi-megaphone sub-icon"></i>
-                    <span class="sub-text">Broadcast</span>
-                </a>
+                <a href="/pengelolaan-broadcast" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pengelolaan-broadcast' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-bullhorn w-5 text-center text-sm opacity-70"></i><span>Broadcast</span></a>
             </div>
         </div>
 
         <!-- 3. Pangkalan Data -->
-        <div class="nav-group">
-            <button class="nav-item nav-parent" data-target="sub-pangkalan">
-                <i class="bi bi-database-fill nav-icon"></i>
-                <span class="nav-label">Pangkalan Data</span>
-                <i class="bi bi-chevron-right nav-chevron"></i>
+        <?php $pdPages = ['pd-pendidikan','pd-penelitian','pd-pengabdian','pd-penunjang','pd-arsip','pd-skp']; $pdActive = in_array($activePage, $pdPages, true); ?>
+        <div>
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pdActive ? 'open' : '' ?>" data-target="sub-pangkalan">
+                <i class="fas fa-database w-5 text-center text-base"></i>
+                <span class="flex-1 text-left">Pangkalan Data</span>
+                <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
             </button>
-            <div class="nav-submenu" id="sub-pangkalan">
-                <a href="index.php?page=pd-pendidikan" class="sub-item <?= $activePage === 'pd-pendidikan' ? 'active' : '' ?>">
-                    <i class="bi bi-book-fill sub-icon"></i>Pendidikan &amp; Pengajaran
-                </a>
-                <a href="index.php?page=pd-penelitian" class="sub-item <?= $activePage === 'pd-penelitian' ? 'active' : '' ?>">
-                    <i class="bi bi-search sub-icon"></i>Penelitian
-                </a>
-                <a href="index.php?page=pd-pengabdian" class="sub-item <?= $activePage === 'pd-pengabdian' ? 'active' : '' ?>">
-                    <i class="bi bi-heart-fill sub-icon"></i>Pengabdian
-                </a>
-                <a href="index.php?page=pd-penunjang" class="sub-item <?= $activePage === 'pd-penunjang' ? 'active' : '' ?>">
-                    <i class="bi bi-tools sub-icon"></i>Data Penunjang
-                </a>
-                <a href="index.php?page=pd-arsip" class="sub-item <?= $activePage === 'pd-arsip' ? 'active' : '' ?>">
-                    <i class="bi bi-archive-fill sub-icon"></i>Arsip Lain
-                </a>
-                <a href="index.php?page=pd-skp" class="sub-item <?= $activePage === 'pd-skp' ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-text-fill sub-icon"></i>SKP
-                </a>
+            <div class="nav-submenu <?= $pdActive ? 'open' : '' ?>" id="sub-pangkalan">
+                <a href="/pd-pendidikan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-pendidikan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Pendidikan &amp; Pengajaran</span></a>
+                <a href="/pd-penelitian" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-penelitian' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-search w-5 text-center text-sm opacity-70"></i><span>Penelitian</span></a>
+                <a href="/pd-pengabdian" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-pengabdian' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-heart w-5 text-center text-sm opacity-70"></i><span>Pengabdian</span></a>
+                <a href="/pd-penunjang" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-penunjang' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-tools w-5 text-center text-sm opacity-70"></i><span>Data Penunjang</span></a>
+                <a href="/pd-arsip" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-arsip' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-archive w-5 text-center text-sm opacity-70"></i><span>Arsip Lain</span></a>
+                <a href="/pd-skp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pd-skp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-file-alt w-5 text-center text-sm opacity-70"></i><span>SKP</span></a>
             </div>
         </div>
 
         <!-- 4. Biodata -->
-        <div class="nav-group">
-            <a href="index.php?page=biodata" class="nav-item <?= $activePage === 'biodata' ? 'active' : '' ?>">
-                <i class="bi bi-person-circle nav-icon"></i>
-                <span class="nav-label">Biodata</span>
-            </a>
-        </div>
+        <a href="/biodata" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $activePage === 'biodata' ? 'nav-active' : '' ?>">
+            <i class="fas fa-user-circle w-5 text-center text-base"></i>
+            <span class="flex-1">Biodata</span>
+        </a>
 
         <!-- 5. Jadwal Kuliah -->
-        <div class="nav-group">
-            <a href="index.php?page=jadwal" class="nav-item <?= $activePage === 'jadwal' ? 'active' : '' ?>">
-                <i class="bi bi-calendar-week-fill nav-icon"></i>
-                <span class="nav-label">Jadwal Kuliah</span>
-            </a>
-        </div>
+        <a href="/jadwal" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $activePage === 'jadwal' ? 'nav-active' : '' ?>">
+            <i class="fas fa-calendar-alt w-5 text-center text-base"></i>
+            <span class="flex-1">Jadwal Kuliah</span>
+        </a>
 
         <!-- 6. Sinkronisasi Sister -->
-        <div class="nav-group">
-            <a href="index.php?page=sister" class="nav-item <?= $activePage === 'sister' ? 'active' : '' ?>">
-                <i class="bi bi-arrow-repeat nav-icon"></i>
-                <span class="nav-label">Sinkronisasi Sister</span>
-            </a>
-        </div>
+        <a href="/sister" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $activePage === 'sister' ? 'nav-active' : '' ?>">
+            <i class="fas fa-sync w-5 text-center text-base"></i>
+            <span class="flex-1">Sinkronisasi Sister</span>
+        </a>
 
         <!-- 7. Jurusan -->
-        <div class="nav-group">
-            <button class="nav-item nav-parent" data-target="sub-jurusan">
-                <i class="bi bi-building nav-icon"></i>
-                <span class="nav-label">Jurusan</span>
-                <i class="bi bi-chevron-right nav-chevron"></i>
+        <?php
+        $jurusanPages = ['jurusan-arsip','jurusan-berita','jurusan-tridharma',
+                         'jurusan-dok-akademik','jurusan-dok-akreditasi','jurusan-dok-lkps',
+                         'jurusan-jadwal','jurusan-kerjasama','jurusan-keuangan','jurusan-kurikulum',
+                         'jurusan-laporan','jurusan-matkul-rps','jurusan-matkul-mbkm',
+                         'jurusan-organisasi','jurusan-peminjaman','jurusan-program-extra',
+                         'jurusan-skp','jurusan-surat','jurusan-surat-penunjukkan','jurusan-tracer'];
+        $jurusanActive = in_array($activePage, $jurusanPages, true);
+        ?>
+        <div>
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $jurusanActive ? 'open' : '' ?>" data-target="sub-jurusan">
+                <i class="fas fa-building w-5 text-center text-base"></i>
+                <span class="flex-1 text-left">Jurusan</span>
+                <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
             </button>
-            <div class="nav-submenu" id="sub-jurusan">
-                <a href="index.php?page=jurusan-arsip" class="sub-item <?= $activePage === 'jurusan-arsip' ? 'active' : '' ?>">
-                    <i class="bi bi-archive sub-icon"></i>
-                    <span class="sub-text">Arsip</span>
-                </a>
-                <a href="index.php?page=jurusan-berita" class="sub-item <?= $activePage === 'jurusan-berita' ? 'active' : '' ?>">
-                    <i class="bi bi-newspaper sub-icon"></i>
-                    <span class="sub-text">Berita</span>
-                </a>
-                <a href="index.php?page=jurusan-tridharma" class="sub-item <?= $activePage === 'jurusan-tridharma' ? 'active' : '' ?>">
-                    <i class="bi bi-three-dots sub-icon"></i>
-                    <span class="sub-text">Data Tridharma</span>
-                </a>
-                <a href="index.php?page=jurusan-dok-akademik" class="sub-item <?= $activePage === 'jurusan-dok-akademik' ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-text sub-icon"></i>
-                    <span class="sub-text">Dokumen Akademik</span>
-                </a>
-                <a href="index.php?page=jurusan-dok-akreditasi" class="sub-item <?= $activePage === 'jurusan-dok-akreditasi' ? 'active' : '' ?>">
-                    <i class="bi bi-patch-check sub-icon"></i>
-                    <span class="sub-text">Dokumen Akreditas</span>
-                </a>
-                <a href="index.php?page=jurusan-dok-lkps" class="sub-item <?= $activePage === 'jurusan-dok-lkps' ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-bar-graph sub-icon"></i>
-                    <span class="sub-text">Dokumen LKPS</span>
-                </a>
-                <a href="index.php?page=jurusan-jadwal" class="sub-item <?= $activePage === 'jurusan-jadwal' ? 'active' : '' ?>">
-                    <i class="bi bi-calendar-week sub-icon"></i>
-                    <span class="sub-text">Jadwal Kuliah</span>
-                </a>
-                <a href="index.php?page=jurusan-kerjasama" class="sub-item <?= $activePage === 'jurusan-kerjasama' ? 'active' : '' ?>">
-                    <i class="bi bi-handshake sub-icon"></i>
-                    <span class="sub-text">Kerja Sama</span>
-                </a>
-                <a href="index.php?page=jurusan-keuangan" class="sub-item <?= $activePage === 'jurusan-keuangan' ? 'active' : '' ?>">
-                    <i class="bi bi-currency-dollar sub-icon"></i>
-                    <span class="sub-text">Keuangan</span>
-                </a>
-                <a href="index.php?page=jurusan-kurikulum" class="sub-item <?= $activePage === 'jurusan-kurikulum' ? 'active' : '' ?>">
-                    <i class="bi bi-book sub-icon"></i>
-                    <span class="sub-text">Kurikulum</span>
-                </a>
-                <a href="index.php?page=jurusan-laporan" class="sub-item <?= $activePage === 'jurusan-laporan' ? 'active' : '' ?>">
-                    <i class="bi bi-graph-up sub-icon"></i>
-                    <span class="sub-text">Laporan Kinerja</span>
-                </a>
-                <a href="index.php?page=jurusan-matkul-rps" class="sub-item <?= $activePage === 'jurusan-matkul-rps' ? 'active' : '' ?>">
-                    <i class="bi bi-journal-code sub-icon"></i>
-                    <span class="sub-text">Matakuliah / RPS</span>
-                </a>
-                <a href="index.php?page=jurusan-matkul-mbkm" class="sub-item <?= $activePage === 'jurusan-matkul-mbkm' ? 'active' : '' ?>">
-                    <i class="bi bi-globe sub-icon"></i>
-                    <span class="sub-text">Matakuliah MBKM</span>
-                </a>
-                <a href="index.php?page=jurusan-organisasi" class="sub-item <?= $activePage === 'jurusan-organisasi' ? 'active' : '' ?>">
-                    <i class="bi bi-people sub-icon"></i>
-                    <span class="sub-text">Organisasi</span>
-                </a>
-                <a href="index.php?page=jurusan-peminjaman" class="sub-item <?= $activePage === 'jurusan-peminjaman' ? 'active' : '' ?>">
-                    <i class="bi bi-arrow-left-right sub-icon"></i>
-                    <span class="sub-text">Peminjaman</span>
-                </a>
-                <a href="index.php?page=jurusan-program-extra" class="sub-item <?= $activePage === 'jurusan-program-extra' ? 'active' : '' ?>">
-                    <i class="bi bi-stars sub-icon"></i>
-                    <span class="sub-text">Program Extra</span>
-                </a>
-                <a href="index.php?page=jurusan-skp" class="sub-item <?= $activePage === 'jurusan-skp' ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-text sub-icon"></i>
-                    <span class="sub-text">SKP</span>
-                </a>
-                <a href="index.php?page=jurusan-surat" class="sub-item <?= $activePage === 'jurusan-surat' ? 'active' : '' ?>">
-                    <i class="bi bi-envelope sub-icon"></i>
-                    <span class="sub-text">Surat</span>
-                </a>
-                <a href="index.php?page=jurusan-surat-penunjukkan" class="sub-item <?= $activePage === 'jurusan-surat-penunjukkan' ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-check sub-icon"></i>
-                    <span class="sub-text">Surat Penunjukkan</span>
-                </a>
-                <a href="index.php?page=jurusan-tracer" class="sub-item <?= $activePage === 'jurusan-tracer' ? 'active' : '' ?>">
-                    <i class="bi bi-geo-alt sub-icon"></i>
-                    <span class="sub-text">Tracer Studi</span>
-                </a>
+            <div class="nav-submenu <?= $jurusanActive ? 'open' : '' ?>" id="sub-jurusan">
+                <a href="/jurusan-arsip" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-arsip' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-archive w-5 text-center text-sm opacity-70"></i><span>Arsip</span></a>
+                <a href="/jurusan-berita" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-berita' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-newspaper w-5 text-center text-sm opacity-70"></i><span>Berita</span></a>
+                <a href="/jurusan-tridharma" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-tridharma' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-ellipsis-h w-5 text-center text-sm opacity-70"></i><span>Data Tridharma</span></a>
+                <a href="/jurusan-dok-akademik" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-dok-akademik' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-file-alt w-5 text-center text-sm opacity-70"></i><span>Dokumen Akademik</span></a>
+                <a href="/jurusan-dok-akreditasi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-dok-akreditasi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-check-circle w-5 text-center text-sm opacity-70"></i><span>Dokumen Akreditasi</span></a>
+                <a href="/jurusan-dok-lkps" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-dok-lkps' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-chart-bar w-5 text-center text-sm opacity-70"></i><span>Dokumen LKPS</span></a>
+                <a href="/jurusan-jadwal" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-jadwal' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-calendar-alt w-5 text-center text-sm opacity-70"></i><span>Jadwal Kuliah</span></a>
+                <a href="/jurusan-kerjasama" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-kerjasama' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-handshake w-5 text-center text-sm opacity-70"></i><span>Kerja Sama</span></a>
+                <a href="/jurusan-keuangan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-keuangan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-dollar-sign w-5 text-center text-sm opacity-70"></i><span>Keuangan</span></a>
+                <a href="/jurusan-kurikulum" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-kurikulum' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book-open w-5 text-center text-sm opacity-70"></i><span>Kurikulum</span></a>
+                <a href="/jurusan-laporan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-laporan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-chart-line w-5 text-center text-sm opacity-70"></i><span>Laporan Kinerja</span></a>
+                <a href="/jurusan-matkul-rps" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-matkul-rps' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Matakuliah / RPS</span></a>
+                <a href="/jurusan-matkul-mbkm" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-matkul-mbkm' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-globe w-5 text-center text-sm opacity-70"></i><span>Matakuliah MBKM</span></a>
+                <a href="/jurusan-organisasi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-organisasi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-users w-5 text-center text-sm opacity-70"></i><span>Organisasi</span></a>
+                <a href="/jurusan-peminjaman" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-peminjaman' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-exchange-alt w-5 text-center text-sm opacity-70"></i><span>Peminjaman</span></a>
+                <a href="/jurusan-program-extra" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-program-extra' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-star w-5 text-center text-sm opacity-70"></i><span>Program Extra</span></a>
+                <a href="/jurusan-skp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-skp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-file-alt w-5 text-center text-sm opacity-70"></i><span>SKP</span></a>
+                <a href="/jurusan-surat" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-surat' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-envelope w-5 text-center text-sm opacity-70"></i><span>Surat</span></a>
+                <a href="/jurusan-surat-penunjukkan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-surat-penunjukkan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-file-check w-5 text-center text-sm opacity-70"></i><span>Surat Penunjukkan</span></a>
+                <a href="/jurusan-tracer" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-tracer' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-map-marker-alt w-5 text-center text-sm opacity-70"></i><span>Tracer Studi</span></a>
             </div>
+        </div>
+
+        <!-- Pengaturan -->
+        <div class="pt-3 mt-3 border-t border-white/10">
+            <p class="nav-section-header">Pengaturan</p>
+            <a href="#" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition">
+                <i class="fas fa-cog w-5 text-center text-base"></i>
+                <span class="flex-1">Konfigurasi</span>
+            </a>
         </div>
     </nav>
 
-    <!-- Footer -->
-    <div class="sidebar-footer">
-        <a href="#" class="nav-item nav-logout">
-            <i class="bi bi-box-arrow-right nav-icon"></i>
-            <span class="nav-label">Logout</span>
+    <!-- Footer (logout) -->
+    <div class="border-t border-white/10 p-2 flex-shrink-0">
+        <a href="#" class="nav-item flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition" style="color:#fca5a5;">
+            <i class="fas fa-sign-out-alt w-5 text-center text-base"></i>
+            <span class="flex-1">Logout</span>
         </a>
     </div>
 </aside>
+
+<style>
+@media (min-width: 768px) {
+    #sidebar { display: flex !important; transform: translateX(0) !important; position: static !important; height: 100vh; }
+    #sidebarOverlay { display: none !important; }
+}
+</style>

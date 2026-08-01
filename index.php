@@ -10,11 +10,10 @@
  * Default: ?page=dashboard → pages/beranda/beranda.php
  *
  * Mapping slug → folder ada di $routeMap.
- * File juga bisa punya helper/modal/partial di folder yang sama, misal:
- *   require_once __DIR__ . '/pages/pengelolaan/broadcast/includes/modal-konfirmasi.php';
  *
- * Untuk include file lain relatif ke halaman, gunakan __DIR__ di file halaman:
- *   require_once __DIR__ . '/modal-jadwal.php';
+ * Layout: Tailwind CSS (lihat template.html). Bootstrap dihapus dari
+ * dependency utama, namun fallback ada di css/dashboard.css untuk
+ * halaman lain yang masih menggunakan class Bootstrap.
  */
 
 declare(strict_types=1);
@@ -23,6 +22,7 @@ session_start();
 /* ============ Route Map ============ */
 $routeMap = [
     // === Top-level ===
+    'dashboard'         => ['path' => 'beranda',                 'title' => 'Beranda'],
     'beranda'           => ['path' => 'beranda',                 'title' => 'Beranda'],
 
     // === Pengelolaan > Mahasiswa ===
@@ -121,70 +121,195 @@ if ($route) {
 
 /* Untuk highlight sidebar di sidebar.php */
 $activePage = $pageKey;
+
+/* Base URL absolut untuk <base href> — biar link relatif /dashboard dst jadi valid */
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/redesain-siatek';
 ?>
 <!doctype html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <base href="<?= htmlspecialchars($baseUrl) ?>/">
     <title><?= htmlspecialchars($pageTitle) ?> — SIATEK</title>
 
     <!-- Preconnect -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://ui-avatars.com" crossorigin>
-
-    <!-- Bootstrap 5 CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Local CSS -->
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local CSS (fallback untuk halaman lain yang masih pakai class Bootstrap) -->
     <link rel="stylesheet" href="css/dashboard.css">
+
+    <style>
+        * { font-family: "Inter", sans-serif; }
+        body { background-color: #f8fafc; }
+
+        /* ===== Sidebar Navy Gelap (komponen .sidebar-bg) ===== */
+        .sidebar-bg { background-color: #1a365d; }
+
+        /* ===== Nav Item Default ===== */
+        .nav-item {
+            color: #94a3b8;
+        }
+        .nav-item:hover {
+            background-color: #234670;
+            color: #fff;
+        }
+        /* Pakai selector body supaya !important menang atas Tailwind utility */
+        body #sidebar .nav-active.nav-active,
+        body #sidebar a.nav-active {
+            background: linear-gradient(90deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.08) 60%, transparent 100%) !important;
+            background-color: #11243d !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border-left: 4px solid #f97316 !important;
+            box-shadow: inset 0 0 0 1px rgba(249,115,22,0.35) !important;
+            padding-left: 12px !important; /* kompensasi border-left dari px-4 Tailwind */
+        }
+        body #sidebar .nav-active > i { color: #f97316 !important; opacity: 1 !important; }
+        body #sidebar .nav-active > span { color: #fff !important; }
+
+        /* Parent group yang punya child aktif: highlight oranye juga */
+        body #sidebar .nav-parent.has-active {
+            background-color: #234670 !important;
+            color: #fff !important;
+            font-weight: 500 !important;
+        }
+        body #sidebar .nav-parent.has-active > i { color: #f97316 !important; opacity: 1 !important; }
+
+        /* ===== Nav Group Section Header ===== */
+        .nav-section-header {
+            color: #64748b;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 14px 16px 6px;
+        }
+
+        /* ===== Submenu Smooth Accordion ===== */
+        .nav-submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease;
+        }
+        .nav-submenu.open { max-height: 1200px; }
+
+        .nav-submenu--nested {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease;
+            padding-left: 14px;
+        }
+        .nav-submenu--nested.open { max-height: 500px; }
+
+        .nav-chevron {
+            transition: transform 0.25s ease;
+        }
+        .nav-parent.open .nav-chevron { transform: rotate(90deg); }
+        .sub-parent .sub-chevron {
+            margin-left: auto;
+            transition: transform 0.25s ease;
+        }
+        .sub-parent.open .sub-chevron { transform: rotate(90deg); }
+
+        /* ===== Card hover effect ===== */
+        .card-hover {
+            transition: all 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.07);
+        }
+
+        /* ===== Card shadow clean & tipis ===== */
+        .card-shadow {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        /* ===== Scrollbar ===== */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        /* Sidebar scrollbar (di konteks navy) */
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+
+        /* ===== Mobile sidebar slide ===== */
+        @media (max-width: 767.98px) {
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            #sidebar.mobile-open { transform: translateX(0); }
+        }
+
+        /* ===== Modal overlay (Tailwind-style) ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1050; padding: 16px;
+        }
+        .modal-overlay.show { display: flex; }
+        .signature-pad {
+            width: 100%; height: 180px; background: #fff;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            touch-action: none;
+        }
+    </style>
 </head>
-<body class="app-shell sidebar-collapsed">
+<body class="bg-slate-50">
 
-    <!-- ========= SIDEBAR (statis) ========= -->
-    <?php include __DIR__ . '/components/sidebar.php'; ?>
+    <div class="flex h-screen overflow-hidden">
 
-    <!-- ========= APP AREA ========= -->
-    <div class="app-area">
+        <!-- ========= SIDEBAR (statis) ========= -->
+        <?php include __DIR__ . '/components/sidebar.php'; ?>
 
-        <!-- Top Navbar (statis) -->
-        <?php include __DIR__ . '/components/top-navbar.php'; ?>
+        <!-- ========= APP AREA ========= -->
+        <div class="flex-1 flex flex-col overflow-hidden">
 
-        <!-- ===== KONTEN DINAMIS (hanya bagian ini yang berubah) ===== -->
-        <?php include $pageFile; ?>
+            <!-- Top Navbar (statis) -->
+            <?php include __DIR__ . '/components/top-navbar.php'; ?>
 
-        <!-- Footer (statis) -->
-        <?php include __DIR__ . '/components/footer.php'; ?>
+            <!-- ===== KONTEN DINAMIS (hanya bagian ini yang berubah) ===== -->
+            <?php include $pageFile; ?>
 
+            <!-- Footer (statis) -->
+            <?php include __DIR__ . '/components/footer.php'; ?>
+
+        </div>
     </div>
 
-    <!-- Modal TTD -->
-    <div class="modal fade" id="signModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h6 class="modal-title"><i class="bi bi-pen-fill me-1"></i>Tanda Tangan Digital</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted mb-2" style="font-size:.82rem;">Tanda tangan elektronik ini mengesahkan dokumen di bawah ini.</p>
-                    <canvas id="signatureCanvas" class="signature-pad"></canvas>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-secondary" id="clearSignature">Hapus</button>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-dismiss="modal">Tanda Tangani</button>
-                </div>
+    <!-- ===== Modal TTD (Tailwind, tanpa Bootstrap JS) ===== -->
+    <div class="modal-overlay" id="signModal" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-pen-fancy mr-1 text-[#f97316]"></i>Tanda Tangan Digital</h6>
+                <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
+            </div>
+            <div class="p-5">
+                <p class="text-slate-500 mb-3 text-xs">Tanda tangan elektronik ini mengesahkan dokumen di bawah ini.</p>
+                <canvas id="signatureCanvas" class="signature-pad"></canvas>
+            </div>
+            <div class="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50">
+                <button type="button" class="px-3 py-1.5 text-xs rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium" id="clearSignature">Hapus</button>
+                <button type="button" class="px-3 py-1.5 text-xs rounded-md bg-[#1a365d] hover:bg-[#234670] text-white font-medium" id="confirmSignature">Tanda Tangani</button>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Local JS -->

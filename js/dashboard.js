@@ -1,14 +1,20 @@
 /**
- * SIATEK v3.0 — Dashboard JavaScript
- * Handles: Sidebar toggle (mobile), Submenu accordion (smooth),
- *          Chart.js (static data), Calendar, Announcement, Signature modal
+ * SIATEK v3.0 — Dashboard JavaScript (Tailwind version)
+ *
+ * Menangani:
+ *   - Sidebar mobile toggle (slide in/out)
+ *   - Submenu accordion (smooth open/close)
+ *   - Auto-open parent yang punya child aktif
+ *   - Chart.js (line + doughnut, data dari window.__berandaData)
+ *   - Modal TTD (show/hide manual)
+ *   - Signature canvas (mouse + touch)
  */
 
 (function () {
     'use strict';
 
     /* =========================================================
-       1. SIDEBAR TOGGLE (Mobile Overlay)
+       1. SIDEBAR TOGGLE (Mobile)
        ========================================================= */
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebarOverlay');
@@ -35,13 +41,16 @@
             else openSidebar();
         });
     }
-
     if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
     if (overlay) overlay.addEventListener('click', closeSidebar);
 
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (link) {
+    document.querySelectorAll('#sidebar .nav-item').forEach(function (link) {
         link.addEventListener('click', function () {
-            if (window.innerWidth < 768) closeSidebar();
+            if (window.innerWidth < 768) {
+                // jangan close kalau linknya cuma parent (submenu toggle)
+                if (link.classList.contains('nav-parent')) return;
+                closeSidebar();
+            }
         });
     });
 
@@ -50,462 +59,376 @@
     });
 
     /* =========================================================
-       2. SIDEBAR SUBMENU — Accordion (smooth)
+       2. SUBMENU ACCORDION
        ========================================================= */
+    function setMaxHeight(el, value) {
+        if (value === null) {
+            el.style.maxHeight = '';
+        } else {
+            el.style.maxHeight = value + 'px';
+        }
+    }
+
     document.querySelectorAll('.nav-parent').forEach(function (parent) {
         parent.addEventListener('click', function (e) {
             e.preventDefault();
-
-            // Di mode icon-only (tablet), submenu tidak dipakai
-            if (window.innerWidth >= 768 && window.innerWidth < 1200) return;
-
             var targetId = parent.getAttribute('data-target');
             var submenu = document.getElementById(targetId);
+            if (!submenu) return;
 
-            // Accordion: tutup submenu lain yang terbuka
+            // Accordion: tutup submenu lain
             document.querySelectorAll('.nav-parent').forEach(function (other) {
-                if (other !== parent) {
+                if (other === parent) return;
+                var oid = other.getAttribute('data-target');
+                var osub = document.getElementById(oid);
+                if (osub && osub.classList.contains('open')) {
+                    osub.style.maxHeight = osub.scrollHeight + 'px';
+                    osub.offsetHeight; // reflow
+                    osub.style.maxHeight = '0px';
+                    osub.classList.remove('open');
                     other.classList.remove('open');
-                    var otherId = other.getAttribute('data-target');
-                    var otherSub = document.getElementById(otherId);
-                    if (otherSub && otherSub.classList.contains('open')) {
-                        otherSub.style.maxHeight = otherSub.scrollHeight + 'px';
-                        otherSub.offsetHeight;
-                        otherSub.style.maxHeight = '0px';
-                        otherSub.classList.remove('open');
-                    }
+                    setTimeout(function () { osub.style.maxHeight = ''; }, 350);
                 }
             });
 
-            // Toggle submenu saat ini
-                if (submenu) {
-                if (submenu.classList.contains('open')) {
-                    // Close
-                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
-                    submenu.offsetHeight;
-                    submenu.style.maxHeight = '0px';
-                    submenu.classList.remove('open');
-                    parent.classList.remove('open');
-                } else {
-                    // Open
-                    submenu.classList.add('open');
-                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
-                    submenu.addEventListener('transitionend', function fn() {
-                        submenu.style.maxHeight = 'none';
-                        submenu.removeEventListener('transitionend', fn);
-                    });
-                    parent.classList.add('open');
-                }
+            if (submenu.classList.contains('open')) {
+                // close
+                submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                submenu.offsetHeight;
+                submenu.style.maxHeight = '0px';
+                submenu.classList.remove('open');
+                parent.classList.remove('open');
+                setTimeout(function () { submenu.style.maxHeight = ''; }, 350);
+            } else {
+                // open
+                submenu.classList.add('open');
+                parent.classList.add('open');
+                submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                submenu.addEventListener('transitionend', function fn() {
+                    submenu.style.maxHeight = '';
+                    submenu.removeEventListener('transitionend', fn);
+                });
             }
         });
     });
 
-    /* =========================================================
-       2b. SUB-PARENT (Nested Submenu — Bimbingan & Pengguna)
-       ========================================================= */
     document.querySelectorAll('.sub-parent').forEach(function (subParent) {
         subParent.addEventListener('click', function (e) {
             e.preventDefault();
             var targetId = subParent.getAttribute('data-target');
-            var nestedSub = document.getElementById(targetId);
+            var nested = document.getElementById(targetId);
+            if (!nested) return;
 
-            if (nestedSub) {
-                if (nestedSub.classList.contains('open')) {
-                    // Close
-                    nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
-                    nestedSub.offsetHeight;
-                    nestedSub.style.maxHeight = '0px';
-                    nestedSub.classList.remove('open');
-                    subParent.classList.remove('active');
-                } else {
-                    // Open
-                    nestedSub.classList.add('open');
-                    nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
-                    subParent.classList.add('active');
-                    nestedSub.addEventListener('transitionend', function fn() {
-                        nestedSub.style.maxHeight = 'none';
-                        nestedSub.removeEventListener('transitionend', fn);
-                    });
-                }
+            if (nested.classList.contains('open')) {
+                nested.style.maxHeight = nested.scrollHeight + 'px';
+                nested.offsetHeight;
+                nested.style.maxHeight = '0px';
+                nested.classList.remove('open');
+                subParent.classList.remove('open');
+                setTimeout(function () { nested.style.maxHeight = ''; }, 350);
+            } else {
+                nested.classList.add('open');
+                subParent.classList.add('open');
+                nested.style.maxHeight = nested.scrollHeight + 'px';
+                nested.addEventListener('transitionend', function fn() {
+                    nested.style.maxHeight = '';
+                    nested.removeEventListener('transitionend', fn);
+                });
             }
         });
     });
 
     window.addEventListener('resize', function () {
-        document.querySelectorAll('.nav-submenu.open').forEach(function (sub) {
-            sub.style.maxHeight = 'none';
+        document.querySelectorAll('.nav-submenu.open, .nav-submenu--nested.open').forEach(function (sub) {
+            sub.style.maxHeight = '';
         });
     });
 
     /* =========================================================
-       3. ANNOUNCEMENT WIDGET TOGGLE
+       3. AUTO-OPEN PARENT YANG PUNYA CHILD AKTIF
        ========================================================= */
-    var annToggle = document.getElementById('announcementToggle');
-    var annBody = document.getElementById('announcementBody');
+    function autoOpenActiveParent() {
+        // Untuk nav-submenu utama (.sub-item.nav-active)
+        document.querySelectorAll('.nav-submenu .sub-item.nav-active').forEach(function (activeItem) {
+            var submenu = activeItem.closest('.nav-submenu');
+            if (submenu && !submenu.classList.contains('open')) {
+                submenu.classList.add('open');
+                submenu.style.maxHeight = submenu.scrollHeight + 'px';
+                setTimeout(function () { submenu.style.maxHeight = ''; }, 350);
+            }
+            var parentId = submenu ? submenu.id : '';
+            if (parentId) {
+                var parentBtn = document.querySelector('.nav-parent[data-target="' + parentId + '"]');
+                if (parentBtn && !parentBtn.classList.contains('open')) {
+                    parentBtn.classList.add('open');
+                }
+                if (parentBtn) parentBtn.classList.add('has-active');
+            }
+        });
 
-    if (annToggle && annBody) {
-        annToggle.addEventListener('click', function () {
-            var icon = annToggle.querySelector('i');
-            if (annBody.classList.contains('collapsed')) {
-                annBody.classList.remove('collapsed');
-                annBody.style.maxHeight = annBody.scrollHeight + 'px';
-                icon.className = 'bi bi-chevron-up';
-                setTimeout(function () { annBody.style.maxHeight = '1000px'; }, 350);
-            } else {
-                annBody.style.maxHeight = annBody.scrollHeight + 'px';
-                annBody.offsetHeight;
-                annBody.classList.add('collapsed');
-                icon.className = 'bi bi-chevron-down';
+        // Untuk nested (.sub-item.nav-active di dalam .nav-submenu--nested)
+        document.querySelectorAll('.nav-submenu--nested .sub-item.nav-active').forEach(function (activeItem) {
+            var nested = activeItem.closest('.nav-submenu--nested');
+            if (nested && !nested.classList.contains('open')) {
+                nested.classList.add('open');
+                nested.style.maxHeight = nested.scrollHeight + 'px';
+                setTimeout(function () { nested.style.maxHeight = ''; }, 350);
+            }
+            var nestedId = nested ? nested.id : '';
+            if (nestedId) {
+                var subParentBtn = document.querySelector('.sub-parent[data-target="' + nestedId + '"]');
+                if (subParentBtn && !subParentBtn.classList.contains('open')) {
+                    subParentBtn.classList.add('open');
+                }
+                if (subParentBtn) subParentBtn.classList.add('has-active');
             }
         });
     }
 
-    /* =========================================================
-       4. MINI CALENDAR
-       ========================================================= */
-    var calendarGrid = document.getElementById('calendarGrid');
-    var calMonthYear = document.getElementById('calMonthYear');
-    var calPrev = document.getElementById('calPrev');
-    var calNext = document.getElementById('calNext');
-
-    var calDate = new Date(2026, 6, 1);
-
-    var eventsByMonth = {
-        '2026-6': { 12: 'today', 14: 'exam', 18: 'advising', 21: 'exam', 25: 'advising', 28: 'exam' }
-    };
-
-    var dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    var monthNames = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-
-    var TODAY = { d: 15, m: 6, y: 2026 };
-
-    function renderCalendar(date) {
-        if (!calendarGrid) return;
-        var year = date.getFullYear();
-        var month = date.getMonth();
-
-        calMonthYear.textContent = monthNames[month] + ' ' + year;
-
-        var firstDay = new Date(year, month, 1).getDay();
-        var daysInMonth = new Date(year, month + 1, 0).getDate();
-        var daysInPrevMonth = new Date(year, month, 0).getDate();
-
-        var events = eventsByMonth[year + '-' + month] || {};
-
-        var html = '';
-        dayNames.forEach(function (name) {
-            html += '<div class="cal-day-name">' + name + '</div>';
-        });
-
-        for (var i = firstDay - 1; i >= 0; i--) {
-            html += '<div class="cal-day other-month">' + (daysInPrevMonth - i) + '</div>';
-        }
-
-        for (var d = 1; d <= daysInMonth; d++) {
-            var classes = 'cal-day';
-            var isToday = d === TODAY.d && month === TODAY.m && year === TODAY.y;
-            var ev = events[d];
-            if (isToday) classes += ' today';
-            if (ev === 'exam') classes += ' has-event';
-            if (ev === 'advising') classes += ' has-event has-advising';
-            html += '<div class="' + classes + '">' + d + '</div>';
-        }
-
-        var totalCells = firstDay + daysInMonth;
-        var remaining = 42 - totalCells;
-        for (var j = 1; j <= remaining; j++) {
-            html += '<div class="cal-day other-month">' + j + '</div>';
-        }
-
-        calendarGrid.innerHTML = html;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autoOpenActiveParent);
+    } else {
+        autoOpenActiveParent();
     }
 
-    if (calPrev) calPrev.addEventListener('click', function () {
-        calDate.setMonth(calDate.getMonth() - 1);
-        renderCalendar(calDate);
-    });
-    if (calNext) calNext.addEventListener('click', function () {
-        calDate.setMonth(calDate.getMonth() + 1);
-        renderCalendar(calDate);
-    });
-
-    renderCalendar(calDate);
-
     /* =========================================================
-       5. CHART.JS — STATIC DATA
+       4. CHART.JS
        ========================================================= */
     if (typeof Chart === 'undefined') return;
 
     Chart.defaults.font.family = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
-    Chart.defaults.font.size = 12;
-    Chart.defaults.color = '#6b7280';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = '#64748b';
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
     Chart.defaults.plugins.legend.labels.padding = 14;
-    Chart.defaults.elements.bar.borderRadius = 4;
-    Chart.defaults.elements.bar.borderSkipped = false;
-    Chart.defaults.scale.grid.color = 'rgba(0,0,0,0.05)';
-    Chart.defaults.scale.grid.drawBorder = false;
 
-    /* 5a. Angkatan — 5 tahun terakhir, sejajar (bukan tumpuk) */
+    var orange = '#f97316';
+    var navy   = '#1a365d';
+    var slateLight = '#e2e8f0';
+
+    /* 4a. Enrollment Trend (Line Chart) */
     (function () {
-        var ctx = document.getElementById('chartAngkatan');
+        var ctx = document.getElementById('enrollmentChart');
         if (!ctx) return;
 
-        var years = ['2021','2022','2023','2024','2025'];
-        var elektro   = [285,310,340,365,390];
-        var komputer  = [230,250,270,290,310];
-        var d3elektro = [85,90,92,95,98];
+        var labels = ['2020','2021','2022','2023','2024'];
+        var datasetLabels = ['Total'];
+        var values = [[150, 165, 180, 175, 172]];
 
-        // Override dengan data dari PHP jika tersedia
-        if (window.__berandaData && window.__berandaData.angkatan) {
-            var ad = window.__berandaData.angkatan;
-            years = ad.labels;
-            var colors = [
-                'rgba(13,110,253,0.85)',
-                'rgba(99,102,241,0.85)',
-                'rgba(25,135,84,0.85)'
-            ];
-            var datasets = [];
-            for (var d = 0; d < ad.values.length; d++) {
-                datasets.push({
-                    label: ad.datasetLabels[d] || 'Prodi ' + (d+1),
-                    data: ad.values[d],
-                    backgroundColor: colors[d % colors.length],
-                    borderRadius: 3,
-                    maxBarThickness: 28
-                });
-            }
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: years,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: { backgroundColor: '#1e293b', titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 }
-                    },
-                    scales: {
-                        x: { stacked: false, ticks: { maxRotation: 0 } },
-                        y: { stacked: false, beginAtZero: true }
-                    },
-                    animation: { easing: 'easeInQuad', duration: 1200 }
-                }
-            });
-            return;
+        if (window.__berandaData && window.__berandaData.enrollment) {
+            var ed = window.__berandaData.enrollment;
+            if (ed.labels && ed.labels.length) labels = ed.labels;
+            if (ed.datasetLabels && ed.datasetLabels.length) datasetLabels = ed.datasetLabels;
+            if (ed.values && ed.values.length) values = ed.values;
         }
 
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: years,
-                datasets: [
-                    { label: 'Teknik Elektro',    data: elektro,    backgroundColor: 'rgba(13,110,253,0.85)', borderRadius: 3, maxBarThickness: 28 },
-                    { label: 'Teknik Komputer',    data: komputer,   backgroundColor: 'rgba(99,102,241,0.85)', borderRadius: 3, maxBarThickness: 28 },
-                    { label: 'Pendidikan Teknik Elektro', data: d3elektro, backgroundColor: 'rgba(25,135,84,0.85)', borderRadius: 3, maxBarThickness: 28 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: { backgroundColor: '#1e293b', titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 }
-                },
-                scales: {
-                    x: { stacked: false, ticks: { maxRotation: 0 } },
-                    y: { stacked: false, beginAtZero: true }
-                },
-                animation: { easing: 'easeInQuad', duration: 1200 }
-            }
+        // Build line chart: gabungkan semua prodi jadi total
+        var totalPerYear = labels.map(function (_, i) {
+            var sum = 0;
+            values.forEach(function (vals) { sum += (vals[i] || 0); });
+            return sum;
         });
-    })();
 
-    /* 5b. Skripsi & KP — 4 kategori */
-    (function () {
-        var ctx = document.getElementById('chartSkripsi');
-        if (!ctx) return;
+        var ctxObj = ctx.getContext('2d');
+        var gradient = ctxObj.createLinearGradient(0, 0, 0, 260);
+        gradient.addColorStop(0, 'rgba(249, 115, 22, 0.15)');
+        gradient.addColorStop(1, 'rgba(249, 115, 22, 0.0)');
 
-        var data, total;
-
-        // Override dengan data dari PHP jika tersedia
-        if (window.__berandaData && window.__berandaData.ringkasan) {
-            data = window.__berandaData.ringkasan.values;
-            total = window.__berandaData.ringkasan.total;
-        } else {
-            data = [24, 38, 18, 12];
-            total = data.reduce(function (a, b) { return a + b; }, 0);
-        }
-
-        new Chart(ctx, {
-            type: 'doughnut',
+        new Chart(ctxObj, {
+            type: 'line',
             data: {
-                labels: window.__berandaData && window.__berandaData.ringkasan
-                    ? window.__berandaData.ringkasan.labels
-                    : ['Kerja Praktek', 'Proposal Skripsi', 'Hasil Penelitian', 'Tutup'],
+                labels: labels,
                 datasets: [{
-                    data: data,
-                    backgroundColor: [
-                        'rgba(13,202,240,0.85)',
-                        'rgba(13,110,253,0.85)',
-                        'rgba(251,191,36,0.85)',
-                        'rgba(168,85,247,0.85)'
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff',
-                    hoverOffset: 8
+                    label: 'Mahasiswa Baru',
+                    data: totalPerYear,
+                    borderColor: orange,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: orange,
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '65%',
-                layout: { padding: 10 },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        padding: 12,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function (c) {
-                                var pct = ((c.parsed / total) * 100).toFixed(1);
-                                return c.label + ': ' + c.parsed + ' (' + pct + '%)';
-                            }
-                        }
-                    }
-                },
-                animation: { easing: 'easeInQuad', animateRotate: true, duration: 1400 }
-            },
-            plugins: [{
-                id: 'centerText',
-                beforeDraw: function (chart) {
-                    var w = chart.width;
-                    var h = chart.height;
-                    var c = chart.ctx;
-                    c.save();
-                    c.font = '800 ' + Math.round(h * 0.14) + 'px "Inter", system-ui, sans-serif';
-                    c.fillStyle = '#111827';
-                    c.textAlign = 'center';
-                    c.textBaseline = 'middle';
-                    c.fillText(total, w / 2, h / 2 - 8);
-                    c.font = '500 ' + Math.round(h * 0.055) + 'px "Inter", system-ui, sans-serif';
-                    c.fillStyle = '#6b7280';
-                    c.fillText('Total Aktif', w / 2, h / 2 + 18);
-                    c.restore();
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: slateLight, borderDash: [5, 5] }, ticks: { color: '#64748b' } },
+                    x: { grid: { display: false }, ticks: { color: '#64748b' } }
                 }
-            }]
+            }
         });
     })();
 
-    /* 5c-5d. Sister & Beban Kerja dihapus */
+    /* 4b. Distribusi Konsentrasi (Doughnut) */
+    (function () {
+        var ctx = document.getElementById('concentrationChart');
+        if (!ctx) return;
 
-    /* =========================================================
-       6. SIGNATURE MODAL
-       ========================================================= */
-    var signModalEl = document.getElementById('signModal');
-    if (signModalEl && typeof bootstrap !== 'undefined') {
-        var signModal = new bootstrap.Modal(signModalEl);
-        var btnConfirm = document.getElementById('btnConfirmSign');
-        var confirmCheck = document.getElementById('confirmSignCheck');
-
-        document.querySelectorAll('.btn-signature').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                signModal.show();
-            });
-        });
-
-        if (btnConfirm) {
-            btnConfirm.addEventListener('click', function () {
-                if (confirmCheck && confirmCheck.checked) {
-                    btnConfirm.innerHTML = '<i class="bi bi-check-circle me-1"></i> Tersimpan!';
-                    btnConfirm.classList.remove('btn-primary');
-                    btnConfirm.classList.add('btn-success');
-                    btnConfirm.disabled = true;
-
-                    setTimeout(function () {
-                        signModal.hide();
-                        btnConfirm.innerHTML = '<i class="bi bi-pen-fill me-1"></i> Konfirmasi & Tanda Tangan';
-                        btnConfirm.classList.remove('btn-success');
-                        btnConfirm.classList.add('btn-primary');
-                        btnConfirm.disabled = false;
-                        if (confirmCheck) confirmCheck.checked = false;
-                    }, 1500);
-                } else {
-                    if (confirmCheck) {
-                        confirmCheck.focus();
-                        confirmCheck.classList.add('is-invalid');
-                        setTimeout(function () { confirmCheck.classList.remove('is-invalid'); }, 2000);
-                    }
-                }
-            });
+        var labels = ['Tenaga Listrik','Telekomunikasi','Kendali','Elektronika'];
+        var values = [35, 25, 20, 20];
+        if (window.__berandaData && window.__berandaData.concentration) {
+            var cd = window.__berandaData.concentration;
+            if (cd.labels && cd.labels.length) labels = cd.labels;
+            if (cd.values && cd.values.length) values = cd.values;
         }
 
-        signModalEl.addEventListener('hidden.bs.modal', function () {
-            if (btnConfirm) {
-                btnConfirm.innerHTML = '<i class="bi bi-pen-fill me-1"></i> Konfirmasi & Tanda Tangan';
-                btnConfirm.classList.remove('btn-success');
-                btnConfirm.classList.add('btn-primary');
-                btnConfirm.disabled = false;
+        new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: [orange, navy, '#10b981', '#94a3b8', '#6366f1', '#dc2626', '#7c3aed'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, font: { size: 11 }, color: '#475569', usePointStyle: true, boxWidth: 8 }
+                    }
+                }
             }
-            if (confirmCheck) confirmCheck.checked = false;
+        });
+    })();
+
+    /* =========================================================
+       5. MODAL TTD (Tailwind, tanpa Bootstrap)
+       ========================================================= */
+    var signModal = document.getElementById('signModal');
+    var signatureCanvas = document.getElementById('signatureCanvas');
+    var clearBtn = document.getElementById('clearSignature');
+    var confirmBtn = document.getElementById('confirmSignature');
+
+    function showModal() {
+        if (!signModal) return;
+        signModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        setTimeout(initSignaturePad, 50);
+    }
+    function hideModal() {
+        if (!signModal) return;
+        signModal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('[data-modal-open="signModal"], [data-bs-target="#signModal"], .btn-signature').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            showModal();
+        });
+    });
+    document.querySelectorAll('[data-modal-close], [data-bs-dismiss="modal"]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            hideModal();
+        });
+    });
+    if (signModal) {
+        signModal.addEventListener('click', function (e) {
+            if (e.target === signModal) hideModal();
+        });
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && signModal && signModal.classList.contains('show')) hideModal();
+    });
+
+    /* 5a. Signature pad */
+    var sigCtx, drawing = false, lastX = 0, lastY = 0;
+    function initSignaturePad() {
+        if (!signatureCanvas) return;
+        if (sigCtx) return;
+        // Resize canvas to its CSS size
+        var rect = signatureCanvas.getBoundingClientRect();
+        signatureCanvas.width = rect.width;
+        signatureCanvas.height = rect.height;
+        sigCtx = signatureCanvas.getContext('2d');
+        sigCtx.lineWidth = 2;
+        sigCtx.lineCap = 'round';
+        sigCtx.strokeStyle = '#1a365d';
+
+        function getPos(evt) {
+            var rect = signatureCanvas.getBoundingClientRect();
+            var t = evt.touches ? evt.touches[0] : evt;
+            return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+        }
+        function start(e) {
+            e.preventDefault();
+            drawing = true;
+            var p = getPos(e);
+            lastX = p.x; lastY = p.y;
+        }
+        function move(e) {
+            if (!drawing) return;
+            e.preventDefault();
+            var p = getPos(e);
+            sigCtx.beginPath();
+            sigCtx.moveTo(lastX, lastY);
+            sigCtx.lineTo(p.x, p.y);
+            sigCtx.stroke();
+            lastX = p.x; lastY = p.y;
+        }
+        function end() { drawing = false; }
+
+        signatureCanvas.addEventListener('mousedown', start);
+        signatureCanvas.addEventListener('mousemove', move);
+        signatureCanvas.addEventListener('mouseup', end);
+        signatureCanvas.addEventListener('mouseleave', end);
+        signatureCanvas.addEventListener('touchstart', start, { passive: false });
+        signatureCanvas.addEventListener('touchmove', move, { passive: false });
+        signatureCanvas.addEventListener('touchend', end);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (!sigCtx || !signatureCanvas) return;
+            sigCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        });
+    }
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+            confirmBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Tersimpan!';
+            confirmBtn.classList.remove('bg-[#1a365d]');
+            confirmBtn.classList.add('bg-green-600');
+            setTimeout(function () {
+                hideModal();
+                confirmBtn.innerHTML = 'Tanda Tangani';
+                confirmBtn.classList.remove('bg-green-600');
+                confirmBtn.classList.add('bg-[#1a365d]');
+                if (sigCtx && signatureCanvas) sigCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            }, 1200);
         });
     }
 
     /* =========================================================
-       5. AUTO-OPEN SIDEBAR PARENT YANG PUNYA CHILD AKTIF
+       6. EXPORT BUTTON (placeholder)
        ========================================================= */
-    function autoOpenActiveParent() {
-        var currentPage = window.location.search; // ex: '?page=beranda' atau '?page=mhs-skripsi'
-
-        // Cari semua sub-item yang aktif
-        document.querySelectorAll('.nav-submenu .sub-item.active').forEach(function (activeItem) {
-            var submenu = activeItem.closest('.nav-submenu');
-            if (submenu) {
-                var parentId = submenu.id.replace('sub-', '');
-                var parentBtn = document.querySelector('.nav-parent[data-target="' + parentId + '"]');
-                if (parentBtn && !parentBtn.classList.contains('open')) {
-                    parentBtn.classList.add('open');
-                }
-                if (submenu && !submenu.classList.contains('open')) {
-                    submenu.classList.add('open');
-                    submenu.style.maxHeight = submenu.scrollHeight + 'px';
-                    setTimeout(function () {
-                        submenu.style.maxHeight = 'none';
-                    }, 350);
-                }
+    var btnExport = document.getElementById('btnExport');
+    if (btnExport) {
+        btnExport.addEventListener('click', function () {
+            // Placeholder: generate CSV dari window.__berandaData
+            if (!window.__berandaData) {
+                alert('Tidak ada data untuk di-export.');
+                return;
             }
+            var rows = [];
+            rows.push(['Kategori','Nilai']);
+            rows.push(['Total Mahasiswa', window.__berandaData.concentration.values.reduce(function(a,b){return a+b;}, 0)]);
+            rows.push(['Skripsi Aktif', 'lihat DB']);
+            alert('Export laporan berhasil disiapkan (placeholder).');
         });
-
-        // Auto-open sub-parent (nested) jika ada child aktif
-        document.querySelectorAll('.nav-submenu .sub-parent.active').forEach(function (activeSub) {
-            var nestedId = activeSub.getAttribute('data-target');
-            var nestedSub = document.getElementById(nestedId);
-            if (nestedSub && !nestedSub.classList.contains('open')) {
-                nestedSub.classList.add('open');
-                nestedSub.style.maxHeight = nestedSub.scrollHeight + 'px';
-                setTimeout(function () {
-                    nestedSub.style.maxHeight = 'none';
-                }, 350);
-                activeSub.classList.add('active');
-            }
-        });
-    }
-
-    // Jalankan saat DOM siap
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', autoOpenActiveParent);
-    } else {
-        autoOpenActiveParent();
     }
 })();
