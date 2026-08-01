@@ -260,6 +260,49 @@
         var komputer  = [230,250,270,290,310];
         var d3elektro = [85,90,92,95,98];
 
+        // Override dengan data dari PHP jika tersedia
+        if (window.__berandaData && window.__berandaData.angkatan) {
+            var ad = window.__berandaData.angkatan;
+            years = ad.labels;
+            var colors = [
+                'rgba(13,110,253,0.85)',
+                'rgba(99,102,241,0.85)',
+                'rgba(25,135,84,0.85)'
+            ];
+            var datasets = [];
+            for (var d = 0; d < ad.values.length; d++) {
+                datasets.push({
+                    label: ad.datasetLabels[d] || 'Prodi ' + (d+1),
+                    data: ad.values[d],
+                    backgroundColor: colors[d % colors.length],
+                    borderRadius: 3,
+                    maxBarThickness: 28
+                });
+            }
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { backgroundColor: '#1e293b', titleFont: { size: 13, weight: '600' }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 }
+                    },
+                    scales: {
+                        x: { stacked: false, ticks: { maxRotation: 0 } },
+                        y: { stacked: false, beginAtZero: true }
+                    },
+                    animation: { easing: 'easeInQuad', duration: 1200 }
+                }
+            });
+            return;
+        }
+
         new Chart(ctx, {
             type: 'bar',
             data: {
@@ -292,13 +335,23 @@
         var ctx = document.getElementById('chartSkripsi');
         if (!ctx) return;
 
-        var data = [24, 38, 18, 12];
-        var total = data.reduce(function (a, b) { return a + b; }, 0);
+        var data, total;
+
+        // Override dengan data dari PHP jika tersedia
+        if (window.__berandaData && window.__berandaData.ringkasan) {
+            data = window.__berandaData.ringkasan.values;
+            total = window.__berandaData.ringkasan.total;
+        } else {
+            data = [24, 38, 18, 12];
+            total = data.reduce(function (a, b) { return a + b; }, 0);
+        }
 
         new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Kerja Praktek', 'Proposal Skripsi', 'Hasil Penelitian', 'Tutup'],
+                labels: window.__berandaData && window.__berandaData.ringkasan
+                    ? window.__berandaData.ringkasan.labels
+                    : ['Kerja Praktek', 'Proposal Skripsi', 'Hasil Penelitian', 'Tutup'],
                 datasets: [{
                     data: data,
                     backgroundColor: [
@@ -354,102 +407,10 @@
         });
     })();
 
-    /* 5c. Sister */
-    (function () {
-        var ctx = document.getElementById('chartSister');
-        if (!ctx) return;
-
-        var labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        var pendidikan = [45, 52, 48, 60, 55, 62, 58, 70, 65, 72, 68, 75];
-        var penelitian  = [30, 35, 28, 40, 38, 42, 45, 48, 44, 50, 52, 55];
-        var pengabdian  = [20, 22, 25, 28, 30, 27, 32, 35, 33, 38, 40, 42];
-
-        var c = ctx.getContext('2d');
-        var g1 = c.createLinearGradient(0,0,0,280);
-        g1.addColorStop(0,'rgba(13,110,253,0.3)'); g1.addColorStop(1,'rgba(13,110,253,0)');
-        var g2 = c.createLinearGradient(0,0,0,280);
-        g2.addColorStop(0,'rgba(251,191,36,0.3)'); g2.addColorStop(1,'rgba(251,191,36,0)');
-        var g3 = c.createLinearGradient(0,0,0,280);
-        g3.addColorStop(0,'rgba(168,85,247,0.3)'); g3.addColorStop(1,'rgba(168,85,247,0)');
-
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: 'Pendidikan', data: pendidikan, borderColor: 'rgba(13,110,253,0.9)', backgroundColor: g1, fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 },
-                    { label: 'Penelitian',  data: penelitian,  borderColor: 'rgba(251,191,36,0.9)', backgroundColor: g2, fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 },
-                    { label: 'Pengabdian',  data: pengabdian,  borderColor: 'rgba(168,85,247,0.9)', backgroundColor: g3, fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8 }
-                },
-                scales: { y: { beginAtZero: true } },
-                animation: { easing: 'easeInQuad', duration: 1500 }
-            }
-        });
-    })();
-
-    /* 5d. Beban Kerja */
-    (function () {
-        var ctx = document.getElementById('chartBeban');
-        if (!ctx) return;
-
-        var days = ['Kam', 'Jum', 'Sab', 'Min', 'Sen', 'Sel', 'Rab'];
-        var broadcast = [18, 22, 14, 8,  26, 31, 25];
-        var dokumen   = [12, 15,  9, 4,  18, 22, 19];
-        var labelDates = ['9 Jul', '10 Jul', '11 Jul', '12 Jul', '13 Jul', '14 Jul', '15 Jul'];
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: days,
-                datasets: [
-                    { label: 'Broadcast', data: broadcast, backgroundColor: 'rgba(37,211,102,0.85)', borderRadius: 4, maxBarThickness: 28 },
-                    { label: 'Dokumen',   data: dokumen,   backgroundColor: 'rgba(13,110,253,0.85)', borderRadius: 4, maxBarThickness: 28 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        padding: 12,
-                        cornerRadius: 8,
-                        titleFont: { weight: '600' },
-                        callbacks: {
-                            title: function (items) {
-                                return labelDates[items[0].dataIndex];
-                            }
-                        }
-                    }
-                },
-                scales: { y: { beginAtZero: true } },
-                animation: { easing: 'easeInQuad', duration: 1200 }
-            }
-        });
-    })();
+    /* 5c-5d. Sister & Beban Kerja dihapus */
 
     /* =========================================================
-       6. SKELETON LOADING
-       ========================================================= */
-    setTimeout(function () {
-        var skeletonElements = document.querySelectorAll('[data-skeleton="true"]');
-        skeletonElements.forEach(function (el) { el.removeAttribute('data-skeleton'); });
-        document.body.classList.add('skeleton-loaded');
-    }, 1200);
-
-    /* =========================================================
-       7. SIGNATURE MODAL
+       6. SIGNATURE MODAL
        ========================================================= */
     var signModalEl = document.getElementById('signModal');
     if (signModalEl && typeof bootstrap !== 'undefined') {
