@@ -88,7 +88,7 @@ $aliases = [
 /* ============ Resolve Slug ============ */
 $rawPage = isset($_GET['page']) ? (string) $_GET['page'] : '';
 $pageKey = preg_replace('/[^a-z0-9\-]/', '', strtolower($rawPage));
-if ($pageKey === '') $pageKey = 'dashboard';
+if ($pageKey === '') $pageKey = 'beranda';
 
 $pageKey = $aliases[$pageKey] ?? $pageKey;
 $route = $routeMap[$pageKey] ?? null;
@@ -116,22 +116,18 @@ if ($route) {
     $pageTitle = 'Halaman Tidak Ditemukan';
     http_response_code(404);
     $notFound = true;
-    $pageKey = 'dashboard';
+    $pageKey = 'beranda';
 }
 
 /* Untuk highlight sidebar di sidebar.php */
 $activePage = $pageKey;
 
-/* Base URL absolut untuk <base href> — biar link relatif /dashboard dst jadi valid */
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/redesain-siatek';
 ?>
 <!doctype html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <base href="<?= htmlspecialchars($baseUrl) ?>/">
     <title><?= htmlspecialchars($pageTitle) ?> — SIATEK</title>
 
     <!-- Preconnect -->
@@ -147,15 +143,15 @@ $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/redesain-siatek';
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Local CSS (fallback untuk halaman lain yang masih pakai class Bootstrap) -->
     <link rel="stylesheet" href="css/dashboard.css">
 
     <style>
         * { font-family: "Inter", sans-serif; }
-        body { background-color: #f8fafc; }
+        body { background-color: #f1f5f9; }
 
-        /* ===== Sidebar Navy Gelap (komponen .sidebar-bg) ===== */
+        /* ===== Sidebar Navy Gelap ===== */
         .sidebar-bg { background-color: #1a365d; }
 
         /* ===== Nav Item Default ===== */
@@ -166,27 +162,21 @@ $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/redesain-siatek';
             background-color: #234670;
             color: #fff;
         }
-        /* Pakai selector body supaya !important menang atas Tailwind utility */
-        body #sidebar .nav-active.nav-active,
-        body #sidebar a.nav-active {
-            background: linear-gradient(90deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.08) 60%, transparent 100%) !important;
+        .nav-active {
             background-color: #11243d !important;
             color: #fff !important;
-            font-weight: 600 !important;
+            font-weight: 500 !important;
             border-left: 4px solid #f97316 !important;
-            box-shadow: inset 0 0 0 1px rgba(249,115,22,0.35) !important;
-            padding-left: 12px !important; /* kompensasi border-left dari px-4 Tailwind */
         }
-        body #sidebar .nav-active > i { color: #f97316 !important; opacity: 1 !important; }
-        body #sidebar .nav-active > span { color: #fff !important; }
+        .nav-active > i { color: #f97316 !important; opacity: 1 !important; }
+        .nav-active > span { color: #fff !important; }
 
-        /* Parent group yang punya child aktif: highlight oranye juga */
-        body #sidebar .nav-parent.has-active {
+        .nav-parent.has-active {
             background-color: #234670 !important;
             color: #fff !important;
             font-weight: 500 !important;
         }
-        body #sidebar .nav-parent.has-active > i { color: #f97316 !important; opacity: 1 !important; }
+        .nav-parent.has-active > i { color: #f97316 !important; opacity: 1 !important; }
 
         /* ===== Nav Group Section Header ===== */
         .nav-section-header {
@@ -270,7 +260,7 @@ $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/redesain-siatek';
         }
     </style>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-100">
 
     <div class="flex h-screen overflow-hidden">
 

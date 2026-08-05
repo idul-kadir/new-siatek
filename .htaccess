@@ -11,11 +11,12 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Root → dashboard
-RewriteRule ^$ index.php?page=dashboard [L,QSA]
+# Root → beranda
+RewriteRule ^$ index.php?page=beranda [L,QSA]
 
 # --- Top-level ---
-RewriteRule ^dashboard/?$   index.php?page=dashboard [L,QSA]
+RewriteRule ^beranda/?$     index.php?page=beranda [L,QSA]
+RewriteRule ^dashboard/?$   index.php?page=beranda [L,QSA]
 RewriteRule ^biodata/?$     index.php?page=biodata [L,QSA]
 RewriteRule ^jadwal/?$      index.php?page=jadwal [L,QSA]
 RewriteRule ^sister/?$      index.php?page=sister [L,QSA]

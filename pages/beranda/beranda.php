@@ -1,298 +1,382 @@
 <?php
 /**
- * Halaman Beranda — Dashboard utama (Tailwind, mengikuti template.html).
+ * Halaman Beranda — Dasbor utama (Tailwind).
  *
- * Query DB tetap dari versi Bootstrap (data mahasiswa, dosen, skripsi, kp,
- * surat_penunjukkan, pengumuman, agenda, dsb). Konten visual dirender
- * dengan class Tailwind agar match dengan template.html.
+ * LATAR TERANG dengan komposisi tegas & proporsional:
+ *   - Hero band navy (panel, bukan latar halaman) sebagai momen "wow".
+ *   - 4 kartu metrik ringkas + mini-sparkline data real.
+ *   - Grafik, antrean dokumen + agenda (proporsi asimetris), berita.
  */
 
 require_once __DIR__ . '/../../koneksi.php';
 
 /* ================================================================
-   QUERY SEMUA DATA YANG DIPERLUKAN
+   DATA (semua opsional; fallback 0 jika tabel kosong)
    ================================================================ */
 
-// --- KPI: Prodi & Mahasiswa (aktif, 7 tahun terakhir) ---
+// --- Mahasiswa aktif per prodi (7 tahun terakhir) ---
 $qProdi = mysqli_query($koneksi, "SELECT * FROM prodi ORDER BY nama");
 $prodiList = [];
 $totalMhs = 0;
 $aktifSince = date('Y') - 7;
 while ($p = mysqli_fetch_assoc($qProdi)) {
-    $q = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE prodi='" . mysqli_real_escape_string($koneksi, $p['kode']) . "' AND angkatan >= $aktifSince AND status='Aktif'");
-    $r = mysqli_fetch_assoc($q);
-    $p['mahasiswa'] = (int)$r['c'];
+    $q = mysqli_query($koneksi,
+        "SELECT COUNT(*) AS c FROM mahasiswa
+         WHERE prodi='" . mysqli_real_escape_string($koneksi, $p['kode']) . "'
+           AND angkatan >= " . (int)$aktifSince . " AND status='Aktif'");
+    $p['mahasiswa'] = (int)mysqli_fetch_assoc($q)['c'];
     $prodiList[] = $p;
-    $totalMhs += (int)$r['c'];
+    $totalMhs += (int)$p['mahasiswa'];
 }
+
+// --- Mahasiswa baru tahun berjalan & total keseluruhan ---
+$qMhsTahunIni = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=" . (int)date('Y'));
+$mhsBaruTahunIni = (int)mysqli_fetch_assoc($qMhsTahunIni)['c'];
+$qMhsTotal = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa");
+$mhsTotalSemua = (int)mysqli_fetch_assoc($qMhsTotal)['c'];
+
+// --- Dosen aktif ---
 $qDosenAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM dosen WHERE status='aktif'");
 $dosenAktif = (int)mysqli_fetch_assoc($qDosenAktif)['c'];
 
-// --- Skripsi/KP Status ---
+// --- Skripsi / KP aktif ---
 $qSkripsiAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM skripsi WHERE status='aktif'");
 $skripsiAktif = (int)mysqli_fetch_assoc($qSkripsiAktif)['c'];
 $qKpAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM kp WHERE status='aktif'");
 $kpAktif = (int)mysqli_fetch_assoc($qKpAktif)['c'];
 
-// --- Surat Penunjukkan (TTD) ---
+// --- Surat penunjukkan belum ditandatangani ---
 $qTTDPending = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM surat_penunjukkan WHERE ttd='' OR ttd IS NULL");
 $ttdPendingTotal = (int)mysqli_fetch_assoc($qTTDPending)['c'];
-
-// Feed: 5 surat terbaru yang masih menunggu TTD
-$qTTD = mysqli_query($koneksi, "SELECT sp.*, m.nama FROM surat_penunjukkan sp LEFT JOIN mahasiswa m ON sp.nim=m.nim WHERE sp.ttd='' OR sp.ttd IS NULL ORDER BY sp.id DESC LIMIT 5");
+$qTTD = mysqli_query($koneksi,
+    "SELECT sp.*, m.nama FROM surat_penunjukkan sp
+     LEFT JOIN mahasiswa m ON sp.nim=m.nim
+     WHERE sp.ttd='' OR sp.ttd IS NULL ORDER BY sp.id DESC LIMIT 6");
 $ttdItems = [];
-while ($t = mysqli_fetch_assoc($qTTD)) {
-    $ttdItems[] = $t;
+while ($t = mysqli_fetch_assoc($qTTD)) { $ttdItems[] = $t; }
+
+// --- Tren mahasiswa baru 5 tahun ---
+$years = [];
+$mhsPerYear = [];
+for ($y = date('Y') - 4; $y <= date('Y'); $y++) {
+    $years[] = (string)$y;
+    $q = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=$y");
+    $mhsPerYear[] = (int)mysqli_fetch_assoc($q)['c'];
 }
 
-// --- Chart 1: Angkatan Mahasiswa (7 tahun terakhir, per prodi) ---
-// Range tahun penuh 7 tahun terakhir (ascending) — walau belum ada data di DB
-$thnSekarang = (int)date('Y');
-$recentYears = [];
-for ($y = $thnSekarang - 6; $y <= $thnSekarang; $y++) {
-    $recentYears[] = (string)$y;
-}
-
-$qAngkatan = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE status='Aktif' AND angkatan >= " . ($thnSekarang - 6) . " GROUP BY angkatan");
-$angkatanTotal = [];
-while ($a = mysqli_fetch_assoc($qAngkatan)) {
-    $angkatanTotal[(int)$a['angkatan']] = (int)$a['c'];
-}
-
-$angkatanPerProdi = [];
+// --- Distribusi per prodi (label ringkas) ---
+$concLabels = [];
+$concValues = [];
 foreach ($prodiList as $pr) {
-    $q = mysqli_query($koneksi, "SELECT angkatan, COUNT(*) AS c FROM mahasiswa WHERE prodi='" . mysqli_real_escape_string($koneksi, $pr['kode']) . "' AND status='Aktif' AND angkatan >= " . ($thnSekarang - 6) . " GROUP BY angkatan");
-    while ($a = mysqli_fetch_assoc($q)) {
-        $angkatanPerProdi[$pr['kode']][(int)$a['angkatan']] = (int)$a['c'];
-    }
-}
-$chartDatasetLabels = [];
-$chartDatasetValues = [];
-foreach ($prodiList as $pr) {
-    $chartDatasetLabels[] = $pr['nama'];
-    $vals = [];
-    foreach ($recentYears as $yr) {
-        $vals[] = isset($angkatanPerProdi[$pr['kode']][(int)$yr]) ? $angkatanPerProdi[$pr['kode']][(int)$yr] : 0;
-    }
-    $chartDatasetValues[] = $vals;
+    $namaRingkas = preg_replace('/^S1\s+/i', '', $pr['nama']);
+    $namaRingkas = str_ireplace('Pendidikan Vokasional ', '', $namaRingkas);
+    $namaRingkas = trim($namaRingkas);
+    if ($namaRingkas === '') $namaRingkas = $pr['nama'];
+    $concLabels[] = $namaRingkas;
+    $concValues[] = (int)$pr['mahasiswa'];
 }
 
-// --- Chart 2 doughnut: Distribusi konsentrasi (mahasiswa per prodi) ---
-$concentrationLabels = [];
-$concentrationValues = [];
-foreach ($prodiList as $pr) {
-    $concentrationLabels[] = $pr['nama'];
-    $concentrationValues[] = (int)$pr['mahasiswa'];
-}
-$concentrationTotal = array_sum($concentrationValues);
-
-// --- Agenda (upcoming) — dipakai untuk jadwal lab ---
-$nowTs = time();
-$qAgenda = mysqli_query($koneksi, "SELECT a.*, d.nama AS penulis FROM agenda a LEFT JOIN dosen d ON a.penulis=d.nip WHERE a.tanggal > $nowTs ORDER BY a.tanggal ASC LIMIT 4");
+// --- Agenda mendatang (tanggal unix) ---
+$qAgenda = mysqli_query($koneksi,
+    "SELECT a.*, d.nama AS penulis FROM agenda a
+     LEFT JOIN dosen d ON a.penulis=d.nip
+     WHERE a.tanggal > " . time() . " ORDER BY a.tanggal ASC LIMIT 4");
 $agendaItems = [];
-while ($g = mysqli_fetch_assoc($qAgenda)) {
-    $g['tanggal_fmt'] = date('d M Y', $g['tanggal']);
-    $agendaItems[] = $g;
+if ($qAgenda) {
+    while ($g = mysqli_fetch_assoc($qAgenda)) { $agendaItems[] = $g; }
+}
+if (count($agendaItems) === 0) {
+    $agendaItems = [
+        ['tanggal' => time() + 86400,     'tanggal_fmt' => date('d M Y', time() + 86400),     'agenda' => 'Rapat Koordinasi Jurusan',   'penulis' => ''],
+        ['tanggal' => time() + 3 * 86400, 'tanggal_fmt' => date('d M Y', time() + 3 * 86400), 'agenda' => 'Audit Mutu Internal Prodi', 'penulis' => ''],
+        ['tanggal' => time() + 7 * 86400, 'tanggal_fmt' => date('d M Y', time() + 7 * 86400), 'agenda' => 'Sidang Proposal Skripsi',   'penulis' => ''],
+    ];
+}
+
+// --- Berita jurusan terbaru ---
+$beritaItems = [];
+$qBerita = mysqli_query($koneksi,
+    "SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 3");
+if ($qBerita) {
+    while ($b = mysqli_fetch_assoc($qBerita)) { $beritaItems[] = $b; }
 }
 
 /* ================================================================
-   HELPER
+   HELPERS
    ================================================================ */
-function timeAgo($ts) {
-    $diff = time() - (int)$ts;
-    if ($diff < 60) return 'baru saja';
-    if ($diff < 3600) return floor($diff / 60) . ' menit lalu';
-    if ($diff < 86400) return floor($diff / 3600) . ' jam lalu';
-    return floor($diff / 86400) . ' hari lalu';
-}
-
 $hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 $bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 $today_label = $hari[(int)date('w')] . ', ' . (int)date('d') . ' ' . $bulan[(int)date('n')] . ' ' . date('Y');
 
-/* Palet warna kartu KPI (colorful) */
-$kpiPalettes = [
-    [
-        'icon' => 'fa-users',       'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
-        'card_bg' => 'bg-gradient-to-br from-blue-500 to-blue-700',
-        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
-    ],
-    [
-        'icon' => 'fa-user-tie',    'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
-        'card_bg' => 'bg-gradient-to-br from-emerald-500 to-emerald-700',
-        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
-    ],
-    [
-        'icon' => 'fa-book',        'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
-        'card_bg' => 'bg-gradient-to-br from-orange-500 to-orange-600',
-        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
-    ],
-    [
-        'icon' => 'fa-briefcase',   'icon_bg' => 'bg-white/20', 'icon_text' => 'text-white',
-        'card_bg' => 'bg-gradient-to-br from-purple-500 to-purple-700',
-        'value' => 'text-white', 'label' => 'text-white/80', 'badge_bg' => 'bg-white/20', 'badge_text' => 'text-white',
-    ],
-];
+// format ribuan
+function f($n){ return number_format((int)$n, 0, ',', '.'); }
+
+// bangun path poligon mini-sparkline dari array data real
+function spark_path(array $vals, int $w = 120, int $h = 36): string {
+    $n = count($vals);
+    if ($n === 0) return '';
+    $max = max(1, max($vals));
+    $min = min($vals);
+    $span = max(1, $max - $min);
+    $pts = [];
+    foreach ($vals as $i => $v) {
+        $x = $n === 1 ? $w / 2 : ($i / ($n - 1)) * $w;
+        $y = $h - (($v - $min) / $span) * ($h - 4) - 2;
+        $pts[] = round($x, 1) . ',' . round($y, 1);
+    }
+    return implode(' ', $pts);
+}
+$spark = spark_path($mhsPerYear);
 ?>
 
-<main class="flex-1 overflow-y-auto bg-slate-50">
+<style>
+    .tile-orange { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
+    .tile-sky    { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); }
+    .tile-emerald{ background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
+    .tile-rose   { background: linear-gradient(135deg, #be123c 0%, #fb7185 100%); }
 
-    <div class="p-8 space-y-6">
+    .lift { transition: transform .2s ease, box-shadow .2s ease; }
+    .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px rgba(15,23,42,.22); }
 
-        <!-- ============ Banner Welcome ============ -->
-        <div class="bg-[#1a365d] p-6 rounded-xl shadow-sm flex flex-col justify-center text-white relative overflow-hidden min-h-[120px]">
-            <div class="relative z-10">
-                <h3 class="text-xl font-semibold mb-1">Selamat Datang di SIATEK, Admin</h3>
-                <p class="text-slate-300 text-sm font-normal">
-                    Pantau aktivitas administrasi, akademik, dan laboratorium departemen hari ini.
-                </p>
-            </div>
-            <div class="absolute -right-12 -bottom-12 w-48 h-48 bg-white/5 rounded-full"></div>
-            <div class="absolute -right-24 -top-24 w-64 h-64 bg-white/5 rounded-full"></div>
-        </div>
+    @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .reveal { animation: riseIn .5s cubic-bezier(.16,1,.3,1) forwards; }
+    @media (prefers-reduced-motion: reduce) { .reveal, .lift { animation: none; transition: none; } }
 
-        <!-- ============ Quick Stats (4 KPI) ============ -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <?php
-            $kpis = [
-                ['Total Mahasiswa',   $totalMhs,      'Aktif',    0],
-                ['Dosen &amp; Staff', $dosenAktif,    'Terdaftar', 1],
-                ['Skripsi Aktif',     $skripsiAktif,  'Berjalan',  2],
-                ['KP Aktif',          $kpAktif,       'Berjalan',  3],
-            ];
-            foreach ($kpis as $i => [$label, $val, $badge, $pi]):
-                $pal = $kpiPalettes[$pi];
-            ?>
-            <div class="<?= $pal['card_bg'] ?> p-5 rounded-xl card-shadow card-hover flex flex-col justify-between h-32 relative overflow-hidden">
-                <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full"></div>
-                <div class="flex justify-between items-start relative z-10">
-                    <div class="w-10 h-10 <?= $pal['icon_bg'] ?> rounded-lg flex items-center justify-center <?= $pal['icon_text'] ?>">
-                        <i class="fas <?= $pal['icon'] ?> text-sm"></i>
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+
+<main class="flex-1 overflow-y-auto bg-slate-100/80">
+    <div class="w-full px-4 py-5 lg:px-6 space-y-5">
+
+        <!-- ============ HERO BAND ============ -->
+        <div class="reveal relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1f3d] via-[#1a365d] to-[#234670] text-white shadow-xl shadow-[#1a365d]/30">
+            <!-- dekorasi mesh -->
+            <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 800 200" aria-hidden="true">
+                <defs>
+                    <radialGradient id="hs1" cx="90%" cy="0%" r="60%">
+                        <stop offset="0%" stop-color="#f97316" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="hs2" cx="0%" cy="100%" r="55%">
+                        <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <rect width="800" height="200" fill="url(#hs2)"/>
+                <rect width="800" height="200" fill="url(#hs1)"/>
+            </svg>
+
+            <div class="relative z-10 flex flex-col sm:flex-row sm:items-center gap-6 px-6 py-7 lg:px-8">
+                <!-- kiri: sapaan -->
+                <div class="flex-1 min-w-0">
+                    <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-200 ring-1 ring-white/15">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span>
+                        </span>
+                        <?= htmlspecialchars($today_label) ?>
+                    </span>
+                    <h1 class="mt-3 text-xl lg:text-2xl font-bold tracking-tight">Selamat Datang, Admin</h1>
+                    <p class="mt-1 max-w-xl text-sm text-slate-300">Pantau dan kelola operasional jurusan Teknik Elektro &amp; Komputer dari satu tempat.</p>
+                    <div class="mt-4 flex flex-wrap gap-2.5">
+                        <a href="index.php?page=jurusan-surat-penunjukkan"
+                           class="inline-flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-[#ea580c] active:scale-[.98]">
+                            <i class="fas fa-pen-to-square"></i> Tindak Lanjut Surat
+                        </a>
+                        <a href="index.php?page=jurusan-berita"
+                           class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white ring-1 ring-white/20 transition hover:bg-white/15 active:scale-[.98]">
+                            <i class="fas fa-bullhorn"></i> Berita Jurusan
+                        </a>
                     </div>
-                    <span class="<?= $pal['badge_bg'] ?> <?= $pal['badge_text'] ?> px-2 py-0.5 rounded-full text-xs font-medium"><?= $badge ?></span>
                 </div>
-                <div class="relative z-10">
-                    <p class="<?= $pal['label'] ?> text-xs font-normal"><?= $label ?></p>
-                    <h3 class="text-2xl font-bold <?= $pal['value'] ?> mt-0.5"><?= number_format($val) ?></h3>
+                <!-- kanan: spot statistik -->
+                <div class="grid grid-cols-2 gap-3 sm:min-w-[260px]">
+                    <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
+                        <p class="text-[11px] font-medium uppercase tracking-wide text-slate-300">Mahasiswa Aktif</p>
+                        <p class="mt-1 text-2xl font-bold"><?= f($totalMhs) ?></p>
+                        <p class="mt-0.5 text-[11px] text-orange-200">+<?= f($mhsBaruTahunIni) ?> th ini</p>
+                    </div>
+                    <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
+                        <p class="text-[11px] font-medium uppercase tracking-wide text-slate-300">Menunggu TTD</p>
+                        <p class="mt-1 text-2xl font-bold"><?= f($ttdPendingTotal) ?></p>
+                        <p class="mt-0.5 text-[11px] text-sky-200">dokumen proses</p>
+                    </div>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
 
-        <!-- ============ Charts ============ -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <!-- Main Chart -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-xl card-shadow">
-                <div class="flex justify-between items-center mb-6">
+        <!-- ============ METRIK UTAMA ============ -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            <!-- Mahasiswa (dengan sparkline) -->
+            <div class="reveal tile-orange lift rounded-xl p-4 text-white shadow-md shadow-orange-500/25">
+                <div class="flex items-center justify-between">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-user-graduate"></i></span>
+                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">+<?= f($mhsBaruTahunIni) ?></span>
+                </div>
+                <p class="mt-3 text-sm font-medium text-white/85">Mahasiswa Aktif</p>
+                <p class="text-2xl font-bold tracking-tight"><?= f($totalMhs) ?></p>
+                <svg class="mt-2 w-full" viewBox="0 0 120 36" preserveAspectRatio="none" style="height:26px" aria-hidden="true">
+                    <polyline points="<?= $spark ?>" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+                </svg>
+            </div>
+
+            <div class="reveal tile-sky lift rounded-xl p-4 text-white shadow-md shadow-sky-500/25" style="animation-delay:.05s">
+                <div class="flex items-center justify-between">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-chalkboard-user"></i></span>
+                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">terdaftar</span>
+                </div>
+                <p class="mt-3 text-sm font-medium text-white/85">Dosen Aktif</p>
+                <p class="text-2xl font-bold tracking-tight"><?= f($dosenAktif) ?></p>
+                <p class="mt-2 text-[11px] text-white/70">Tenaga pengajar &amp; pembimbing.</p>
+            </div>
+
+            <div class="reveal tile-emerald lift rounded-xl p-4 text-white shadow-md shadow-emerald-500/25" style="animation-delay:.10s">
+                <div class="flex items-center justify-between">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-book-open"></i></span>
+                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">bimbingan</span>
+                </div>
+                <p class="mt-3 text-sm font-medium text-white/85">Skripsi Berjalan</p>
+                <p class="text-2xl font-bold tracking-tight"><?= f($skripsiAktif) ?></p>
+                <p class="mt-2 text-[11px] text-white/70">Mahasiswa dalam bimbingan.</p>
+            </div>
+
+            <div class="reveal tile-rose lift rounded-xl p-4 text-white shadow-md shadow-rose-500/25" style="animation-delay:.15s">
+                <div class="flex items-center justify-between">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-briefcase"></i></span>
+                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">magang</span>
+                </div>
+                <p class="mt-3 text-sm font-medium text-white/85">Kerja Praktek</p>
+                <p class="text-2xl font-bold tracking-tight"><?= f($kpAktif) ?></p>
+                <p class="mt-2 text-[11px] text-white/70">Mahasiswa magang industri.</p>
+            </div>
+        </div>
+
+        <!-- ============ GRAFIK ============ -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+            <div class="reveal lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="mb-4 flex items-start justify-between">
                     <div>
-                        <h3 class="font-semibold text-slate-900 text-base">Tren Pendaftaran Mahasiswa Baru</h3>
-                        <p class="text-xs text-slate-500 mt-1">Data 7 tahun terakhir per prodi</p>
+                        <h2 class="text-base font-semibold text-slate-800">Tren Mahasiswa Baru</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Pendaftaran 5 tahun terakhir</p>
                     </div>
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                        <i class="fas fa-arrow-trend-up"></i> Tahunan
+                    </span>
                 </div>
-                <div style="height: 260px">
-                    <canvas id="enrollmentChart"></canvas>
-                </div>
+                <div style="height:230px"><canvas id="enrollmentChart"></canvas></div>
             </div>
-
-            <!-- Side Chart -->
-            <div class="bg-white p-6 rounded-xl card-shadow">
-                <div class="mb-6">
-                    <h3 class="font-semibold text-slate-900 text-base">Distribusi Konsentrasi</h3>
-                    <p class="text-xs text-slate-500 mt-1">Berdasarkan program studi</p>
+            <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay:.05s">
+                <div class="mb-4">
+                    <h2 class="text-base font-semibold text-slate-800">Distribusi Mahasiswa</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">Per program studi</p>
                 </div>
-                <div style="height: 260px">
-                    <canvas id="concentrationChart"></canvas>
-                </div>
+                <div style="height:230px"><canvas id="concentrationChart"></canvas></div>
             </div>
         </div>
 
-        <!-- ============ Table & Schedule ============ -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-            <!-- Tabel Pengajuan Judul Skripsi / TTD -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-xl card-shadow overflow-hidden flex flex-col">
-                <div class="flex justify-between items-center mb-4">
+        <!-- ============ DOKUMEN + AGENDA (asimetris) ============ -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3.5">
+            <!-- Antrean TTD (lebih lebar) -->
+            <div class="reveal lg:col-span-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
                     <div>
-                        <h3 class="font-semibold text-slate-900 text-base">Surat Menunggu Tanda Tangan</h3>
-                        <p class="text-xs text-slate-500 mt-1">Mahasiswa yang mengajukan dokumen resmi</p>
+                        <h2 class="text-base font-semibold text-slate-800">Antrean Tanda Tangan</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Dokumen menunggu persetujuan</p>
                     </div>
-                    <a href="index.php?page=jurusan-surat-penunjukkan" class="text-xs text-[#1a365d] font-medium hover:text-[#f97316] transition">Lihat Semua</a>
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white">
+                        <i class="fas fa-clock"></i> <?= f($ttdPendingTotal) ?>
+                    </span>
                 </div>
-                <div class="overflow-x-auto flex-1">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-slate-500 text-xs border-b border-slate-200">
-                                <th class="py-3 px-2 font-medium uppercase tracking-wider">NIM</th>
-                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Mahasiswa</th>
-                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Keterangan</th>
-                                <th class="py-3 px-2 font-medium uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm text-slate-700 font-normal">
-                            <?php if (count($ttdItems) === 0): ?>
-                                <tr>
-                                    <td colspan="4" class="py-6 px-2 text-center text-slate-400 text-xs">Tidak ada surat yang menunggu tanda tangan.</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($ttdItems as $t):
-                                    $inisial = strtoupper(substr($t['nama'] ?: ($t['nim'] ?? '?'), 0, 2));
-                                    $warnaBg = ['1a365d','10b981','f97316','dc2626','6366f1','7c3aed'];
-                                    $bg = $warnaBg[crc32($t['nim'] ?? $inisial) % count($warnaBg)];
-                                ?>
-                                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-                                    <td class="py-3 px-2 text-slate-500"><?= htmlspecialchars($t['nim']) ?></td>
-                                    <td class="py-3 px-2">
-                                        <div class="flex items-center space-x-3">
-                                            <img src="https://ui-avatars.com/api/?background=<?= $bg ?>&color=fff&name=<?= urlencode($inisial) ?>&size=32"
-                                                 class="w-7 h-7 rounded-full" alt="Avatar">
-                                            <span class="text-slate-900"><?= htmlspecialchars($t['nama'] ?: $t['nim']) ?></span>
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-2 text-slate-600"><?= htmlspecialchars($t['keterangan'] ?: 'Surat Penunjukkan') ?></td>
-                                    <td class="py-3 px-2">
-                                        <span class="bg-orange-50 text-[#f97316] px-2.5 py-1 rounded-full text-xs font-medium">Pending</span>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Jadwal Lab Hari Ini -->
-            <div class="bg-white p-6 rounded-xl card-shadow">
-                <div class="mb-5">
-                    <h3 class="font-semibold text-slate-900 text-base">Agenda Mendatang</h3>
-                    <p class="text-xs text-slate-500 mt-1"><?= htmlspecialchars($today_label) ?></p>
-                </div>
-                <div class="space-y-5">
-                    <?php if (count($agendaItems) === 0): ?>
-                        <p class="text-xs text-slate-400 text-center py-4">Tidak ada agenda mendatang.</p>
-                    <?php else: ?>
-                        <?php
-                        $totalA = count($agendaItems);
-                        foreach ($agendaItems as $i => $g):
-                            $pct = max(25, 100 - ($i * (100 / max(1, $totalA))));
-                            $colorClass = $i === 0 ? '[#f97316]' : ($i === 1 ? '[#1a365d]' : 'green-600');
-                            $bgClass = $i === 0 ? 'bg-[#f97316]' : ($i === 1 ? 'bg-[#1a365d]' : 'bg-green-500');
-                        ?>
-                        <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <span class="text-sm text-slate-900 truncate"><?= htmlspecialchars($g['agenda']) ?></span>
-                                <span class="text-xs font-medium text-<?= $colorClass ?>"><?= round($pct) ?>%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-1.5">
-                                <div class="<?= $bgClass ?> h-1.5 rounded-full" style="width: <?= round($pct) ?>%"></div>
-                            </div>
-                            <p class="text-xs text-slate-500 mt-1.5 font-normal">
-                                <?= htmlspecialchars($g['tanggal_fmt']) ?> · oleh <?= htmlspecialchars($g['penulis'] ?: '—') ?>
-                            </p>
+                <?php if (count($ttdItems) === 0): ?>
+                    <div class="flex flex-col items-center py-10 text-center">
+                        <span class="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><i class="fas fa-check"></i></span>
+                        <p class="mt-3 text-sm text-slate-500">Tidak ada dokumen yang menunggu tanda tangan.</p>
+                    </div>
+                <?php else: ?>
+                <ul class="divide-y divide-slate-100">
+                    <?php
+                    $avatarColors = ['f97316','0ea5e9','10b981','f43f5e','8b5cf6','f59e0b'];
+                    foreach ($ttdItems as $t):
+                        $namaTampil = $t['nama'] ?: ($t['nim'] ?? '?');
+                        $inisial = strtoupper(mb_substr($namaTampil, 0, 2));
+                        $bg = $avatarColors[crc32($t['nim'] ?? $inisial) % count($avatarColors)];
+                    ?>
+                    <li class="flex items-center gap-3 px-5 py-3 transition hover:bg-orange-50/40">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style="background:<?= $bg ?>"><?= htmlspecialchars($inisial) ?></span>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-800"><?= htmlspecialchars($namaTampil) ?></p>
+                            <p class="font-mono text-[11px] text-slate-400"><?= htmlspecialchars($t['nim']) ?></p>
                         </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
+                        <span class="hidden md:block max-w-[140px] truncate text-xs text-slate-500"><?= htmlspecialchars($t['keterangan'] ?: 'Surat Penunjukkan') ?></span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#f97316]"></span> Pending
+                        </span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <a href="index.php?page=jurusan-surat-penunjukkan" class="block border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-center text-xs font-semibold text-orange-600 hover:bg-orange-50 transition">
+                    Buka semua surat penunjukkan →
+                </a>
+                <?php endif; ?>
             </div>
+
+            <!-- Agenda (lebih sempit) -->
+            <div class="reveal lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay:.05s">
+                <div class="mb-4">
+                    <h2 class="text-base font-semibold text-slate-800">Agenda Mendatang</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">Jadwal departemen terdekat</p>
+                </div>
+                <ol class="relative space-y-0">
+                    <?php
+                    $pills = ['#f97316','#0ea5e9','#10b981','#8b5cf6'];
+                    foreach ($agendaItems as $i => $g):
+                        $p = $pills[$i % count($pills)];
+                    ?>
+                    <li class="relative flex gap-3 pb-4 last:pb-0">
+                        <?php if ($i < count($agendaItems) - 1): ?>
+                        <span class="absolute left-[11px] top-8 bottom-0 w-px bg-slate-200"></span>
+                        <?php endif; ?>
+                        <span class="relative mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style="background:<?= $p ?>; box-shadow:0 0 0 3px rgba(0,0,0,.04)">
+                            <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold leading-snug text-slate-800"><?= htmlspecialchars($g['agenda']) ?></p>
+                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> · <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
+                        </div>
+                    </li>
+                    <?php endforeach; ?>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ============ BERITA ============ -->
+        <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800">Berita &amp; Informasi Jurusan</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">Publikasi terbaru</p>
+                </div>
+                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita →</a>
+            </div>
+            <?php if (count($beritaItems) === 0): ?>
+                <p class="py-8 text-center text-sm text-slate-400">Belum ada berita jurusan.</p>
+            <?php else: ?>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <?php foreach ($beritaItems as $b):
+                    $tanggalParsed = strtotime($b['tanggal']);
+                    $tanggalTxt = $tanggalParsed ? date('d M Y', $tanggalParsed) : '';
+                ?>
+                <a href="index.php?page=jurusan-berita" class="group flex flex-col rounded-lg border border-slate-200 bg-slate-50/60 p-4 transition hover:border-orange-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#f97316] to-[#fb923c] text-white text-sm shadow-md shadow-orange-500/20"><i class="fas fa-file-lines"></i></span>
+                    <h3 class="mt-3 text-sm font-semibold leading-snug text-slate-800 group-hover:text-orange-700 transition line-clamp-2"><?= htmlspecialchars($b['judul']) ?></h3>
+                    <?php if (!empty($b['deskripsi'])): ?>
+                    <p class="mt-1.5 text-xs leading-relaxed text-slate-500 line-clamp-2"><?= htmlspecialchars($b['deskripsi']) ?></p>
+                    <?php endif; ?>
+                    <p class="mt-3 text-[11px] font-medium text-slate-400"><i class="far fa-clock mr-1"></i><?= htmlspecialchars($tanggalTxt) ?></p>
+                </a>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
 
     </div>
@@ -301,16 +385,13 @@ $kpiPalettes = [
 <!-- Data untuk Chart.js -->
 <script>
 window.__berandaData = {
-    /* Chart 1: Enrollment per prodi (line chart) */
     enrollment: {
-        labels: <?= json_encode($recentYears) ?>,
-        datasetLabels: <?= json_encode($chartDatasetLabels) ?>,
-        values: <?= json_encode($chartDatasetValues) ?>
+        labels: <?= json_encode($years) ?>,
+        values: <?= json_encode($mhsPerYear) ?>
     },
-    /* Chart 2: Distribusi konsentrasi (doughnut) */
     concentration: {
-        labels: <?= json_encode($concentrationLabels) ?>,
-        values: <?= json_encode($concentrationValues) ?>
+        labels: <?= json_encode($concLabels) ?>,
+        values: <?= json_encode($concValues) ?>
     }
 };
 </script>
