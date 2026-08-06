@@ -1,6 +1,6 @@
 <?php
 /**
- * Halaman Beranda — Dasbor utama (Tailwind).
+ * Halaman Beranda â€” Dasbor utama (Tailwind).
  *
  * LATAR TERANG dengan komposisi tegas & proporsional:
  *   - Hero band navy (panel, bukan latar halaman) sebagai momen "wow".
@@ -65,8 +65,18 @@ for ($y = date('Y') - 4; $y <= date('Y'); $y++) {
 }
 
 // --- Distribusi per prodi (label ringkas) ---
+// Warna dipetakan berdasarkan nama prodi:
+//   Teknik Elektro -> navy, Teknik Komputer -> oranye, lainnya (Pendidikan) -> emerald.
+function beranda_pick_color(string $nama): string {
+    $n = strtolower($nama);
+    if (strpos($n, 'pendidikan') !== false) return '#10b981';   // emerald
+    if (strpos($n, 'komputer')   !== false) return '#f97316';   // orange
+    if (strpos($n, 'elektro')    !== false) return '#1a365d';   // navy
+    return '#38bdf8';                                            // fallback sky
+}
 $concLabels = [];
 $concValues = [];
+$concColors = [];
 foreach ($prodiList as $pr) {
     $namaRingkas = preg_replace('/^S1\s+/i', '', $pr['nama']);
     $namaRingkas = str_ireplace('Pendidikan Vokasional ', '', $namaRingkas);
@@ -74,6 +84,7 @@ foreach ($prodiList as $pr) {
     if ($namaRingkas === '') $namaRingkas = $pr['nama'];
     $concLabels[] = $namaRingkas;
     $concValues[] = (int)$pr['mahasiswa'];
+    $concColors[] = beranda_pick_color($pr['nama']);
 }
 
 // --- Agenda mendatang (tanggal unix) ---
@@ -99,6 +110,47 @@ $qBerita = mysqli_query($koneksi,
     "SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 3");
 if ($qBerita) {
     while ($b = mysqli_fetch_assoc($qBerita)) { $beritaItems[] = $b; }
+}
+
+// --- Mahasiswa per angkatan: jumlah sedang KP & skripsi (status='aktif') ---
+$perAngkatan = [];
+$tahunSekarang = (int)date('Y');
+$qAngkatan = mysqli_query($koneksi,
+    "SELECT m.angkatan, COUNT(DISTINCT m.nim) AS total
+     FROM mahasiswa m
+     GROUP BY m.angkatan
+     ORDER BY m.angkatan DESC");
+if ($qAngkatan) {
+    while ($a = mysqli_fetch_assoc($qAngkatan)) {
+        $ang = (int)$a['angkatan'];
+        // jumlah mahasiswa angkatan ini yang sedang KP aktif
+        $qKpA = mysqli_query($koneksi,
+            "SELECT COUNT(DISTINCT k.nim) AS c
+             FROM kp k JOIN mahasiswa m ON k.nim=m.nim
+             WHERE k.status='aktif' AND m.angkatan=$ang");
+        $kpAktifAng = $qKpA ? (int)mysqli_fetch_assoc($qKpA)['c'] : 0;
+        // jumlah mahasiswa angkatan ini yang sedang skripsi aktif
+        $qSkA = mysqli_query($koneksi,
+            "SELECT COUNT(DISTINCT s.nim) AS c
+             FROM skripsi s JOIN mahasiswa m ON s.nim=m.nim
+             WHERE s.status='aktif' AND m.angkatan=$ang");
+        $skAktifAng = $qSkA ? (int)mysqli_fetch_assoc($qSkA)['c'] : 0;
+        $perAngkatan[] = [
+            'angkatan' => $ang,
+            'total'    => (int)$a['total'],
+            'kp'       => $kpAktifAng,
+            'skripsi'  => $skAktifAng,
+            'masa'     => $kpAktifAng + $skAktifAng, // total sedang KP/skripsi
+        ];
+    }
+}
+// pertahankan hanya 4 angkatan terakhir yang relevan KP/skripsi:
+// dari (tahun berjalan - 7) sampai (tahun berjalan - 4)
+$perAngkatanTampil = [];
+foreach ($perAngkatan as $pa) {
+    if ($pa['angkatan'] >= $tahunSekarang - 7 && $pa['angkatan'] <= $tahunSekarang - 4) {
+        $perAngkatanTampil[] = $pa;
+    }
 }
 
 /* ================================================================
@@ -134,6 +186,35 @@ $spark = spark_path($mhsPerYear);
     .tile-sky    { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); }
     .tile-emerald{ background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
     .tile-rose   { background: linear-gradient(135deg, #be123c 0%, #fb7185 100%); }
+
+    /* corak (pattern) halus di atas gradien tile metrik */
+    .tile-corak {
+        position: relative;
+        overflow: hidden;
+    }
+    .tile-corak::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+            radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);
+        background-size: 12px 12px;
+        opacity: .35;
+        mix-blend-mode: overlay;
+    }
+    .tile-corak::after {
+        content: "";
+        position: absolute;
+        right: -24px;
+        bottom: -24px;
+        width: 140px;
+        height: 140px;
+        border-radius: 9999px;
+        background: rgba(255,255,255,.14);
+        pointer-events: none;
+    }
+    .tile-corak > * { position: relative; }
 
     .lift { transition: transform .2s ease, box-shadow .2s ease; }
     .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px rgba(15,23,42,.22); }
@@ -208,7 +289,7 @@ $spark = spark_path($mhsPerYear);
         <!-- ============ METRIK UTAMA ============ -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <!-- Mahasiswa (dengan sparkline) -->
-            <div class="reveal tile-orange lift rounded-xl p-4 text-white shadow-md shadow-orange-500/25">
+            <div class="reveal tile-orange tile-corak lift rounded-xl p-4 text-white shadow-md shadow-orange-500/25">
                 <div class="flex items-center justify-between">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-user-graduate"></i></span>
                     <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">+<?= f($mhsBaruTahunIni) ?></span>
@@ -220,7 +301,7 @@ $spark = spark_path($mhsPerYear);
                 </svg>
             </div>
 
-            <div class="reveal tile-sky lift rounded-xl p-4 text-white shadow-md shadow-sky-500/25" style="animation-delay:.05s">
+            <div class="reveal tile-sky tile-corak lift rounded-xl p-4 text-white shadow-md shadow-sky-500/25" style="animation-delay:.05s">
                 <div class="flex items-center justify-between">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-chalkboard-user"></i></span>
                     <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">terdaftar</span>
@@ -230,7 +311,7 @@ $spark = spark_path($mhsPerYear);
                 <p class="mt-2 text-[11px] text-white/70">Tenaga pengajar &amp; pembimbing.</p>
             </div>
 
-            <div class="reveal tile-emerald lift rounded-xl p-4 text-white shadow-md shadow-emerald-500/25" style="animation-delay:.10s">
+            <div class="reveal tile-emerald tile-corak lift rounded-xl p-4 text-white shadow-md shadow-emerald-500/25" style="animation-delay:.10s">
                 <div class="flex items-center justify-between">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-book-open"></i></span>
                     <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">bimbingan</span>
@@ -240,7 +321,7 @@ $spark = spark_path($mhsPerYear);
                 <p class="mt-2 text-[11px] text-white/70">Mahasiswa dalam bimbingan.</p>
             </div>
 
-            <div class="reveal tile-rose lift rounded-xl p-4 text-white shadow-md shadow-rose-500/25" style="animation-delay:.15s">
+            <div class="reveal tile-rose tile-corak lift rounded-xl p-4 text-white shadow-md shadow-rose-500/25" style="animation-delay:.15s">
                 <div class="flex items-center justify-between">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-briefcase"></i></span>
                     <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">magang</span>
@@ -249,6 +330,80 @@ $spark = spark_path($mhsPerYear);
                 <p class="text-2xl font-bold tracking-tight"><?= f($kpAktif) ?></p>
                 <p class="mt-2 text-[11px] text-white/70">Mahasiswa magang industri.</p>
             </div>
+        </div>
+
+        <!-- ============ MAHASISWA PER ANGKATAN (KP & SKRIPSI AKTIF) ============ -->
+        <div class="reveal rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800">Mahasiswa per Angkatan</h2>
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        Yang sedang menjalani Kerja Praktek &amp; Skripsi (status aktif) — tahun <?= $tahunSekarang ?>
+                    </p>
+                </div>
+                <?php
+                $totalMasa = 0;
+                foreach ($perAngkatanTampil as $pa) { $totalMasa += $pa['masa']; }
+                ?>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                    <i class="fas fa-users"></i> <?= f($totalMasa) ?> sedang KP/Skripsi
+                </span>
+            </div>
+            <?php if (count($perAngkatanTampil) === 0): ?>
+                <p class="py-10 text-center text-sm text-slate-400">Belum ada data mahasiswa per angkatan.</p>
+            <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-50/70 text-xs text-slate-500">
+                            <th class="py-3 px-5 font-semibold uppercase tracking-wider">Angkatan</th>
+                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Total Mhs</th>
+                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang KP</th>
+                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang Skripsi</th>
+                            <th class="py-3 px-5 font-semibold uppercase tracking-wider text-right">Dalam Masa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <?php
+                        $pillColors = ['#f97316','#0ea5e9','#10b981','#8b5cf6','#f59e0b','#f43f5e'];
+                        $idx = 0;
+                        foreach ($perAngkatanTampil as $pa):
+                            $pic = $pillColors[$idx % count($pillColors)];
+                            $pctKP = $pa['total'] > 0 ? round(($pa['kp'] / $pa['total']) * 100) : 0;
+                            $idx++;
+                        ?>
+                        <tr class="border-t border-slate-100 hover:bg-orange-50/40 transition">
+                            <td class="py-3.5 px-5">
+                                <span class="inline-flex items-center gap-2 font-semibold text-slate-800">
+                                    <span class="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white" style="background:<?= $pic ?>"><?= htmlspecialchars(substr((string)$pa['angkatan'], 2, 2)) ?></span>
+                                    Angkatan <?= $pa['angkatan'] ?>
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-4 text-right font-semibold text-slate-700"><?= f($pa['total']) ?></td>
+                            <td class="py-3.5 px-4 text-right">
+                                <span class="inline-flex items-center gap-1.5 font-semibold text-sky-700">
+                                    <i class="fas fa-briefcase text-[11px]"></i> <?= f($pa['kp']) ?>
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-4 text-right">
+                                <span class="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                                    <i class="fas fa-book-open text-[11px]"></i> <?= f($pa['skripsi']) ?>
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-5">
+                                <div class="flex items-center justify-end gap-2">
+                                    <div class="w-20 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                        <div class="h-full rounded-full" style="width:<?= min(100, max(4, $pctKP)) ?>%; background:<?= $pic ?>"></div>
+                                    </div>
+                                    <span class="w-7 text-right text-sm font-bold text-slate-800"><?= f($pa['masa']) ?></span>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- ============ GRAFIK ============ -->
@@ -315,7 +470,7 @@ $spark = spark_path($mhsPerYear);
                     <?php endforeach; ?>
                 </ul>
                 <a href="index.php?page=jurusan-surat-penunjukkan" class="block border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-center text-xs font-semibold text-orange-600 hover:bg-orange-50 transition">
-                    Buka semua surat penunjukkan →
+                    Buka semua surat penunjukkan â†’
                 </a>
                 <?php endif; ?>
             </div>
@@ -341,7 +496,7 @@ $spark = spark_path($mhsPerYear);
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm font-semibold leading-snug text-slate-800"><?= htmlspecialchars($g['agenda']) ?></p>
-                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> · <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
+                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> Â· <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
                         </div>
                     </li>
                     <?php endforeach; ?>
@@ -356,7 +511,7 @@ $spark = spark_path($mhsPerYear);
                     <h2 class="text-base font-semibold text-slate-800">Berita &amp; Informasi Jurusan</h2>
                     <p class="mt-0.5 text-xs text-slate-500">Publikasi terbaru</p>
                 </div>
-                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita →</a>
+                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita â†’</a>
             </div>
             <?php if (count($beritaItems) === 0): ?>
                 <p class="py-8 text-center text-sm text-slate-400">Belum ada berita jurusan.</p>
@@ -391,7 +546,8 @@ window.__berandaData = {
     },
     concentration: {
         labels: <?= json_encode($concLabels) ?>,
-        values: <?= json_encode($concValues) ?>
+        values: <?= json_encode($concValues) ?>,
+        colors: <?= json_encode($concColors) ?>
     }
 };
 </script>

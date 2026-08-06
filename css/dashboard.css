@@ -830,8 +830,8 @@ a { text-decoration: none; }
     .sidebar { width: var(--sidebar-collapsed-width); }
 
     .brand-text,
-    .nav-item .nav-label,
-    .nav-item .nav-chevron,
+    .sidebar .nav-item .nav-label,
+    .sidebar .nav-item .nav-chevron,
     .sidebar-footer .nav-label { display: none; }
 
     .sidebar-brand { justify-content: center; padding: 18px 0; }
@@ -839,7 +839,7 @@ a { text-decoration: none; }
 
     .sidebar-nav > .nav-group > .nav-item { justify-content: center; padding: 12px 0; }
 
-    .nav-submenu { display: none !important; }
+    .sidebar .nav-submenu { display: none !important; }
 
     .main-wrapper { margin-left: var(--sidebar-collapsed-width); }
     .app-area { margin-left: var(--sidebar-collapsed-width); }

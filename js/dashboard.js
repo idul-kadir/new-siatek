@@ -80,7 +80,12 @@
     var concCanvas = document.getElementById('concentrationChart');
     if (concCanvas && data && data.concentration && data.concentration.values.length > 0) {
         var totalConc = data.concentration.values.reduce(function (a, b) { return a + b; }, 0);
-        var concColors = ['#f97316', '#38bdf8', '#10b981', '#fbbf24', '#f472b6', '#a78bfa'];
+        // Warna per prodi diteruskan dari PHP (Elektro=navy, Komputer=orange, Pendidikan=emerald);
+        // fallback palet terang bila data warna tidak tersedia.
+        var fallbackConc = ['#1a365d', '#f97316', '#10b981', '#38bdf8', '#fbbf24', '#8b5cf6'];
+        var concColors = (data.concentration.colors && data.concentration.colors.length)
+            ? data.concentration.colors
+            : fallbackConc;
         var centerLabel = {
             id: 'centerLabel',
             afterDraw: function (chart) {
@@ -242,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ============= NAV SUBMENU =============
 // Submenu memakai accordion berbasis `max-height` (lihat .nav-submenu di index.php).
 // Toggle class `open` (bukan `hidden`) agar sinkron dengan CSS dan bisa expand/collapse.
+// Pakai event delegation agar tetap berfungsi walau konten sidebar dimuat ulang.
 document.addEventListener('DOMContentLoaded', function () {
     function toggleSubmenu(btn, sub) {
         var isOpen = sub.classList.contains('open');
@@ -249,23 +255,13 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.classList.toggle('open', !isOpen);
     }
 
-    document.querySelectorAll('.nav-parent').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var target = btn.getAttribute('data-target');
-            if (!target) return;
-            var sub = document.getElementById(target);
-            if (!sub) return;
-            toggleSubmenu(btn, sub);
-        });
-    });
-
-    document.querySelectorAll('.sub-parent').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var target = btn.getAttribute('data-target');
-            if (!target) return;
-            var sub = document.getElementById(target);
-            if (!sub) return;
-            toggleSubmenu(btn, sub);
-        });
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.nav-parent, .sub-parent');
+        if (!btn) return;
+        var target = btn.getAttribute('data-target');
+        if (!target) return;
+        var sub = document.getElementById(target);
+        if (!sub) return;
+        toggleSubmenu(btn, sub);
     });
 });
