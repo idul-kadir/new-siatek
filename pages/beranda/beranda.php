@@ -135,23 +135,37 @@ if ($qAngkatan) {
              FROM skripsi s JOIN mahasiswa m ON s.nim=m.nim
              WHERE s.status='aktif' AND m.angkatan=$ang");
         $skAktifAng = $qSkA ? (int)mysqli_fetch_assoc($qSkA)['c'] : 0;
+        // jumlah mahasiswa angkatan ini yang sudah berstatus alumni
+        $qAlmAng = mysqli_query($koneksi,
+            "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=$ang AND status='Alumni'");
+        $alumniAng = $qAlmAng ? (int)mysqli_fetch_assoc($qAlmAng)['c'] : 0;
         $perAngkatan[] = [
             'angkatan' => $ang,
             'total'    => (int)$a['total'],
             'kp'       => $kpAktifAng,
             'skripsi'  => $skAktifAng,
-            'masa'     => $kpAktifAng + $skAktifAng, // total sedang KP/skripsi
+            'alumni'   => $alumniAng,
         ];
     }
 }
-// pertahankan hanya 4 angkatan terakhir yang relevan KP/skripsi:
-// dari (tahun berjalan - 7) sampai (tahun berjalan - 4)
+// tampilkan 7 angkatan terakhir dengan logika awal tahun akademik (agustus):
+// - Januari-Juli    : tahun berjalan -7 s/d tahun berjalan -1 (mis. 2026 -> 2019-2025)
+// - Agustus-Desember: tahun berjalan -6 s/d tahun berjalan (mis. 2026 -> 2020-2026)
+if ((int)date('n') >= 8) {
+    $minang = $tahunSekarang - 6;
+    $maxang = $tahunSekarang;
+} else {
+    $minang = $tahunSekarang - 7;
+    $maxang = $tahunSekarang - 1;
+}
 $perAngkatanTampil = [];
 foreach ($perAngkatan as $pa) {
-    if ($pa['angkatan'] >= $tahunSekarang - 7 && $pa['angkatan'] <= $tahunSekarang - 4) {
+    if ($pa['angkatan'] >= $minang && $pa['angkatan'] <= $maxang) {
         $perAngkatanTampil[] = $pa;
     }
 }
+// urutkan ascending (tertua dahulu)
+usort($perAngkatanTampil, fn($x, $y) => $x['angkatan'] <=> $y['angkatan']);
 
 /* ================================================================
    HELPERS
@@ -186,6 +200,7 @@ $spark = spark_path($mhsPerYear);
     .tile-sky    { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); }
     .tile-emerald{ background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
     .tile-rose   { background: linear-gradient(135deg, #be123c 0%, #fb7185 100%); }
+    .tile-violet { background: linear-gradient(135deg, #6d28d9 0%, #a78bfa 100%); }
 
     /* corak (pattern) halus di atas gradien tile metrik */
     .tile-corak {
@@ -321,7 +336,7 @@ $spark = spark_path($mhsPerYear);
                 <p class="mt-2 text-[11px] text-white/70">Mahasiswa dalam bimbingan.</p>
             </div>
 
-            <div class="reveal tile-rose tile-corak lift rounded-xl p-4 text-white shadow-md shadow-rose-500/25" style="animation-delay:.15s">
+            <div class="reveal tile-violet tile-corak lift rounded-xl p-4 text-white shadow-md shadow-violet-500/25" style="animation-delay:.15s">
                 <div class="flex items-center justify-between">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-briefcase"></i></span>
                     <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">magang</span>
@@ -343,7 +358,7 @@ $spark = spark_path($mhsPerYear);
                 </div>
                 <?php
                 $totalMasa = 0;
-                foreach ($perAngkatanTampil as $pa) { $totalMasa += $pa['masa']; }
+                foreach ($perAngkatanTampil as $pa) { $totalMasa += $pa['kp'] + $pa['skripsi']; }
                 ?>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
                     <i class="fas fa-users"></i> <?= f($totalMasa) ?> sedang KP/Skripsi
@@ -360,7 +375,7 @@ $spark = spark_path($mhsPerYear);
                             <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Total Mhs</th>
                             <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang KP</th>
                             <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang Skripsi</th>
-                            <th class="py-3 px-5 font-semibold uppercase tracking-wider text-right">Dalam Masa</th>
+                            <th class="py-3 px-5 font-semibold uppercase tracking-wider text-right">Alumni</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm">
@@ -369,7 +384,7 @@ $spark = spark_path($mhsPerYear);
                         $idx = 0;
                         foreach ($perAngkatanTampil as $pa):
                             $pic = $pillColors[$idx % count($pillColors)];
-                            $pctKP = $pa['total'] > 0 ? round(($pa['kp'] / $pa['total']) * 100) : 0;
+                            $pctAlumni = $pa['total'] > 0 ? round(($pa['alumni'] / $pa['total']) * 100) : 0;
                             $idx++;
                         ?>
                         <tr class="border-t border-slate-100 hover:bg-orange-50/40 transition">
@@ -393,9 +408,9 @@ $spark = spark_path($mhsPerYear);
                             <td class="py-3.5 px-5">
                                 <div class="flex items-center justify-end gap-2">
                                     <div class="w-20 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                        <div class="h-full rounded-full" style="width:<?= min(100, max(4, $pctKP)) ?>%; background:<?= $pic ?>"></div>
+                                        <div class="h-full rounded-full" style="width:<?= min(100, max(4, $pctAlumni)) ?>%; background:<?= $pic ?>"></div>
                                     </div>
-                                    <span class="w-7 text-right text-sm font-bold text-slate-800"><?= f($pa['masa']) ?></span>
+                                    <span class="w-7 text-right text-sm font-bold text-slate-800"><?= f($pa['alumni']) ?></span>
                                 </div>
                             </td>
                         </tr>
