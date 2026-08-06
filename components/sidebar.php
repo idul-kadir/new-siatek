@@ -129,7 +129,7 @@ $activePage = $activePage ?? '';
 
         <!-- 7. Jurusan -->
         <?php
-        $jurusanPages = ['jurusan-arsip','jurusan-berita','jurusan-tridharma',
+        $jurusanPages = ['arsip-jurusan','jurusan-berita','jurusan-tridharma',
                          'jurusan-dok-akademik','jurusan-dok-akreditasi','jurusan-dok-lkps',
                          'jurusan-jadwal','jurusan-kerjasama','jurusan-keuangan','jurusan-kurikulum',
                          'jurusan-laporan','jurusan-matkul-rps','jurusan-matkul-mbkm',
@@ -144,7 +144,7 @@ $activePage = $activePage ?? '';
                 <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
             </button>
             <div class="nav-submenu <?= $jurusanActive ? 'open' : '' ?>" id="sub-jurusan">
-                <a href="/redesain-siatek/jurusan-arsip" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-arsip' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-archive w-5 text-center text-sm opacity-70"></i><span>Arsip</span></a>
+                <a href="/redesain-siatek/arsip-jurusan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'arsip-jurusan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-archive w-5 text-center text-sm opacity-70"></i><span>Arsip</span></a>
                 <a href="/redesain-siatek/jurusan-berita" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-berita' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-newspaper w-5 text-center text-sm opacity-70"></i><span>Berita</span></a>
                 <a href="/redesain-siatek/jurusan-tridharma" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-tridharma' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-ellipsis-h w-5 text-center text-sm opacity-70"></i><span>Data Tridharma</span></a>
                 <a href="/redesain-siatek/jurusan-dok-akademik" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'jurusan-dok-akademik' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-file-alt w-5 text-center text-sm opacity-70"></i><span>Dokumen Akademik</span></a>

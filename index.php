@@ -58,7 +58,7 @@ $routeMap = [
     'sister'  => ['path' => 'sister',  'title' => 'Sinkronisasi Sister'],
 
     // === Jurusan ===
-    'jurusan-arsip'              => ['path' => 'jurusan/arsip',                'title' => 'Jurusan - Arsip'],
+    'arsip-jurusan'              => ['path' => 'jurusan/arsip',                'title' => 'Jurusan - Arsip'],
     'jurusan-berita'             => ['path' => 'jurusan/berita',               'title' => 'Jurusan - Berita'],
     'jurusan-tridharma'          => ['path' => 'jurusan/tridharma',            'title' => 'Jurusan - Tridharma'],
     'jurusan-dok-akademik'       => ['path' => 'jurusan/dokumen/akademik',     'title' => 'Jurusan - Dokumen Akademik'],

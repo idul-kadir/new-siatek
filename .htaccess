@@ -43,7 +43,8 @@ RewriteRule ^pd-arsip/?$       index.php?page=pd-arsip [L,QSA]
 RewriteRule ^pd-skp/?$         index.php?page=pd-skp [L,QSA]
 
 # --- Jurusan ---
-RewriteRule ^jurusan-arsip/?$              index.php?page=jurusan-arsip [L,QSA]
+RewriteRule ^arsip-jurusan/?$              index.php?page=arsip-jurusan [L,QSA]
+RewriteRule ^jurusan-arsip/?$              /redesain-siatek/arsip-jurusan [R=301,L]
 RewriteRule ^jurusan-berita/?$             index.php?page=jurusan-berita [L,QSA]
 RewriteRule ^jurusan-tridharma/?$          index.php?page=jurusan-tridharma [L,QSA]
 RewriteRule ^jurusan-dok-akademik/?$       index.php?page=jurusan-dok-akademik [L,QSA]

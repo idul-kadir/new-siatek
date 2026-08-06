@@ -587,3 +587,61 @@ Sebelum lanjut eksekusi, butuh klarifikasi:
 - **UPDATED:** Master Data prodi: S1 Teknik Elektro, S1 Teknik Komputer, D3 Teknik Elektro
 - **UPDATED:** Filter modul Skripsi/KP: tambahkan D3 Elektro
 - **UPDATED:** Wireframe Dashboard (4.2) menampilkan KPI cards + distribusi per prodi
+
+---
+
+## 11. STANDAR DESAIN & KONVENSI KODE (WAJIB DIIKUTI)
+
+> Berdasarkan implementasi nyata `pages/beranda/beranda.php` dan `pages/jurusan/arsip/arsip-jurusan.php`.
+> Setiap halaman baru WAJIB mengikuti standar ini agar tampilan tetap konsisten.
+
+### 11.1 Routing & Penamaan URL
+
+| Hal | Aturan |
+|---|---|
+| Slug | `kata-utama` dulu, lalu kategori (mis. **arsip-jurusan**, bukan jurusan-arsip). Contoh lain: `pd-pendidikan`, `mhs-skripsi` |
+| File halaman | `pages/<path>/<slug>.php` — **nama file harus sama dengan slug** (router cari `.../{pageKey}.php`) |
+| Guard folder | `pages/<folder>/index.php` berisi `403 + redirect`, agar folder tak diakses langsung |
+| Route map | Daftarkan di `$routeMap` pada `index.php` (`slug => path + title`) |
+| Rewrite | Tambah rule di `.htaccess`; slug lama dibuat `301 redirect` ke slug baru |
+| Sidebar | Link di `components/sidebar.php` + aktifkan highlight via `$activePage === 'slug'` |
+
+### 11.2 Stack & Palet
+
+- **Tailwind CSS via CDN** (`cdn.tailwindcss.com`) + **Font Awesome 6** + **Chart.js** (hanya jika butuh grafik).
+- Warna brand: **oranye `#f97316`**, teks slate (`slate-800` judul, `slate-500` subjudul), kartu `bg-white border-slate-200`.
+- Sidebar: navy `#1a365d`, item aktif `#11243d` + border-kiri oranye 4px.
+- Tile statistik (gradien): `.tile-orange`, `.tile-sky`, `.tile-emerald`, `.tile-violet` + `.tile-corak` (polkadot halus).
+
+### 11.3 Komponen Wajib
+
+| Komponen | Spesifikasi |
+|---|---|
+| Page header | Ikon kotak `h-12 w-12 rounded-xl bg-orange-100 text-orange-600` + judul `text-xl font-bold` + subjudul `text-xs text-slate-500`; tombol aksi utama di kanan |
+| Kartu statistik | `tile-{warna} tile-corak rounded-xl p-4 text-white shadow-{warna}/25`; **ikon di kanan atas** (`h-9 w-9 bg-white/20`), label uppercase `text-white/85`, nilai `text-2xl font-bold`, sub `text-white/70` |
+| Tombol ikon bulat | `.btn-circle` (2rem) / `.btn-circle-lg` (2.5rem); **warna solid + ikon putih**: Tambah=oranye, Edit=sky, Unduh=emerald, Hapus=rose; tooltip via `<span class="tip">…</span>` (hover) |
+| Tabel | Container `rounded-xl border bg-white shadow-sm`; **header gelap `bg-slate-900 text-white` sticky**; zebra `bg-slate-50/60`; hover `hover:bg-orange-50`; scroll `max-h-[560px] overflow-y-auto` + `thead sticky top-0`; badge nomor urut `bg-orange-500 text-white rounded-lg` |
+| Badge format file | Pill warna solid per ekstensi: PDF=rose, DOC/DOCX=sky, XLS/XLSX=emerald, PPT=oranye, IMG=violet, lain=slate |
+| Modal | `.modal-overlay` + `.show` (dari index.php); kartu `max-w-md`; input `rounded-lg border-slate-200 bg-slate-50 focus:border-orange-400`; submit oranye |
+| Empty state | `border-dashed border-slate-300 py-16` + ikon besar + teks "Tidak ada … ditemukan" |
+| Scroll konten | Tambahkan class `.content-scroll` (`overflow-y:auto; min-height:0`) pada `<main>` agar tabel tak menindih footer |
+
+### 11.4 Pola Data & CRUD (sebelum DB nyata)
+
+- Storage dummy: `$_SESSION` (seed diinisialisasi sekali), **PRG** (`header('Location: ...', true, 303)` setelah POST) agar refresh tidak re-submit.
+- `pengupload` diambil dari session (`$_SESSION['nama_user']`), input ditampilkan `disabled` + hidden field.
+- Filter live: render semua baris dengan `data-*` attributes, filter via JS (`input`/`change`), tanpa reload; counter update via `textContent`.
+- Saat file: `input type="file"` + hidden `file_lama` (edit pertahankan file lama). Saat terhubung DB baru ganti query ke tabel `arsip_jurusan` (id, nama, tahun, file, pengupload).
+
+### 11.5 Checklist Halaman Baru
+
+- [ ] Slug mengikuti konvensi, terdaftar di `index.php`, `.htaccess`, sidebar
+- [ ] File halaman bernama `<slug>.php` + guard `index.php`
+- [ ] Page header + kartu statistik (ikon kanan) sesuai spesifikasi
+- [ ] Tabel ber-header gelap, zebra, scroll, badge nomor urut oranye
+- [ ] Tombol aksi ikon bulat + tooltip + warna solid sesuai peran
+- [ ] `<main>` memakai `.content-scroll`
+- [ ] PHP lint bersih (`php -l`) setelah perubahan
+
+---
+
