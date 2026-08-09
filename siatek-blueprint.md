@@ -643,5 +643,72 @@ Sebelum lanjut eksekusi, butuh klarifikasi:
 - [ ] `<main>` memakai `.content-scroll`
 - [ ] PHP lint bersih (`php -l`) setelah perubahan
 
+### 11.6 Modul Berita Jurusan (dummy HTML mengikuti struktur DB `berita`)
+
+> Implementasi nyata: `pages/jurusan/berita/jurusan-berita.php` (slug `jurusan-berita`).
+
+#### Struktur tabel `berita` (database asli SIATEK)
+
+```sql
+CREATE TABLE `berita` (
+  `id`          int(11)      NOT NULL AUTO_INCREMENT,
+  `judul`       varchar(200) NOT NULL,
+  `gambar`      varchar(250) NOT NULL,
+  `isi`         text         NOT NULL,
+  `deskripsi`   varchar(255) NOT NULL,
+  `sumber`      varchar(200) NOT NULL,
+  `kategori`    varchar(200) NOT NULL,
+  `penulis`     varchar(200) NOT NULL,
+  `tanggal`     varchar(50)  NOT NULL,
+  `log`         int(11)      NOT NULL,
+  `keterangan`  varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+- Data aktual: 40 baris ber-judul; `tanggal` format string `YYYY-MM-DD`; `gambar` berisi `file/<nama>` (file produksi di server, belum tentu ada lokal → pakai cover default bila tidak `is_file`).
+- `keterangan` berisi slug untuk URL detail (`baca-berita.php?url=...`). `kategori`, `penulis`, `sumber` mayoritas kosong pada data lama.
+
+#### Aturan dummy HTML (belum terhubung DB)
+
+- Seed di `$_SESSION['jurusan_berita_items']` dengan **field sama persis tabel**: `id, judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan`.
+- CRUD via `$_SESSION` + **PRG** (`header('Location: index.php?page=jurusan-berita', true, 303)`).
+- `penulis` default dari `$_SESSION['nama_user']`; input penulis editable (field DB tidak nullable).
+- Saat file gambar: `input type="file"` (nama disimpan ke `gambar` sebagai `file/<name>`) + hidden `gambar_lama` + input URL gambar. Saat terhubung DB, ganti ke INSERT/UPDATE tabel `berita`.
+
+#### Layout & komponen (tanpa kartu statistik)
+
+| Elemen | Spesifikasi |
+|---|---|
+| Page header | Ikon `fa-newspaper` kotak `h-12 w-12 rounded-xl bg-orange-100 text-orange-600`; judul + subjudul; tombol aksi kanan `btn-circle-lg` oranye (+ tip "Tulis Berita Baru") |
+| Toolbar | `rounded-xl border bg-white p-3`: search `#fCari` + select tahun `#fTahun` (turunan dari data `tanggal`) + link Reset |
+| Lead berita | `rounded-2xl border bg-white` grid 2 kolom: cover kiri (foto/gradasi) + konten kanan (badge "Terbaru", kategori, tanggal, judul, ringkasan, tombol Baca/Edit) |
+| Kartu berita | `news-card` grid `sm:grid-cols-2 xl:grid-cols-3`: cover `news-cover h-40` (foto jika `berita_img_ok()` / ikon `fa-newspaper` di gradasi navy `#1e3a5f→#3b5f8f`), tanggal, kategori (jika ada), judul `line-clamp-2`, ringkasan `line-clamp-3`, footer penulis + aksi (lihat/edit/hapus) tampil saat hover |
+| Cover default | `.news-cover` gradasi `150deg #1e3a5f → #2b4a73 → #3b5f8f` + lingkaran oranye `radial-gradient` halus di pojok — tidak mencolok |
+| Aksi | `.btn-circle` tooltip: Lihat=slate-900, Edit=sky-500, Hapus=rose-500 (form inline POST `action=hapus`) |
+| Modal Tambah/Edit | `#beritaModal`: judul, kategori, tanggal, penulis, deskripsi, isi (textarea), gambar (file + URL + hidden `gambar_lama`) |
+| Modal Lihat | `#lihatModal`: judul, meta (kategori • penulis • tanggal), isi `#lihatIsi` pakai `innerHTML` (isi tabel boleh mengandung HTML) |
+
+#### Helper
+
+- `berita_tgl(string $tgl)` — format `d M Y` dari string `YYYY-MM-DD`.
+- `berita_excerpt(string $html, int $len)` — strip tag + entitas, potong dengan `mb_substr`.
+- `berita_img_ok(string $gambar)` — `is_file(__DIR__ . '/../../../' . $gambar)` untuk path relatif, atau `true` jika URL `http(s)`.
+
+#### Ketika terhubung database
+
+- Ganti seed session → `SELECT * FROM berita WHERE TRIM(judul) <> '' ORDER BY tanggal DESC, id DESC`.
+- Tambah: `INSERT INTO berita (judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan) VALUES (...)`, `keterangan` = slug judul.
+- Edit: `UPDATE berita SET ... WHERE id=$id`; Hapus: `DELETE FROM berita WHERE id=$id`.
+- Escape semua input dengan `mysqli_real_escape_string`; `log` tetap `0`.
+
+---
+
+### 11.7 CHANGELOG MODUL
+
+| Tanggal | Halaman | Perubahan |
+|---|---|---|
+| 2026-08-10 | `jurusan-berita` | Dibuat dummy HTML mengikuti struktur tabel `berita`; layout editorial (lead + grid kartu), tanpa kartu statistik; cover default gradasi navy lembut |
+
 ---
 
