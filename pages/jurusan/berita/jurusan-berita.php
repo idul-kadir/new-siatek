@@ -4,6 +4,15 @@
   termasuk isi artikel (di <template data-isi> tiap kartu). Belum terhubung DB.
   JavaScript HANYA untuk: pagination (12/halaman), cari/filter, modal detail, hapus.
 -->
+<?php
+require __DIR__ . '/../../../fungsi.php';
+$data_berita = [];
+$list_berita = query("SELECT * FROM `berita` ORDER BY tanggal DESC");
+foreach($list_berita as $berita){
+  $data_berita[] = $berita;
+}
+
+?>
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
     .btn-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; transition: all .15s ease; }
