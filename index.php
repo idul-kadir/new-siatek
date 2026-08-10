@@ -60,6 +60,7 @@ $routeMap = [
     // === Jurusan ===
     'arsip-jurusan'              => ['path' => 'jurusan/arsip',                'title' => 'Jurusan - Arsip'],
     'jurusan-berita'             => ['path' => 'jurusan/berita',               'title' => 'Jurusan - Berita'],
+    'tulis-berita'               => ['path' => 'jurusan/berita',               'title' => 'Jurusan - Tulis Berita'],
     'jurusan-tridharma'          => ['path' => 'jurusan/tridharma',            'title' => 'Jurusan - Tridharma'],
     'jurusan-dok-akademik'       => ['path' => 'jurusan/dokumen/akademik',     'title' => 'Jurusan - Dokumen Akademik'],
     'jurusan-dok-akreditasi'     => ['path' => 'jurusan/dokumen/akreditasi',   'title' => 'Jurusan - Dokumen Akreditasi'],
@@ -141,7 +142,7 @@ $activePage = $pageKey;
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Local CSS (fallback untuk halaman lain yang masih pakai class Bootstrap) -->

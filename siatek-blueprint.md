@@ -595,6 +595,16 @@ Sebelum lanjut eksekusi, butuh klarifikasi:
 > Berdasarkan implementasi nyata `pages/beranda/beranda.php` dan `pages/jurusan/arsip/arsip-jurusan.php`.
 > Setiap halaman baru WAJIB mengikuti standar ini agar tampilan tetap konsisten.
 
+### 🚧 RUANG LINGKUP TUGAS (PENTING)
+
+> **Tugas AI/assistant HANYA membangun FRONTEND** — HTML + CSS + JS + data dummy.
+> **Semua logika PHP (session, koneksi DB, query, controller, PRG, validasi server) adalah urusan pemilik (Ridwan).**
+> Konsekuensi yang WAJIB dipatuhi AI:
+> - Jangan membuat/menulis arsitektur PHP backend, helper PHP, atau proses CRUD mana pun.
+> - Data dummy awal **hardcoded langsung di HTML** (mis. blok `<script type="application/json">` atau markup statis), bukan dari `$_SESSION`/`$_POST`/`$_GET`.
+> - Aksi tombol (simpan/edit/hapus) boleh dibangun secara **frontend saja** (JS) dan ditandai "dummy"; menghubungkannya ke server adalah pekerjaan pemilik.
+> - File tetap berekstensi `.php` karena di-route `index.php`, tapi isinya murni markup/JS tanpa logika PHP.
+
 ### 11.1 Routing & Penamaan URL
 
 | Hal | Aturan |
@@ -626,12 +636,13 @@ Sebelum lanjut eksekusi, butuh klarifikasi:
 | Empty state | `border-dashed border-slate-300 py-16` + ikon besar + teks "Tidak ada … ditemukan" |
 | Scroll konten | Tambahkan class `.content-scroll` (`overflow-y:auto; min-height:0`) pada `<main>` agar tabel tak menindih footer |
 
-### 11.4 Pola Data & CRUD (sebelum DB nyata)
+### 11.4 Pola Data Dummy (sebelum DB nyata) — Frontend Only
 
-- Storage dummy: `$_SESSION` (seed diinisialisasi sekali), **PRG** (`header('Location: ...', true, 303)` setelah POST) agar refresh tidak re-submit.
-- `pengupload` diambil dari session (`$_SESSION['nama_user']`), input ditampilkan `disabled` + hidden field.
+> Semua data dummy **hardcoded di halaman** (HTML/JS). **Bukan** `$_SESSION`, **bukan** POST/PRG — itu nanti urusan PHP milik pemilik.
+
+- Data awal: blok `<script type="application/json" id="…">` berisi array objek (field mengikuti struktur tabel) ATAU markup HTML statis; JS membaca dari blok itu.
 - Filter live: render semua baris dengan `data-*` attributes, filter via JS (`input`/`change`), tanpa reload; counter update via `textContent`.
-- Saat file: `input type="file"` + hidden `file_lama` (edit pertahankan file lama). Saat terhubung DB baru ganti query ke tabel `arsip_jurusan` (id, nama, tahun, file, pengupload).
+- Aksi (simpan/edit/hapus) cukup frontend + ditandai dummy (mis. toast "disimpan (dummy)", hapus kartu dari DOM). Menghubungkan ke server dilakukan pemilik.
 
 ### 11.5 Checklist Halaman Baru
 
@@ -669,12 +680,13 @@ CREATE TABLE `berita` (
 - Data aktual: 40 baris ber-judul; `tanggal` format string `YYYY-MM-DD`; `gambar` berisi `file/<nama>` (file produksi di server, belum tentu ada lokal → pakai cover default bila tidak `is_file`).
 - `keterangan` berisi slug untuk URL detail (`baca-berita.php?url=...`). `kategori`, `penulis`, `sumber` mayoritas kosong pada data lama.
 
-#### Aturan dummy HTML (belum terhubung DB)
+#### Aturan dummy HTML murni (belum terhubung DB)
 
-- Seed di `$_SESSION['jurusan_berita_items']` dengan **field sama persis tabel**: `id, judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan`.
-- CRUD via `$_SESSION` + **PRG** (`header('Location: index.php?page=jurusan-berita', true, 303)`).
-- `penulis` default dari `$_SESSION['nama_user']`; input penulis editable (field DB tidak nullable).
-- Saat file gambar: `input type="file"` (nama disimpan ke `gambar` sebagai `file/<name>`) + hidden `gambar_lama` + input URL gambar. Saat terhubung DB, ganti ke INSERT/UPDATE tabel `berita`.
+- Data dummy **hardcoded dalam halaman** (blok `<script type="application/json" id="beritaData">`) dengan **field sama persis tabel**: `id, judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan`.
+- **TANPA PHP**: tidak ada `$_SESSION`, `$_POST`, PRG, maupun helper PHP. Modal lihat membaca dari blok JSON; hapus kartu hanya di browser (JS).
+- Editor `tulis-berita.php` murni frontend: preview live ditulis JS, tombol Simpan hanya toast dummy lalu kembali ke daftar (tidak tersimpan ke server).
+- `penulis` default "Humas JTEK"; input penulis editable (field DB tidak nullable).
+- Saat file gambar: `input type="file"` (hanya untuk pratinjau) + input URL gambar. **Menghubungkan ke DB/upload adalah pekerjaan pemilik.**
 
 #### Layout & komponen (tanpa kartu statistik)
 
@@ -685,22 +697,29 @@ CREATE TABLE `berita` (
 | Lead berita | `rounded-2xl border bg-white` grid 2 kolom: cover kiri (foto/gradasi) + konten kanan (badge "Terbaru", kategori, tanggal, judul, ringkasan, tombol Baca/Edit) |
 | Kartu berita | `news-card` grid `sm:grid-cols-2 xl:grid-cols-3`: cover `news-cover h-40` (foto jika `berita_img_ok()` / ikon `fa-newspaper` di gradasi navy `#1e3a5f→#3b5f8f`), tanggal, kategori (jika ada), judul `line-clamp-2`, ringkasan `line-clamp-3`, footer penulis + aksi (lihat/edit/hapus) tampil saat hover |
 | Cover default | `.news-cover` gradasi `150deg #1e3a5f → #2b4a73 → #3b5f8f` + lingkaran oranye `radial-gradient` halus di pojok — tidak mencolok |
-| Aksi | `.btn-circle` tooltip: Lihat=slate-900, Edit=sky-500, Hapus=rose-500 (form inline POST `action=hapus`) |
-| Modal Tambah/Edit | `#beritaModal`: judul, kategori, tanggal, penulis, deskripsi, isi (textarea), gambar (file + URL + hidden `gambar_lama`) |
-| Modal Lihat | `#lihatModal`: judul, meta (kategori • penulis • tanggal), isi `#lihatIsi` pakai `innerHTML` (isi tabel boleh mengandung HTML) |
+| Aksi | `.btn-circle` tooltip: Lihat=slate-900 (buka modal), Edit=sky-500 (ke `tulis-berita`), Hapus=rose-500 (JS hapus kartu, dummy) |
+| Modal Tambah/Edit | Lewat halaman `tulis-berita` (editor halaman penuh + preview), bukan modal |
+| Modal Lihat | `#lihatModal` — **hanya inti artikel**: cover → tag kategori → judul → avatar/penulis → tanggal + menit baca → share → isi (paragraf `||`) → tombol kembali; isi dari blok JSON via `innerHTML` |
 
-#### Helper
+#### Catatan fitur frontend
 
-- `berita_tgl(string $tgl)` — format `d M Y` dari string `YYYY-MM-DD`.
-- `berita_excerpt(string $html, int $len)` — strip tag + entitas, potong dengan `mb_substr`.
-- `berita_img_ok(string $gambar)` — `is_file(__DIR__ . '/../../../' . $gambar)` untuk path relatif, atau `true` jika URL `http(s)`.
+- Filter cari + kategori lewat atribut `data-*` pada kartu (JS, tanpa reload).
+- Ikon `fa-x-twitter` butuh Font Awesome ≥ 6.4.2 (CDN sudah naik ke 6.4.2).
+- Menghubungkan ke PHP/DB (INSERT/UPDATE/DELETE, upload) **bukan bagian tugas ini** — dikerjakan pemilik.
 
-#### Ketika terhubung database
+#### Helper (PHP — urusan pemilik)
 
-- Ganti seed session → `SELECT * FROM berita WHERE TRIM(judul) <> '' ORDER BY tanggal DESC, id DESC`.
-- Tambah: `INSERT INTO berita (judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan) VALUES (...)`, `keterangan` = slug judul.
-- Edit: `UPDATE berita SET ... WHERE id=$id`; Hapus: `DELETE FROM berita WHERE id=$id`.
-- Escape semua input dengan `mysqli_real_escape_string`; `log` tetap `0`.
+> Di dummy frontend tidak ada helper PHP. Fungsi di bawah untuk gambaran saat pemilik menghubungkan DB:
+> `berita_tgl(string $tgl)` — format `d M Y` dari string `YYYY-MM-DD`.
+> `berita_excerpt(string $html, int $len)` — strip tag + entitas, potong dengan `mb_substr`.
+> `berita_img_ok(string $gambar)` — `is_file(...)` untuk path relatif, atau `true` jika URL `http(s)`.
+
+#### Ketika terhubung database (dikerjakan pemilik)
+
+> Ganti blok JSON hardcoded → `SELECT * FROM berita WHERE TRIM(judul) <> '' ORDER BY tanggal DESC, id DESC`.
+> Tambah: `INSERT INTO berita (judul, gambar, isi, deskripsi, sumber, kategori, penulis, tanggal, log, keterangan) VALUES (...)`, `keterangan` = slug judul.
+> Edit: `UPDATE berita SET ... WHERE id=$id`; Hapus: `DELETE FROM berita WHERE id=$id`.
+> Escape semua input dengan `mysqli_real_escape_string`; `log` tetap `0`.
 
 ---
 
@@ -709,6 +728,10 @@ CREATE TABLE `berita` (
 | Tanggal | Halaman | Perubahan |
 |---|---|---|
 | 2026-08-10 | `jurusan-berita` | Dibuat dummy HTML mengikuti struktur tabel `berita`; layout editorial (lead + grid kartu), tanpa kartu statistik; cover default gradasi navy lembut |
+| 2026-08-10 | `tulis-berita` + `jurusan-berita` | Halaman editor penuh dengan **live preview** meniru template detail-berita publik (cover → kategori + judul → penulis → tanggal + estimasi baca → share → isi). Form kiri + preview kanan (sticky), toggle mobile tulis⇄preview; paragraf dipisah `||`; tombol "+" & edit membuka editor |
+| 2026-08-10 | `jurusan-berita` | Modal Lihat dirombak meniru **halaman detail-berita publik**: cover besar → tag kategori → judul → avatar/penulis/sumber → tanggal + menit baca → share (WA/f/X/copy) → isi paragraf → tombol kembali. Ikon `fa-x-twitter` butuh Font Awesome ≥ 6.4.2 → CDN dinaikkan ke 6.4.2. **Diperbarui:** modal disederhanakan — hanya **inti artikel** (tanpa navbar/breadcrumb/panel kanan), close tombol bulat di pojok kanan cover |
+| 2026-08-10 | `jurusan-berita` + `tulis-berita` | **KOREKSI SCOPE — dummy murni Frontend.** `berita-shared.php`, CRUD `$_SESSION`, dan PRG (tambah/edit/hapus tersimpan) DIHAPUS. Data list hardcoded (JSON di halaman) sesuai struktur tabel `berita`; modal lihat baca dari JSON tsb; hapus kartu hanya di browser (session halaman); editor `tulis-berita.php` bebas PHP — tombol Simpan hanya toast dummy lalu kembali ke daftar, tanpa simpan server |
+| 2026-08-10 | `jurusan-berita` | **Pagination 12/halaman, data TETAP di HTML.** Kartu berita ditulis langsung sebagai `<article>` hardcoded (tanpa blok JSON/JS); isi artikel ditaruh di `<template data-isi>` dalam tiap kartu supaya modal juga baca dari HTML. JS hanya: pagination prev/next (konstanta `ITEM_PER_PAGE = 12`), cari/filter (judul+kategori+penulis+isi), modal detail, hapus kartu (DOM). Data dummy 14 berita (halaman 2 berisi 1) untuk menguji pagination; berita unggulan dipin dan tidak ikut halaman |
 
 ---
 
