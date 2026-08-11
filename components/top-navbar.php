@@ -47,10 +47,10 @@ SVG;
 
 <header class="bg-white h-16 border-b border-slate-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-10 flex-shrink-0">
 
-    <!-- Left: hamburger + judul -->
+    <!-- Left: toggle sidebar + hamburger + judul -->
     <div class="flex items-center gap-3 min-w-0">
-        <button id="hamburgerBtn" class="md:hidden text-slate-600 hover:text-slate-900 text-xl leading-none px-2 -ml-2" aria-label="Buka menu">
-            <i class="fas fa-bars"></i>
+        <button id="sidebarToggle" class="flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition flex-shrink-0" aria-label="Buka menu" title="Buka menu">
+            <i id="sidebarToggleIcon" class="fa-solid fa-bars-staggered"></i>
         </button>
         <div class="min-w-0">
             <h2 class="text-lg sm:text-xl font-semibold text-slate-900 tracking-tight truncate"><?= htmlspecialchars($pageTitle) ?></h2>

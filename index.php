@@ -238,22 +238,73 @@ $activePage = $pageKey;
         /* Sidebar scrollbar (di konteks navy) */
         .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
 
-        /* ===== Mobile sidebar slide ===== */
+        /* ===== Mobile sidebar slide (drawer di bawah navbar) ===== */
         @media (max-width: 767.98px) {
             #sidebar {
+                position: fixed;
+                top: 4rem;
+                left: 0;
+                bottom: 0;
+                width: 256px;
+                display: flex !important;
+                flex-direction: column;
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 1040;
+                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
             }
             #sidebar.mobile-open { transform: translateX(0); }
+        }
+
+        /* ===== Toggle button (mobile): navy + efek kelip pelan, abu saat sidebar terbuka ===== */
+        @media (max-width: 767.98px) {
+            #sidebarToggle {
+                background-color: #1a365d !important;
+                border-color: #1a365d !important;
+                color: #ffffff !important;
+                animation: siatekToggleBlink 4.5s ease-in-out infinite;
+            }
+            body.mobile-nav-open #sidebarToggle {
+                background-color: #e2e8f0 !important;
+                border-color: #cbd5e1 !important;
+                color: #64748b !important;
+                animation: none;
+            }
+        }
+        @keyframes siatekToggleBlink {
+            0%, 90%, 100% { opacity: 1; }
+            95%           { opacity: 0.45; }
+        }
+
+        /* ===== Ikon tombol: pop halus saat berganti ===== */
+        .icon-pop { animation: siatekIconPop 0.35s ease; }
+        @keyframes siatekIconPop {
+            0%   { transform: scale(0.5) rotate(-90deg); opacity: 0.3; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        /* ===== Desktop sidebar collapse (sembunyikan supaya lembar kerja lebar) ===== */
+        @media (min-width: 768px) {
+            #sidebar {
+                width: 256px;
+                min-width: 0;
+                overflow-x: hidden;
+                transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            body.sidebar-collapsed #sidebar {
+                width: 0;
+            }
         }
 
         /* ===== Modal overlay (Tailwind-style) ===== */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(15,23,42,0.5);
-            display: none; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             z-index: 1050; padding: 16px;
+            visibility: hidden; opacity: 0;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
         }
-        .modal-overlay.show { display: flex; }
+        .modal-overlay.show { visibility: visible; opacity: 1; }
         .signature-pad {
             width: 100%; height: 180px; background: #fff;
             border: 1px solid #e2e8f0; border-radius: 8px;

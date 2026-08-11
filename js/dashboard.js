@@ -229,19 +229,71 @@
     }
 })();
 
-// ============= SIDEBAR TOGGLE (mobile) =============
+// ============= SIDEBAR TOGGLE (desktop collapse + mobile drawer) =============
+// Desktop: sembunyikan/tampilkan sidebar supaya lembar kerja lebih lebar (tersimpan di localStorage).
+// Mobile : sidebar "peek" terbuka sebentar lalu menutup ke arah tombol saat halaman dimuat;
+//          tombol jadi navy + efek kelip sebagai ajakan klik, dan berubah abu saat sidebar terbuka.
 document.addEventListener('DOMContentLoaded', function () {
-    var hamburger = document.getElementById('hamburgerBtn');
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebarOverlay');
-    function toggleSidebar(show) {
-        if (!sidebar) return;
-        if (show === undefined) show = sidebar.classList.contains('-translate-x-full');
-        sidebar.classList.toggle('-translate-x-full', !show);
-        if (overlay) overlay.classList.toggle('hidden', !show);
+    var closeBtn = document.getElementById('sidebarCloseBtn');
+    var sidebarToggle = document.getElementById('sidebarToggle');
+
+    // Ikon modern: hamburger (fa-bars-staggered) <=> X (fa-xmark), dengan pop halus.
+    function setIcon(open) {
+        if (!sidebarToggle) return;
+        var icon = sidebarToggle.querySelector('i');
+        if (!icon) return;
+        icon.className = 'fa-solid ' + (open ? 'fa-xmark' : 'fa-bars-staggered');
+        icon.classList.remove('icon-pop');
+        void icon.offsetWidth;
+        icon.classList.add('icon-pop');
     }
-    if (hamburger) hamburger.addEventListener('click', function () { toggleSidebar(true); });
-    if (overlay)  overlay.addEventListener('click',  function () { toggleSidebar(false); });
+
+    // ---- Desktop: collapse sidebar (lembar kerja melebar) ----
+    // Selalu terbuka di awal; tersembunyi hanya jika user klik tombol.
+    function setCollapsed(collapsed) {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        setIcon(!collapsed);
+        if (sidebarToggle) {
+            sidebarToggle.setAttribute('title', collapsed ? 'Tampilkan menu samping' : 'Sembunyikan menu samping');
+            sidebarToggle.setAttribute('aria-label', collapsed ? 'Tampilkan menu samping' : 'Sembunyikan menu samping');
+        }
+    }
+
+    // ---- Mobile: buka/tutup drawer ----
+    function setMobileSidebar(open) {
+        if (sidebar) sidebar.classList.toggle('mobile-open', open);
+        if (overlay) overlay.classList.toggle('show', open);
+        document.body.classList.toggle('mobile-nav-open', open);
+        setIcon(open);
+    }
+
+    // ---- Peek sekali di layar kecil: buka sebentar lalu menutup ke arah tombol ----
+    function mobilePeek() {
+        if (!sidebar || window.innerWidth >= 768) return;
+        setTimeout(function () {
+            sidebar.classList.add('mobile-open');
+            setTimeout(function () {
+                sidebar.classList.remove('mobile-open');
+            }, 1400);
+        }, 600);
+    }
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function () {
+            if (window.innerWidth >= 768) {
+                setCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+            } else {
+                var isOpen = sidebar ? sidebar.classList.contains('mobile-open') : false;
+                setMobileSidebar(!isOpen);
+            }
+        });
+    }
+    if (overlay)  overlay.addEventListener('click',  function () { setMobileSidebar(false); });
+    if (closeBtn) closeBtn.addEventListener('click', function () { setMobileSidebar(false); });
+
+    mobilePeek();
 });
 
 // ============= NAV SUBMENU =============
