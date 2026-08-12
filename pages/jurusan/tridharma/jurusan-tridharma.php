@@ -58,7 +58,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Data Tridharma</h1>
-                    <p class="text-xs text-slate-500">Pangkalan data tridharma jurusan — pendidikan, penelitian, pengabdian, dan penunjang.</p>
+                    <p class="text-xs text-slate-500">Pangkalan data tridharma jurusan. Satu data dapat dimiliki 1 ketua + beberapa anggota dan memiliki banyak file — dummy (HTML).</p>
                 </div>
             </div>
         </div>
@@ -331,7 +331,23 @@
                             <tr class="bg-slate-50/60 transition hover:bg-sky-50" data-tahun="2023" data-cari="sistem monitoring kualitas udara berbasis iot di kawasan pesisir teluk gorontalo ervan hasan harun wrastawa ridwan salmawaty tansa yasin mohamad ifan wiranto zainudin bonok amirudin yunus dako lanto kamil amali andi pratama nurul fadhilah rizky ramadhan sri wahyuni dian kartika luar pt 120000000">
                                 <td class="py-4 pl-5 pr-4"><div class="flex items-center gap-3"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-sm font-bold text-white shadow-sm">8</span><p class="font-semibold text-slate-800 leading-snug">Sistem Monitoring Kualitas Udara Berbasis IoT di Kawasan Pesisir Teluk Gorontalo</p></div></td>
                                 <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2023</span></td>
-                                <td class="px-4 py-4"><div class="flex max-w-[240px] flex-wrap items-center gap-1.5"><span class="chip-ketua"><i class="fas fa-user-tie text-[9px]"></i>Ervan Hasan Harun</span><span class="chip-anggota">Wrastawa Ridwan</span><span class="chip-anggota">Salmawaty Tansa</span><span class="chip-anggota">Yasin Mohamad</span><span class="chip-anggota">Ifan Wiranto</span><span class="chip-anggota">Zainudin Bonok</span><span class="chip-anggota">Amirudin Yunus Dako</span><span class="chip-anggota">Dr. Lanto M. Kamil Amali</span><span class="chip-anggota">Andi Pratama</span><span class="chip-anggota">Nurul Fadhilah</span><span class="chip-anggota">Rizky Ramadhan</span><span class="chip-anggota">Sri Wahyuni</span><span class="chip-anggota">Dian Kartika</span></div></td>
+                                <td class="px-4 py-4">
+                                    <div class="flex max-w-[240px] flex-wrap items-center gap-1.5">
+                                        <span class="chip-ketua"><i class="fas fa-user-tie text-[9px]"></i>Ervan Hasan Harun</span>
+                                        <span class="chip-anggota">Wrastawa Ridwan</span>
+                                        <span class="chip-anggota">Salmawaty Tansa</span>
+                                        <span class="chip-anggota">Yasin Mohamad</span>
+                                        <span class="chip-anggota">Ifan Wiranto</span>
+                                        <span class="chip-anggota">Zainudin Bonok</span>
+                                        <span class="chip-anggota">Amirudin Yunus Dako</span>
+                                        <span class="chip-anggota">Dr. Lanto M. Kamil Amali</span>
+                                        <span class="chip-anggota">Andi Pratama</span>
+                                        <span class="chip-anggota">Nurul Fadhilah</span>
+                                        <span class="chip-anggota">Rizky Ramadhan</span>
+                                        <span class="chip-anggota">Sri Wahyuni</span>
+                                        <span class="chip-anggota">Dian Kartika</span>
+                                    </div>
+                                    </td>
                                 <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">Luar PT</span></td>
                                 <td class="px-4 py-4 text-slate-600">Rp120.000.000</td>
                                 <td class="py-4 pr-5"><div class="flex items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-pdf text-xs"></i><span class="tip">laporan-akhir.pdf</span></a><a href="#" class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-file-excel text-xs"></i><span class="tip">data-hasil.xlsx</span></a></div></td>
