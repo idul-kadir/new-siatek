@@ -1,4 +1,4 @@
-<style>
+﻿<style>
     .content-scroll { overflow-y: auto; min-height: 0; }
 
     /* ===== Hover lift & reveal ===== */
@@ -62,8 +62,8 @@
     .sem-row td { background: #f1f5f9 !important; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 10px; color: #334155; }
 
     /* ===== Badge status ===== */
-    .badge-aktif { display: inline-flex; align-items: center; gap: .35rem; border-radius: 9999px; padding: .18rem .6rem; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge-jejak { display: inline-flex; align-items: center; border-radius: 9999px; padding: .18rem .6rem; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: #f1f5f9; color: #64748b; }
+    .badge-aktif { display: inline-flex; align-items: center; gap: .3rem; margin-left: .5rem; vertical-align: middle; transform: translateY(-2px); border-radius: 9999px; padding: .1rem .5rem; font-size: 9px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .04em; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-jejak { display: inline-flex; align-items: center; margin-left: .5rem; vertical-align: middle; transform: translateY(-2px); border-radius: 9999px; padding: .1rem .5rem; font-size: 9px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .04em; background: #f1f5f9; color: #64748b; }
 
     /* ===== Legend donut ===== */
     .legend-item { display: flex; align-items: center; gap: .5rem; font-size: 11px; color: #cbd5e1; }
@@ -179,7 +179,7 @@
         </div>
         <p class="mt-2 text-[11px] text-slate-400"><i class="fas fa-lightbulb mr-1 text-amber-400"></i>Setiap prodi punya beberapa kurikulum. Klik accordion untuk melihat daftar matakuliahnya. Kurikulum terbaru otomatis terbuka.</p>
     </section>
-    <div id="emptyState" class="empty-hidden items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center">
+    <div id="emptyState" class="empty-hidden flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center">
         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400"><i class="fas fa-search text-lg"></i></div>
         <p class="mt-3 text-sm font-semibold text-slate-600">Matakuliah tidak ditemukan</p>
         <p class="mt-1 text-xs text-slate-400" id="emptyStateDetail">Tidak ada data yang cocok dengan filter yang dipilih.</p>
@@ -223,7 +223,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead60913 matematika teknik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead60913 matematika teknik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD60913</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Matematika Teknik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -235,7 +235,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61014 fisika listrik* umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61014 fisika listrik* umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61014</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Fisika Listrik*</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -247,7 +247,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61112 tata tulis laporan dan karya ilmiah umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61112 tata tulis laporan dan karya ilmiah umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61112</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tata Tulis Laporan dan Karya Ilmiah</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -259,7 +259,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61213 pengantar teknik elektro umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61213 pengantar teknik elektro umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61213</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Teknik Elektro</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -271,7 +271,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61313 pemrograman komputer umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ead61313 pemrograman komputer umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61313</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -284,7 +284,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61422 matematika diskrit umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61422 matematika diskrit umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61422</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Matematika Diskrit</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -296,7 +296,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61523 rangkaian elektronika umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61523 rangkaian elektronika umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61523</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -308,7 +308,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61623 sistem digital umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61623 sistem digital umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61623</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -320,7 +320,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61724 praktikum rangkaian elektronika umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ead61724 praktikum rangkaian elektronika umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61724</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Praktikum Rangkaian Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -333,7 +333,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead61833 sinyal dan sistem umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead61833 sinyal dan sistem umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61833</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sinyal dan Sistem</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -345,7 +345,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead61933 pemrograman mikroprosesor umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead61933 pemrograman mikroprosesor umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD61933</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Mikroprosesor</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -357,7 +357,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead62033 teknik medan elektromagnetik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead62033 teknik medan elektromagnetik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62033</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Teknik Medan Elektromagnetik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -369,7 +369,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead62133 sistem kontrol umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ead62133 sistem kontrol umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62133</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Kontrol</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -382,7 +382,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62243 peralatan elektronika umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62243 peralatan elektronika umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62243</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Peralatan Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -394,7 +394,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62343 teknologi komponen umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62343 teknologi komponen umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62343</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Teknologi Komponen</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -406,7 +406,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62443 pengolahan sinyal digital konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62443 pengolahan sinyal digital konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62443</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengolahan Sinyal Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -418,7 +418,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62543 pengendali presisi konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62543 pengendali presisi konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62543</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengendali Presisi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -430,7 +430,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62643 konverter daya konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ead62643 konverter daya konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62643</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Konverter Daya</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -443,7 +443,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62753 manajemen proyek teknik konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62753 manajemen proyek teknik konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62753</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Manajemen Proyek Teknik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -455,7 +455,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62853 teknik tenaga listrik konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62853 teknik tenaga listrik konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62853</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Teknik Tenaga Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -467,7 +467,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62953 kendali motor listrik konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead62953 kendali motor listrik konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD62953</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kendali Motor Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -479,7 +479,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63053 tata kelola ti informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63053 tata kelola ti informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63053</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tata Kelola TI</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -491,7 +491,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63153 sistem informasi geografis informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63153 sistem informasi geografis informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63153</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Informasi Geografis</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -503,7 +503,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63253 basis data terdistribusi informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ead63253 basis data terdistribusi informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63253</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Basis Data Terdistribusi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -516,7 +516,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63363 sistem operasi informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63363 sistem operasi informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63363</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Operasi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -528,7 +528,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63463 grafika komputer informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63463 grafika komputer informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63463</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Grafika Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -540,7 +540,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63563 jaringan komputer lanjut informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63563 jaringan komputer lanjut informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63563</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Jaringan Komputer Lanjut</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -552,7 +552,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63663 pembelajaran mesin informatika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ead63663 pembelajaran mesin informatika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63663</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pembelajaran Mesin</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -565,7 +565,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63773 robotika robotika dan mekatronika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63773 robotika robotika dan mekatronika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63773</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Robotika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -577,7 +577,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63873 kendali robot robotika dan mekatronika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63873 kendali robot robotika dan mekatronika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63873</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kendali Robot</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -589,7 +589,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63973 pengolahan citra digital robotika dan mekatronika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead63973 pengolahan citra digital robotika dan mekatronika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD63973</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengolahan Citra Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -601,7 +601,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead64073 mekatronika robotika dan mekatronika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ead64073 mekatronika robotika dan mekatronika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAD64073</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Mekatronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -613,7 +613,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -626,7 +626,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="eal605886 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="eal605886 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EAL605886</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -678,7 +678,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli101 matematika i umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli101 matematika i umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI101</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Matematika I</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -690,7 +690,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli102 fisika dasar i umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli102 fisika dasar i umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI102</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Fisika Dasar I</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -702,7 +702,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli103 pengantar teknik elektro umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli103 pengantar teknik elektro umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI103</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Teknik Elektro</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -714,7 +714,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli104 bahasa inggris teknik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="eli104 bahasa inggris teknik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI104</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Bahasa Inggris Teknik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -727,7 +727,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli201 matematika ii umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli201 matematika ii umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI201</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Matematika II</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -739,7 +739,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli202 rangkaian listrik i umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli202 rangkaian listrik i umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI202</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Listrik I</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -751,7 +751,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli203 sistem digital umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="eli203 sistem digital umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI203</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -764,7 +764,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli301 elektronika analog umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli301 elektronika analog umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI301</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Elektronika Analog</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -776,7 +776,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli302 rangkaian listrik ii umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli302 rangkaian listrik ii umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI302</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Listrik II</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -788,7 +788,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli303 sistem mikroprosesor umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="eli303 sistem mikroprosesor umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI303</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Mikroprosesor</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -801,7 +801,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="eli401 medan elektromagnetik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="eli401 medan elektromagnetik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI401</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Medan Elektromagnetik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -813,7 +813,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="eli402 sistem kontrol konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="eli402 sistem kontrol konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI402</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Kontrol</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -826,7 +826,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="eli501 sistem tenaga listrik konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="eli501 sistem tenaga listrik konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI501</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Tenaga Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -838,7 +838,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="eli502 konversi energi listrik konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="eli502 konversi energi listrik konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI502</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Konversi Energi Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -851,7 +851,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="eli601 elektronika daya konversi energi">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="eli601 elektronika daya konversi energi" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI601</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Elektronika Daya</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -863,7 +863,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="eli602 pengolahan sinyal digital umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="eli602 pengolahan sinyal digital umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI602</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengolahan Sinyal Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -876,7 +876,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="eli701 robotika robotika">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="eli701 robotika robotika" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI701</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Robotika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -888,7 +888,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -901,7 +901,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="eli801 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="eli801 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ELI801</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -961,7 +961,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd60913 aljabar linear dan matriks umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd60913 aljabar linear dan matriks umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD60913</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Aljabar Linear dan Matriks</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -973,7 +973,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61014 fisika dasar umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61014 fisika dasar umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61014</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Fisika Dasar</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -985,7 +985,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61113 pengantar teknologi informasi umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61113 pengantar teknologi informasi umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61113</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Teknologi Informasi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -997,7 +997,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61213 kalkulus umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61213 kalkulus umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61213</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kalkulus</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1009,7 +1009,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61312 bahasa inggris teknik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ebd61312 bahasa inggris teknik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61312</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Bahasa Inggris Teknik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1022,7 +1022,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61423 statistika dan probabilitas umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61423 statistika dan probabilitas umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61423</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Statistika dan Probabilitas</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1034,7 +1034,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61523 rangkaian digital umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61523 rangkaian digital umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61523</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1046,7 +1046,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61623 pemrograman web umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61623 pemrograman web umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61623</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Web</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1058,7 +1058,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61723 struktur data dan algoritma umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ebd61723 struktur data dan algoritma umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61723</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Struktur Data dan Algoritma</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1071,7 +1071,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd61833 arsitektur komputer umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd61833 arsitektur komputer umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61833</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Arsitektur Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1083,7 +1083,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd61933 basis data umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd61933 basis data umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD61933</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Basis Data</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1095,7 +1095,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd62033 jaringan komputer umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd62033 jaringan komputer umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62033</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Jaringan Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1107,7 +1107,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd62133 sistem operasi umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ebd62133 sistem operasi umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62133</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Operasi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1120,7 +1120,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62243 pemrograman berorientasi objek rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62243 pemrograman berorientasi objek rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62243</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Berorientasi Objek</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1132,7 +1132,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62343 rekayasa perangkat lunak rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62343 rekayasa perangkat lunak rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62343</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rekayasa Perangkat Lunak</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1144,7 +1144,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62443 sistem terdistribusi rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62443 sistem terdistribusi rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62443</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Terdistribusi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1156,7 +1156,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62543 web service dan api rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ebd62543 web service dan api rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62543</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Web Service dan API</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1169,7 +1169,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62653 grafika komputer rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62653 grafika komputer rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62653</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Grafika Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1181,7 +1181,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62753 pengujian perangkat lunak rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62753 pengujian perangkat lunak rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62753</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengujian Perangkat Lunak</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1193,7 +1193,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62853 manajemen proyek ti rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ebd62853 manajemen proyek ti rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62853</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Manajemen Proyek TI</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1206,7 +1206,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd62963 kecerdasan buatan jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd62963 kecerdasan buatan jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD62963</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kecerdasan Buatan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1218,7 +1218,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd63063 keamanan jaringan jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd63063 keamanan jaringan jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD63063</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Keamanan Jaringan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1230,7 +1230,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd63163 pemrograman mobile jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ebd63163 pemrograman mobile jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD63163</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Mobile</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1243,7 +1243,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ebd63273 cloud computing jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ebd63273 cloud computing jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD63273</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Cloud Computing</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1255,7 +1255,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ebd63373 internet of things jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ebd63373 internet of things jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD63373</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Internet of Things</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1267,7 +1267,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1280,7 +1280,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="ebd634886 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="ebd634886 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">EBD634886</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -1332,7 +1332,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom101 algoritma dan pemrograman umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom101 algoritma dan pemrograman umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM101</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Algoritma dan Pemrograman</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1344,7 +1344,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom102 dasar sistem komputer umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom102 dasar sistem komputer umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM102</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Dasar Sistem Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1356,7 +1356,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom103 kalkulus i umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom103 kalkulus i umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM103</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kalkulus I</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1368,7 +1368,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom104 fisika dasar umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="kom104 fisika dasar umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM104</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Fisika Dasar</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1381,7 +1381,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom201 struktur data umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom201 struktur data umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM201</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Struktur Data</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1393,7 +1393,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom202 rangkaian digital umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom202 rangkaian digital umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM202</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Digital</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1405,7 +1405,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom203 pemrograman terstruktur umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="kom203 pemrograman terstruktur umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM203</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Terstruktur</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1418,7 +1418,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom301 basis data umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom301 basis data umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM301</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Basis Data</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1430,7 +1430,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom302 jaringan komputer umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom302 jaringan komputer umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM302</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Jaringan Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1442,7 +1442,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom303 sistem operasi umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="kom303 sistem operasi umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM303</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Operasi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1455,7 +1455,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="kom401 rekayasa perangkat lunak rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="kom401 rekayasa perangkat lunak rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM401</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rekayasa Perangkat Lunak</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1467,7 +1467,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="kom402 pemrograman web lanjut rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="kom402 pemrograman web lanjut rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM402</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pemrograman Web Lanjut</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1480,7 +1480,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="kom501 sistem terdistribusi rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="kom501 sistem terdistribusi rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM501</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Terdistribusi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1492,7 +1492,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="kom502 grafika komputer rekayasa perangkat lunak">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="kom502 grafika komputer rekayasa perangkat lunak" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM502</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Grafika Komputer</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1505,7 +1505,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="kom601 kecerdasan buatan umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="kom601 kecerdasan buatan umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM601</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kecerdasan Buatan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1518,7 +1518,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="kom701 keamanan jaringan jaringan dan keamanan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="kom701 keamanan jaringan jaringan dan keamanan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM701</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Keamanan Jaringan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1530,7 +1530,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1543,7 +1543,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="kom801 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="kom801 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">KOM801</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -1603,7 +1603,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl60812 pengantar vokasi teknik elektro umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl60812 pengantar vokasi teknik elektro umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL60812</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Vokasi Teknik Elektro</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1615,7 +1615,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl60913 dasar elektro umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl60913 dasar elektro umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL60913</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Dasar Elektro</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1627,7 +1627,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61013 kalkulus umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61013 kalkulus umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61013</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kalkulus</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1639,7 +1639,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61112 bahasa inggris teknik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61112 bahasa inggris teknik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61112</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Bahasa Inggris Teknik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1651,7 +1651,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61213 pengantar rancang bangun umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="ecl61213 pengantar rancang bangun umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61213</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Rancang Bangun</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1664,7 +1664,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61323 rangkaian listrik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61323 rangkaian listrik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61323</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1676,7 +1676,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61423 pengukuran elektronika umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61423 pengukuran elektronika umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61423</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengukuran Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1688,7 +1688,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61523 sistem mikroprosesor umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61523 sistem mikroprosesor umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61523</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Mikroprosesor</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1700,7 +1700,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61623 praktikum rangkaian umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="ecl61623 praktikum rangkaian umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61623</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Praktikum Rangkaian</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1713,7 +1713,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61733 pendidikan dan pelatihan umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61733 pendidikan dan pelatihan umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61733</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pendidikan dan Pelatihan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1725,7 +1725,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61833 metodologi penelitian umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61833 metodologi penelitian umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61833</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Metodologi Penelitian</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1737,7 +1737,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61933 sistem kelistrikan umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl61933 sistem kelistrikan umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL61933</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Kelistrikan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1749,7 +1749,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl62033 elektronika daya umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="ecl62033 elektronika daya umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62033</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Elektronika Daya</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -1762,7 +1762,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62143 pendidikan kejuruan pendidikan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62143 pendidikan kejuruan pendidikan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62143</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pendidikan Kejuruan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1774,7 +1774,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62243 pengembangan kurikulum pendidikan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62243 pengembangan kurikulum pendidikan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62243</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengembangan Kurikulum</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1786,7 +1786,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62343 media pembelajaran pendidikan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62343 media pembelajaran pendidikan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62343</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Media Pembelajaran</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1798,7 +1798,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62443 teknologi plc pendidikan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="ecl62443 teknologi plc pendidikan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62443</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Teknologi PLC</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -1811,7 +1811,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62553 kerja praktik rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62553 kerja praktik rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62553</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kerja Praktik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1823,7 +1823,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62653 kendali otomatis rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62653 kendali otomatis rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62653</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kendali Otomatis</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1835,7 +1835,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62753 instalasi penerangan rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="ecl62753 instalasi penerangan rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62753</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Instalasi Penerangan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -1848,7 +1848,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ecl62863 teknik inverter rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ecl62863 teknik inverter rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62863</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Teknik Inverter</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1860,7 +1860,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ecl62963 bengkel elektronika rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="ecl62963 bengkel elektronika rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL62963</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Bengkel Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -1873,7 +1873,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ecl63073 program studi rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ecl63073 program studi rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL63073</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Program Studi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1885,7 +1885,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -1898,7 +1898,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="ecl631886 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="ecl631886 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">ECL631886</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -1950,7 +1950,7 @@
                                         <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
                                         <tbody>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 1 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok101 pengantar vokasi umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok101 pengantar vokasi umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK101</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengantar Vokasi</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1962,7 +1962,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok102 dasar-dasar elektro umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok102 dasar-dasar elektro umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK102</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Dasar-Dasar Elektro</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1974,7 +1974,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok103 matematika dasar umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="1" data-cari="vok103 matematika dasar umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK103</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Matematika Dasar</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">Sem 1</span></td>
@@ -1987,7 +1987,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 2 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="vok201 rangkaian listrik umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="vok201 rangkaian listrik umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK201</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Rangkaian Listrik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -1999,7 +1999,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="vok202 pengukuran elektronika umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="2" data-cari="vok202 pengukuran elektronika umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK202</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pengukuran Elektronika</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2 py-0.5 text-xs font-bold">Sem 2</span></td>
@@ -2012,7 +2012,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 3 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="vok301 elektronika daya umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="vok301 elektronika daya umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK301</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Elektronika Daya</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -2024,7 +2024,7 @@
                                                     <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
                                                 </div></td>
                                             </tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="vok302 sistem kelistrikan umum">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="3" data-cari="vok302 sistem kelistrikan umum" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK302</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Sistem Kelistrikan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-xs font-bold">Sem 3</span></td>
@@ -2037,7 +2037,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 4 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="vok401 pendidikan kejuruan pendidikan">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="4" data-cari="vok401 pendidikan kejuruan pendidikan" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK401</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Pendidikan Kejuruan</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-bold">Sem 4</span></td>
@@ -2050,7 +2050,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 5 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="vok501 kerja praktik rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="5" data-cari="vok501 kerja praktik rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK501</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kerja Praktik</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-xs font-bold">Sem 5</span></td>
@@ -2063,7 +2063,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 6 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="vok601 kendali otomatis rekayasa elektro">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="6" data-cari="vok601 kendali otomatis rekayasa elektro" data-rps="1">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK601</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Kendali Otomatis</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-teal-100 text-teal-700 px-2 py-0.5 text-xs font-bold">Sem 6</span></td>
@@ -2076,7 +2076,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 7 (Ganjil)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="7" data-cari="ung0511600874 kkn " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">UNG0511600874</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">KKN</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">Sem 7</span></td>
@@ -2089,7 +2089,7 @@
                                                 </div></td>
                                             </tr>
                                             <tr class="sem-row"><td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester 8 (Genap)</td></tr>
-                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="vok801 tugas akhir ">
+                                            <tr class="bg-white transition hover:bg-orange-50" data-sem="8" data-cari="vok801 tugas akhir " data-rps="0">
                                                 <td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">VOK801</span></td>
                                                 <td><p class="font-medium text-slate-800 leading-snug">Tugas Akhir</p></td>
                                                 <td class="text-center"><span class="inline-flex items-center rounded-full bg-pink-100 text-pink-700 px-2 py-0.5 text-xs font-bold">Sem 8</span></td>
@@ -2163,24 +2163,87 @@
         </form>
     </div>
 </div>
+<!-- ===== Modal Edit Matakuliah ===== -->
+<div class="modal-overlay" id="editModal" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+            <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-pen mr-1 text-sky-500"></i>Edit Matakuliah</h6>
+            <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-edit-close>&times;</button>
+        </div>
+        <form id="frmEdit" class="p-5 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kode</label>
+                    <input type="text" id="epKode" required placeholder="mis. EAD64173" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white"></div>
+                <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">SKS</label>
+                    <input type="number" id="epSKS" required min="1" max="6" value="3" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white"></div>
+            </div>
+            <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Nama Matakuliah</label>
+                <input type="text" id="epNama" required placeholder="mis. Elektronika Industri" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white"></div>
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Program Studi</label>
+                    <select id="epProdi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <option>S1 Teknik Elektro</option>
+                        <option>S1 Teknik Komputer</option>
+                        <option>S1 Pendidikan Vokasi Rekayasa Elektro</option>
+                    </select></div>
+                <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kurikulum</label>
+                    <select id="epTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <option value="2022">Kurikulum 2022</option>
+                        <option value="2021">Kurikulum 2021</option>
+                        <option value="2018">Kurikulum 2018</option>
+                        <option value="2017">Kurikulum 2017</option>
+                    </select></div>
+                <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Semester</label>
+                    <select id="epSem" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+                    </select></div>
+            </div>
+            <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Konsentrasi <span class="text-slate-400 font-normal">(opsional)</span></label>
+                <input type="text" id="epKons" placeholder="mis. Konversi Energi, Informatika" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white"></div>
+            <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Unggah RPS <span class="text-slate-400 font-normal">(PDF, maks 2MB)</span></label>
+                <label class="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center transition hover:border-sky-400 hover:bg-sky-50">
+                    <input type="file" id="epFile" accept=".pdf,.doc,.docx" class="sr-only">
+                    <i class="fas fa-cloud-upload-alt text-xl text-sky-400"></i>
+                    <p class="mt-2 text-xs font-medium text-slate-600"><span id="epFileLabel">Klik untuk memilih file RPS (opsional)</span></p>
+                    <p class="text-[10px] text-slate-400">kosongkan jika tidak ingin mengganti RPS</p>
+                </label></div>
+            <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                <button type="button" data-edit-close class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">Batal</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-medium transition"><i class="fas fa-save mr-1"></i>Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
 <!-- ===== Modal Detail ===== -->
 <div class="modal-overlay" id="detailModal" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
-            <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-eye mr-1 text-slate-500"></i>Detail Matakuliah</h6>
-            <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div class="relative bg-slate-900 px-5 py-4">
+            <div class="absolute right-0 top-0 h-full w-36 opacity-20" style="background:radial-gradient(circle at 70% 30%, #f97316, transparent 70%);"></div>
+            <button type="button" class="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white" data-modal-close aria-label="Tutup">&times;</button>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-orange-400"><i class="fas fa-book-open mr-1.5"></i>Detail Matakuliah</p>
+            <h4 class="mt-1 text-lg font-bold leading-snug text-white" id="dtNama">&mdash;</h4>
+            <div class="mt-2 inline-flex items-center rounded-lg bg-black/30 px-2.5 py-1 font-mono text-xs font-bold tracking-wider text-amber-300"><i class="fas fa-hashtag mr-1.5 text-[10px]"></i><span id="dtKode">&mdash;</span></div>
         </div>
         <div class="p-5 space-y-3">
-            <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-sm font-bold text-slate-600"><i class="fas fa-hashtag"></i></span><div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Kode</p><p class="text-sm font-bold text-slate-800 font-mono" id="dtKode">&mdash;</p></div></div>
-            <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-sm font-bold text-orange-600"><i class="fas fa-book"></i></span><div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Nama Matakuliah</p><p class="text-sm font-bold text-slate-800" id="dtNama">&mdash;</p></div></div>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-sm font-bold text-slate-600"><i class="fas fa-calendar"></i></span><div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Semester</p><p class="text-sm font-bold text-slate-800" id="dtSem">&mdash;</p></div></div>
-                <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-sm font-bold text-slate-600"><i class="fas fa-calculator"></i></span><div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">SKS</p><p class="text-sm font-bold text-slate-800" id="dtSKS">&mdash;</p></div></div>
+            <div class="flex flex-wrap gap-2">
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700"><i class="fas fa-layer-group text-[10px]"></i>Semester <span id="dtSem">&mdash;</span></span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-700"><i class="fas fa-calculator text-[10px]"></i><span id="dtSKS">&mdash;</span> SKS</span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-700"><i class="fas fa-tags text-[10px]"></i><span id="dtKons">&mdash;</span></span>
             </div>
-            <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sm font-bold text-sky-600"><i class="fas fa-layer-group"></i></span><div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Konsentrasi</p><p class="text-sm font-bold text-slate-800" id="dtKons">&mdash;</p></div></div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Lokasi pada kurikulum</p>
+                <div class="mt-2 space-y-2">
+                    <div class="flex items-center gap-3"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-xs text-orange-600"><i class="fas fa-graduation-cap"></i></span><div class="min-w-0"><p class="text-[11px] text-slate-400">Program Studi</p><p class="text-sm font-semibold text-slate-800" id="dtProdi">&mdash;</p></div></div>
+                    <div class="flex items-center gap-3"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-xs text-sky-600"><i class="fas fa-archive"></i></span><div class="min-w-0"><p class="text-[11px] text-slate-400">Kurikulum</p><p class="text-sm font-semibold text-slate-800" id="dtTahun">&mdash;</p></div></div>
+                </div>
+            </div>
+            <div class="flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3">
+                <i class="fas fa-lightbulb mt-0.5 text-xs text-amber-500"></i>
+                <div><p class="text-sm font-semibold text-slate-800">Identitas Matakuliah</p><p class="mt-0.5 text-xs leading-relaxed text-slate-500">Kode, nama, semester, bobot SKS, dan konsentrasi &mdash; merujuk pada kurikulum yang sedang aktif atau jejak digitalnya.</p></div>
+            </div>
         </div>
-        <div class="border-t border-slate-100 px-5 py-3 flex justify-end">
-            <button type="button" data-modal-close class="px-4 py-2 text-xs rounded-lg bg-slate-900 hover:bg-slate-700 text-white font-medium transition">Tutup</button>
+        <div class="border-t border-slate-100 px-5 py-3.5 flex justify-end">
+            <button type="button" data-modal-close class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-slate-700">Tutup</button>
         </div>
     </div>
 </div>
@@ -2192,7 +2255,24 @@
 
     window.toggleAcc = function (head) { head.closest('.acc-item').classList.toggle('open'); };
 
-    /* Donut chart — Chart.js dimuat setelah include halaman ini, jadi tunggu */
+    /* Suntik tautan 'RPS' di bawah nama matakuliah */
+    function initRpsButtons() {
+        document.querySelectorAll('.acc-item tbody tr[data-cari]').forEach(function (tr) {
+            if (tr.querySelector('.rps-link')) return;
+            var hasRps = tr.getAttribute('data-rps') === '1';
+            var nameTd = tr.querySelectorAll('td')[1];
+            if (!nameTd) return;
+            var link = document.createElement('a');
+            link.href = 'javascript:void(0)';
+            link.className = 'rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold ' + (hasRps ? 'text-amber-600 hover:text-amber-700' : 'text-slate-300 cursor-not-allowed');
+            link.setAttribute('data-rps-status', hasRps ? '1' : '0');
+            link.innerHTML = '<i class="fas ' + (hasRps ? 'fa-file-pdf' : 'fa-file') + ' text-[9px]"></i>' + (hasRps ? 'Lihat RPS' : 'RPS belum tersedia');
+            nameTd.appendChild(link);
+        });
+    }
+    initRpsButtons();
+
+    /* Donut chart â€” Chart.js dimuat setelah include halaman ini, jadi tunggu */
     var chartData = {
         labels: ["S1 Teknik Elektro","S1 Teknik Komputer","S1 Pendidikan Vokasi Rekayasa Elektro"],
         values: [34,27,25],
@@ -2226,7 +2306,7 @@
         filterAll();
     });
 
-    /* Filter global: cari + prodi + kurikulum(tahun) — hormati pill semester aktif */
+    /* Filter global: cari + prodi + kurikulum(tahun) â€” hormati pill semester aktif */
     function filterAll() {
         var kata = (fCari && fCari.value || '').toLowerCase().trim();
         var prodi = fProdi ? fProdi.value : '';
@@ -2276,25 +2356,51 @@
             emptyState.classList.toggle('empty-show', showEmpty);
             emptyState.classList.toggle('empty-hidden', !showEmpty);
             if (detail) {
-                if (kata) detail.textContent = 'Matakuliah dengan kata "' + kata + '" tidak ditemukan.';
-                else if (prodi && tahun) detail.textContent = 'Belum ada kurikulum ' + tahun + ' di ' + prodi + '.';
-                else if (prodi) detail.textContent = 'Belum ada data untuk ' + prodi + '.';
-                else if (tahun) detail.textContent = 'Belum ada kurikulum tahun ' + tahun + '.';
-                else if (document.querySelector('.sem-pill.active')) detail.textContent = 'Tidak ada matakuliah pada semester yang dipilih.';
-                else detail.textContent = 'Tidak ada data yang cocok dengan filter yang dipilih.';
+                var saran = '';
+                if (kata) saran = 'Tidak ada matakuliah yang cocok dengan kata "' + kata + '".';
+                else if (prodi && tahun) saran = 'Kurikulum ' + tahun + ' belum tersedia untuk ' + prodi + '.';
+                else if (tahun) saran = 'Belum ada kurikulum tahun ' + tahun + '.';
+                else if (prodi) saran = 'Belum ada data untuk ' + prodi + '.';
+                else if (document.querySelector('.sem-pill.active')) saran = 'Tidak ada matakuliah pada semester yang dipilih.';
+                else saran = 'Tidak ada data yang cocok dengan filter yang dipilih.';
+                detail.textContent = saran + ' Coba ubah atau reset filter.';
             }
         }
     }
 
-    if (fCari) fCari.addEventListener('input', filterAll);
-    if (fProdi) fProdi.addEventListener('change', filterAll);
-    if (fTahun) fTahun.addEventListener('change', filterAll);
+    function syncTahunOptions() {
+        if (!fProdi || !fTahun) return;
+        var prodi = fProdi.value;
+        var years = [];
+        document.querySelectorAll('.acc-item').forEach(function (a) {
+            if (a.getAttribute('data-prodi') === prodi) {
+                var t = a.getAttribute('data-tahun');
+                if (t && t !== 'null' && years.indexOf(t) === -1) years.push(t);
+            }
+        });
+        var opts = fTahun.querySelectorAll('option');
+        for (var i = 0; i < opts.length; i++) {
+            var o = opts[i];
+            var val = o.getAttribute('value');
+            if (!val) continue;
+            o.style.display = (!prodi || years.indexOf(val) !== -1) ? '' : 'none';
+        }
+        if (prodi && fTahun.value && years.indexOf(fTahun.value) === -1) fTahun.value = '';
+    }
+    function bindFilters() {
+        if (fCari) fCari.addEventListener('input', filterAll);
+        if (fProdi) fProdi.addEventListener('change', function () { syncTahunOptions(); filterAll(); });
+        if (fTahun) fTahun.addEventListener('change', filterAll);
+        syncTahunOptions();
+    }
     var btnReset = document.getElementById('btnReset');
     var btnEmptyReset = document.getElementById('btnEmptyReset');
     function resetFilters() {
         if (fCari) fCari.value = '';
         if (fProdi) fProdi.value = '';
         if (fTahun) fTahun.value = '';
+        var opts = fTahun.querySelectorAll('option');
+        for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
         document.querySelectorAll('.sem-pill').forEach(function (p) { p.classList.remove('active', 'active-all'); });
         document.querySelectorAll('.sem-pill[data-sem="all"]').forEach(function (p) { p.classList.add('active-all'); });
         document.querySelectorAll('.acc-item tbody tr').forEach(function (tr) { tr.style.display = ''; });
@@ -2303,6 +2409,7 @@
     }
     if (btnReset) btnReset.addEventListener('click', resetFilters);
     if (btnEmptyReset) btnEmptyReset.addEventListener('click', resetFilters);
+    bindFilters();
 
     function toast(msg) {
         var t = document.createElement('div');
@@ -2313,13 +2420,20 @@
     }
 
     document.addEventListener('click', function (e) {
+        var link = e.target.closest('.rps-link');
+        if (link) {
+            var tr = link.closest('tr');
+            if (tr.getAttribute('data-rps') === '1') toast('Membuka RPS "' + (tr.querySelectorAll('td')[1] ? tr.querySelectorAll('td')[1].textContent.trim() : '') + '"');
+            else toast('RPS belum tersedia untuk matakuliah ini');
+            return;
+        }
         var btn = e.target.closest('.btn-circle');
         if (!btn) return;
         var tr = btn.closest('tr');
         if (btn.classList.contains('btn-detail')) {
             openDetail(tr);
         } else if (btn.classList.contains('btn-edit')) {
-            toast('Mode edit - fitur segera hadir');
+            openEdit(tr);
         } else if (btn.classList.contains('btn-hapus')) {
             if (confirm('Hapus matakuliah ini?')) { tr.remove(); toast('Matakuliah dihapus'); }
         }
@@ -2329,9 +2443,12 @@
         var tds = tr.querySelectorAll('td');
         document.getElementById('dtKode').textContent = tds[0] ? tds[0].textContent.trim() : '---';
         document.getElementById('dtNama').textContent = tds[1] ? tds[1].textContent.trim() : '---';
-        document.getElementById('dtSem').textContent = tds[2] ? tds[2].textContent.trim() : '---';
+        document.getElementById('dtSem').textContent = tds[2] ? tds[2].textContent.trim().replace('Sem ', '') : '---';
         document.getElementById('dtSKS').textContent = tds[3] ? tds[3].textContent.trim() : '---';
         document.getElementById('dtKons').textContent = tds[4] ? tds[4].textContent.trim() : '---';
+        var accItem = tr.closest('.acc-item');
+        document.getElementById('dtProdi').textContent = accItem ? accItem.getAttribute('data-prodi') : '---';
+        document.getElementById('dtTahun').textContent = accItem ? 'Kurikulum ' + accItem.getAttribute('data-tahun') : '---';
         document.getElementById('detailModal').classList.add('show');
     }
 
@@ -2340,6 +2457,75 @@
         b.addEventListener('click', function () { dm.classList.remove('show'); });
     });
     dm.addEventListener('click', function (e) { if (e.target === dm) dm.classList.remove('show'); });
+
+    /* ===== Edit Matakuliah ===== */
+    var editTarget = null;
+    var em = document.getElementById('editModal');
+    function openEdit(tr) {
+        editTarget = tr;
+        var tds = tr.querySelectorAll('td');
+        var accItem = tr.closest('.acc-item');
+        var kode = tds[0] ? tds[0].textContent.trim() : '';
+        var nama = tds[1] ? tds[1].textContent.trim() : '';
+        var semTxt = tds[2] ? tds[2].textContent.trim().replace('Sem ', '') : '1';
+        var sks = tds[3] ? tds[3].textContent.trim() : '3';
+        var kons = tds[4] ? tds[4].textContent.trim().replace(/^\u2014$/, '') : '';
+        document.getElementById('epKode').value = kode;
+        document.getElementById('epNama').value = nama;
+        document.getElementById('epSem').value = /^\d+$/.test(semTxt) ? semTxt : '1';
+        document.getElementById('epSKS').value = /^\d+$/.test(sks) ? sks : '3';
+        document.getElementById('epKons').value = kons === '\u2014' ? '' : kons;
+        if (accItem) {
+            var prodi = accItem.getAttribute('data-prodi');
+            document.getElementById('epProdi').value = prodi || '';
+            var tahun = accItem.getAttribute('data-tahun');
+            var tahunSel = document.getElementById('epTahun');
+            for (var i = 0; i < tahunSel.options.length; i++) {
+                if (tahunSel.options[i].value === tahun) { tahunSel.selectedIndex = i; break; }
+            }
+        }
+        document.getElementById('epFile').value = '';
+        document.getElementById('epFileLabel').textContent = 'Klik untuk memilih file RPS (opsional)';
+        em.classList.add('show');
+        document.getElementById('epKode').focus();
+    }
+    em.querySelectorAll('[data-edit-close]').forEach(function (b) {
+        b.addEventListener('click', function () { em.classList.remove('show'); });
+    });
+    em.addEventListener('click', function (e) { if (e.target === em) em.classList.remove('show'); });
+
+    var epFile = document.getElementById('epFile');
+    if (epFile) epFile.addEventListener('change', function () {
+        var l = document.getElementById('epFileLabel');
+        l.textContent = epFile.files.length ? epFile.files[0].name : 'Klik untuk memilih file RPS (opsional)';
+    });
+
+    var frmEdit = document.getElementById('frmEdit');
+    if (frmEdit) frmEdit.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!editTarget) { em.classList.remove('show'); return; }
+        var kode = document.getElementById('epKode').value.trim();
+        var nama = document.getElementById('epNama').value.trim();
+        var sem = document.getElementById('epSem').value;
+        var sks = document.getElementById('epSKS').value || '3';
+        var kons = document.getElementById('epKons').value.trim();
+        if (!kode || !nama) return;
+        var tds = editTarget.querySelectorAll('td');
+        tds[0].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">' + kode + '</span>';
+        tds[1].innerHTML = '<p class="font-medium text-slate-800 leading-snug">' + nama + '</p>';
+        var semColor = ['bg-emerald-100 text-emerald-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-teal-100 text-teal-700','bg-indigo-100 text-indigo-700','bg-pink-100 text-pink-700'];
+        tds[2].innerHTML = '<span class="inline-flex items-center rounded-full ' + semColor[(parseInt(sem) - 1) % 8] + ' px-2 py-0.5 text-xs font-bold">Sem ' + sem + '</span>';
+        tds[3].innerHTML = '<span class="text-sm font-bold text-slate-700">' + sks + '</span>';
+        tds[4].innerHTML = kons
+            ? '<span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2.5 py-1 text-[11px] font-bold">' + kons + '</span>'
+            : '<span class="inline-flex items-center rounded-full bg-slate-100 text-slate-500 px-2.5 py-1 text-[11px] font-bold">&mdash;</span>';
+        editTarget.setAttribute('data-sem', sem);
+        editTarget.setAttribute('data-cari', (kode + ' ' + nama + ' ' + kons).toLowerCase());
+        var uploadInfo = epFile && epFile.files.length ? ' dan RPS "' + epFile.files[0].name + '" ditautkan' : '';
+        toast('Matakuliah "' + nama + '" diperbarui' + uploadInfo);
+        editTarget = null;
+        em.classList.remove('show');
+    });
 
     /* ===== Tambah Matakuliah ===== */
     var tm = document.getElementById('tambahModal');
@@ -2389,8 +2575,9 @@
         tr.className = 'bg-white transition hover:bg-orange-50';
         tr.setAttribute('data-sem', sem);
         tr.setAttribute('data-cari', cari);
+        tr.setAttribute('data-rps', '0');
         tr.innerHTML = '<td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">' + kode + '</span></td>'
-            + '<td><p class="font-medium text-slate-800 leading-snug">' + nama + '</p></td>'
+            + '<td><p class="font-medium text-slate-800 leading-snug">' + nama + '</p><a href="javascript:void(0)" class="rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-slate-300 cursor-not-allowed" data-rps-status="0"><i class="fas fa-file text-[9px]"></i>RPS belum tersedia</a></td>'
             + '<td class="text-center"><span class="inline-flex items-center rounded-full ' + semColor[(parseInt(sem) - 1) % 8] + ' px-2 py-0.5 text-xs font-bold">Sem ' + sem + '</span></td>'
             + '<td class="text-center"><span class="text-sm font-bold text-slate-700">' + sks + '</span></td>'
             + '<td>' + konsBadge + '</td>'
