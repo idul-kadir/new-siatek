@@ -33,11 +33,11 @@
                         <div class="alert alert-warning border-0 mb-3" role="alert" style="font-size:.85rem;">
                             <i class="bi bi-cone-striped me-1"></i>
                             <strong>Halaman dummy.</strong> Konten untuk <em>Matakuliah MBKM</em> belum diimplementasikan.
-                            Silakan ganti isi file <code>pages/jurusan-matkul-mbkm.php</code> dengan konten asli.
+                            Silakan ganti isi file <code>pages/jurusan/matakuliah-mbkm/jurusan-matkul-mbkm.php</code> dengan konten asli.
                         </div>
                         <p class="mb-2" style="font-size:.88rem;">
                             Halaman ini adalah placeholder uniform untuk semua sub-menu.
-                            Cukup edit file <code>pages/jurusan-matkul-mbkm.php</code> untuk menambahkan konten nyata
+                            Cukup edit file <code>pages/jurusan/matakuliah-mbkm/jurusan-matkul-mbkm.php</code> untuk menambahkan konten nyata
                             (tabel, form, grafik, dsb).
                         </p>
                         <p class="mb-0 text-muted" style="font-size:.78rem;">
