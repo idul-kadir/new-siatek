@@ -6,7 +6,7 @@
  * instansi, tanggal (tahun), deskripsi, tingkat, bidang, bukti, file, logo.
  * Satu kerja sama dapat memiliki lebih dari satu dokumen (IA, PKS, MoU) —
  * link dokumen menyatu pada badge bukti, sehingga satu bukti = satu dokumen.
- * JS hanya untuk: filter bidang (tile), tab tingkat, cari, filter, pagination 15/halaman, dan aksi dummy.
+ * JS hanya untuk: tab tingkat, cari, filter, pagination 15/halaman, modal tambah/edit, dan hapus.
  */
 ?>
 <style>
@@ -21,9 +21,7 @@
         background-image: radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);
         background-size: 12px 12px; opacity: .35; mix-blend-mode: overlay; }
     .tile-corak > * { position: relative; }
-    .tile-filter { cursor: pointer; transition: box-shadow .15s ease, transform .15s ease; }
-    .tile-filter:hover { transform: translateY(-2px); }
-    .tile-filter[aria-pressed="true"] { box-shadow: 0 0 0 3px #fff, 0 0 0 6px rgba(249,115,22,.45); }
+
 
     .btn-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; transition: all .15s ease; }
     .btn-circle .tip { position: absolute; top: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
@@ -45,6 +43,12 @@
         font-size: .75rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
     .pg-btn:hover { border-color: #fdba74; color: #c2410c; }
     .pg-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .doc-row { display: flex; align-items: center; gap: .5rem; }
+    .doc-row select { flex: 0 0 auto; width: 100px; }
+    .doc-row .doc-file { flex: 1; min-width: 0; }
+    .doc-row .doc-name { font-size: .75rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .doc-row .doc-del { flex: 0 0 auto; }
 </style>
 <main class="content-area content-scroll">
 
@@ -67,48 +71,48 @@
         </div>
     </section>
 
-    <!-- ===== Statistik (klik = filter bidang) ===== -->
+    <!-- ===== Statistik (informasi saja, bukan tombol filter) ===== -->
     <section class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <button type="button" class="tile-filter tile-orange tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-orange-500/25" data-bidang="" aria-pressed="true">
+        <div class="tile-orange tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-orange-500/25">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-xs font-medium uppercase tracking-wide text-white/85">Total Kerja Sama</p>
-                    <p class="mt-2 text-2xl font-bold tracking-tight" id="stat-total">50</p>
+                    <p class="mt-2 text-2xl font-bold tracking-tight">50</p>
                     <p class="mt-2 text-[11px] text-white/70">seluruh instansi mitra</p>
                 </div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-building"></i></span>
             </div>
-        </button>
-        <button type="button" class="tile-filter tile-sky tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-sky-500/25" data-bidang="Pendidikan" aria-pressed="false" style="animation-delay:.05s">
+        </div>
+        <div class="tile-sky tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-sky-500/25" style="animation-delay:.05s">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-xs font-medium uppercase tracking-wide text-white/85">Pendidikan</p>
-                    <p class="mt-2 text-2xl font-bold tracking-tight" id="stat-Pendidikan">22</p>
+                    <p class="mt-2 text-2xl font-bold tracking-tight">22</p>
                     <p class="mt-2 text-[11px] text-white/70">bidang pendidikan</p>
                 </div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-graduation-cap"></i></span>
             </div>
-        </button>
-        <button type="button" class="tile-filter tile-emerald tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-emerald-500/25" data-bidang="Pengabdian" aria-pressed="false" style="animation-delay:.10s">
+        </div>
+        <div class="tile-emerald tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-emerald-500/25" style="animation-delay:.10s">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-xs font-medium uppercase tracking-wide text-white/85">Pengabdian</p>
-                    <p class="mt-2 text-2xl font-bold tracking-tight" id="stat-Pengabdian">25</p>
+                    <p class="mt-2 text-2xl font-bold tracking-tight">25</p>
                     <p class="mt-2 text-[11px] text-white/70">bidang pengabdian</p>
                 </div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-hands-helping"></i></span>
             </div>
-        </button>
-        <button type="button" class="tile-filter tile-violet tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-violet-500/25" data-bidang="Penelitian" aria-pressed="false" style="animation-delay:.15s">
+        </div>
+        <div class="tile-violet tile-corak reveal rounded-xl p-4 text-left text-white shadow-md shadow-violet-500/25" style="animation-delay:.15s">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-xs font-medium uppercase tracking-wide text-white/85">Penelitian</p>
-                    <p class="mt-2 text-2xl font-bold tracking-tight" id="stat-Penelitian">3</p>
+                    <p class="mt-2 text-2xl font-bold tracking-tight">3</p>
                     <p class="mt-2 text-[11px] text-white/70">bidang penelitian</p>
                 </div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-flask"></i></span>
             </div>
-        </button>
+        </div>
     </section>
 
     <!-- ===== Tabs Tingkat Kerja Sama ===== -->
@@ -1300,10 +1304,63 @@
 
 </main>
 
+<!-- ===== Modal Tambah / Edit Kerja Sama (frontend only) ===== -->
+<div class="modal-overlay" id="ksModal" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+            <h6 class="font-semibold text-slate-900 text-sm" id="ksModalTitle"><i class="fas fa-plus mr-1 text-[#f97316]"></i>Tambah Kerja Sama</h6>
+            <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
+        </div>
+        <form id="ksForm" class="p-5 space-y-4">
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Instansi</label>
+                <input type="text" id="inpInstansi" required placeholder="mis. PT. PLN UP3 Gorontalo"
+                       class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Deskripsi</label>
+                <input type="text" id="inpDeskripsi" placeholder="Ringkasan kerja sama"
+                       class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Tahun</label>
+                    <select id="inpTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
+                        <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Bidang</label>
+                    <select id="inpBidang" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
+                        <option>Pendidikan</option><option>Pengabdian</option><option>Penelitian</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Tingkat</label>
+                    <select id="inpTingkat" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
+                        <option>Lokal</option><option>Nasional</option><option>Internasional</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Dokumen Bukti</label>
+                <div id="docList" class="space-y-2"></div>
+                <button type="button" id="btnAddDoc" class="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-orange-400 hover:text-orange-600">
+                    <i class="fas fa-plus text-[10px]"></i> Tambah Dokumen
+                </button>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" data-modal-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white font-medium">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 (function () {
     var ITEM_PER_PAGE = 15;
-    var bidang = '', tab = '', halaman = 1;
+    var tab = '', halaman = 1;
 
     var body = document.getElementById('tBody');
     var rows = Array.prototype.slice.call(body ? body.querySelectorAll('tr') : []);
@@ -1319,42 +1376,37 @@
     var btnPrev = document.getElementById('btnPrev');
     var btnNext = document.getElementById('btnNext');
 
-    function cocok(tr, bi, ta) {
+    function cocok(tr, ta) {
         var kata = (fCari && fCari.value || '').toLowerCase().trim();
         if (kata !== '' && (tr.getAttribute('data-cari') || '').indexOf(kata) === -1) return false;
-        if (bi !== null && bi !== '' && tr.getAttribute('data-bidang') !== bi) return false;
         if (ta !== null && ta !== '' && tr.getAttribute('data-tingkat') !== ta) return false;
         if (fTahun && fTahun.value !== '' && tr.getAttribute('data-tahun') !== fTahun.value) return false;
         if (fBukti && fBukti.value !== '' && (tr.getAttribute('data-bukti') || '').split(' ').indexOf(fBukti.value) === -1) return false;
         return true;
     }
 
-    /* jumlah per tingkat (untuk tab) yang cocok dengan filter lain.
-       Empat kartu statistik di atas TETAP statis (tidak terpengaruh filter). */
     function updateCounts() {
-        var cntTingkat = { '': 0, 'Lokal': 0, 'Nasional': 0, 'Internasional': 0 };
+        var cnt = { '': 0, 'Lokal': 0, 'Nasional': 0, 'Internasional': 0 };
         for (var i = 0; i < rows.length; i++) {
-            var tr = rows[i];
-            var ti = tr.getAttribute('data-tingkat');
-            if (cocok(tr, bidang, null)) { cntTingkat['']++; cntTingkat[ti] = (cntTingkat[ti] || 0) + 1; }
+            var ti = rows[i].getAttribute('data-tingkat');
+            if (cocok(rows[i], null)) { cnt['']++; cnt[ti] = (cnt[ti] || 0) + 1; }
         }
         var c = document.getElementById('cnt-all');
-        if (c) c.textContent = cntTingkat[''].toLocaleString('id-ID');
+        if (c) c.textContent = cnt[''].toLocaleString('id-ID');
         ['Lokal', 'Nasional', 'Internasional'].forEach(function (t) {
             var el = document.getElementById('cnt-' + t);
-            if (el) el.textContent = (cntTingkat[t] || 0).toLocaleString('id-ID');
+            if (el) el.textContent = (cnt[t] || 0).toLocaleString('id-ID');
         });
     }
 
     function render() {
         var tutup = (halaman - 1) * ITEM_PER_PAGE;
-        var pos = 0, total = 0, i;
-        for (i = 0; i < rows.length; i++) {
-            var tampil = cocok(rows[i], bidang, tab);
+        var pos = 0, total = 0;
+        for (var i = 0; i < rows.length; i++) {
+            var tampil = cocok(rows[i], tab);
             if (tampil) {
                 total++;
-                if (pos >= tutup && pos < tutup + ITEM_PER_PAGE) rows[i].style.display = '';
-                else rows[i].style.display = 'none';
+                rows[i].style.display = (pos >= tutup && pos < tutup + ITEM_PER_PAGE) ? '' : 'none';
                 pos++;
             } else {
                 rows[i].style.display = 'none';
@@ -1373,29 +1425,15 @@
         updateCounts();
     }
 
-    function setBidang(b) {
-        bidang = b;
-        halaman = 1;
-        var tiles = document.querySelectorAll('.tile-filter');
-        for (var i = 0; i < tiles.length; i++) {
-            tiles[i].setAttribute('aria-pressed', tiles[i].getAttribute('data-bidang') === b ? 'true' : 'false');
-        }
-        render();
-    }
-
     function setTab(t) {
         tab = t;
         halaman = 1;
-        var btns = document.querySelectorAll('.tab-btn');
-        for (var i = 0; i < btns.length; i++) {
-            btns[i].setAttribute('aria-selected', btns[i].getAttribute('data-tab') === t ? 'true' : 'false');
-        }
+        document.querySelectorAll('.tab-btn').forEach(function (b) {
+            b.setAttribute('aria-selected', b.getAttribute('data-tab') === t ? 'true' : 'false');
+        });
         render();
     }
 
-    document.querySelectorAll('.tile-filter').forEach(function (t) {
-        t.addEventListener('click', function () { setBidang(t.getAttribute('data-bidang')); });
-    });
     document.querySelectorAll('.tab-btn').forEach(function (b) {
         b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); });
     });
@@ -1409,11 +1447,9 @@
         if (fCari) fCari.value = '';
         if (fTahun) fTahun.value = '';
         if (fBukti) fBukti.value = '';
-        setBidang('');
         setTab('');
     });
 
-    /* ===== Aksi dummy: edit & hapus (frontend only) ===== */
     function toast(msg) {
         var t = document.createElement('div');
         t.textContent = msg;
@@ -1422,6 +1458,7 @@
         setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2200);
     }
 
+    /* ===== Aksi: Edit & Hapus ===== */
     body.addEventListener('click', function (e) {
         var btn = e.target.closest('.btn-circle');
         if (!btn) return;
@@ -1430,16 +1467,16 @@
             openEdit(tr);
         } else if (btn.classList.contains('bg-rose-500')) {
             if (confirm('Hapus kerja sama ini?')) {
-                tr.style.display = 'none';
                 tr.remove();
                 rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+                badgeNomor();
                 render();
                 toast('Kerja sama dihapus');
             }
         }
     });
 
-    /* ===== Modal Tambah / Edit Kerja Sama (frontend only, dummy) ===== */
+    /* ===== Modal Tambah / Edit ===== */
     var modal = document.getElementById('ksModal');
     var mTitle = document.getElementById('ksModalTitle');
     var mForm = document.getElementById('ksForm');
@@ -1447,14 +1484,67 @@
     var mTahun = document.getElementById('inpTahun');
     var mBidang = document.getElementById('inpBidang');
     var mTingkat = document.getElementById('inpTingkat');
-    var mBukti = document.getElementById('inpBukti');
     var mDeskripsi = document.getElementById('inpDeskripsi');
     var mEditing = null;
 
+    /* ---- Dynamic doc list ---- */
+    var docList = document.getElementById('docList');
+    var btnAddDoc = document.getElementById('btnAddDoc');
+
+    function addDocRow(list, type, fileName) {
+        var d = document.createElement('div');
+        d.className = 'doc-row';
+        var fname = fileName || '';
+        var displayName = fname ? fname : 'Belum ada file';
+        d.innerHTML =
+            '<select class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm outline-none focus:border-orange-400">' +
+                '<option value="IA"' + (type === 'IA' ? ' selected' : '') + '>IA</option>' +
+                '<option value="MoU"' + (type === 'MoU' ? ' selected' : '') + '>MoU</option>' +
+                '<option value="PKS"' + (type === 'PKS' ? ' selected' : '') + '>PKS</option>' +
+            '</select>' +
+            '<div class="doc-file flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">' +
+                '<i class="fas fa-file-pdf text-slate-400 text-xs shrink-0"></i>' +
+                '<span class="doc-name">' + displayName + '</span>' +
+                '<label class="ml-auto inline-flex cursor-pointer items-center gap-1 rounded bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-700 shrink-0">' +
+                    '<i class="fas fa-folder-open text-[9px]"></i> Pilih' +
+                    '<input type="file" class="hidden" accept=".pdf,.doc,.docx">' +
+                '</label>' +
+            '</div>' +
+            '<button type="button" class="doc-del btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" style="width:1.75rem;height:1.75rem;"><i class="fas fa-xmark text-[10px]"></i></button>';
+        var fileInp = d.querySelector('input[type="file"]');
+        var nameEl = d.querySelector('.doc-name');
+        fileInp.addEventListener('change', function () {
+            nameEl.textContent = fileInp.files.length ? fileInp.files[0].name : 'Belum ada file';
+        });
+        d.querySelector('.doc-del').addEventListener('click', function () { d.remove(); });
+        list.appendChild(d);
+    }
+
+    function getDocs(list) {
+        var docs = [];
+        var rows = list.querySelectorAll('.doc-row');
+        for (var i = 0; i < rows.length; i++) {
+            var t = rows[i].querySelector('select').value;
+            var n = rows[i].querySelector('.doc-name').textContent;
+            if (n && n !== 'Belum ada file') docs.push({ type: t, name: n });
+        }
+        return docs;
+    }
+
+    function setDocs(list, docs) {
+        list.innerHTML = '';
+        for (var i = 0; i < docs.length; i++) addDocRow(list, docs[i].type, docs[i].name);
+    }
+
+    if (btnAddDoc) btnAddDoc.addEventListener('click', function () { addDocRow(docList, 'IA', ''); });
+
+    /* ---- Open / Close ---- */
     function openTambah() {
         mEditing = null;
         mTitle.innerHTML = '<i class="fas fa-plus mr-1 text-[#f97316]"></i>Tambah Kerja Sama';
         mForm.reset();
+        docList.innerHTML = '';
+        addDocRow(docList, 'IA', '');
         if (mTahun) mTahun.value = '2026';
         if (modal) modal.classList.add('show');
     }
@@ -1463,13 +1553,23 @@
         mEditing = tr;
         var inst = tr.querySelector('p.font-semibold');
         var desc = tr.querySelector('p.line-clamp-1');
-        var badges = tr.querySelectorAll('td');
         mInstansi.value = inst ? inst.textContent : '';
-        mDeskripsi.value = (desc && desc.textContent !== 'Kerja sama dengan instansi mitra') ? desc.textContent : '';
+        mDeskripsi.value = desc ? desc.textContent : '';
         mTahun.value = tr.getAttribute('data-tahun') || '';
         mBidang.value = tr.getAttribute('data-bidang') || '';
         mTingkat.value = tr.getAttribute('data-tingkat') || '';
-        mBukti.value = (tr.getAttribute('data-bukti') || '').split(' ')[0];
+
+        var badges = tr.querySelectorAll('td')[4].querySelectorAll('a.tip-wrap');
+        var docs = [];
+        for (var i = 0; i < badges.length; i++) {
+            var btype = badges[i].textContent.trim();
+            var tip = badges[i].querySelector('.tip');
+            var bname = tip ? tip.textContent : '';
+            docs.push({ type: btype, name: bname });
+        }
+        if (docs.length === 0) docs.push({ type: 'IA', name: '' });
+        setDocs(docList, docs);
+
         mTitle.innerHTML = '<i class="fas fa-pen mr-1 text-[#0ea5e9]"></i>Edit Kerja Sama';
         if (modal) modal.classList.add('show');
     }
@@ -1480,56 +1580,63 @@
     });
     modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
 
-    function buatBadgeBukti(bukti) {
-        return '<a href="#" class="tip-wrap inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-200"><i class="fas fa-download text-[10px]"></i>' + bukti + '<span class="tip">dokumen-' + bukti + '.pdf</span></a>';
+    /* ---- Helpers ---- */
+    function buatBadgeBukti(type, name) {
+        var fname = name || ('dokumen-' + type.toLowerCase() + '.pdf');
+        return '<a href="#" class="tip-wrap inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-200"><i class="fas fa-download text-[10px]"></i>' + type + '<span class="tip">' + fname + '</span></a>';
     }
 
-    function applyForm(tr, no) {
+    function warnaBidang(b) {
+        if (b === 'Pengabdian') return 'bg-emerald-100 text-emerald-700';
+        if (b === 'Penelitian') return 'bg-violet-100 text-violet-700';
+        return 'bg-sky-100 text-sky-700';
+    }
+
+    function warnaTingkat(t) {
+        if (t === 'Nasional') return 'bg-emerald-100 text-emerald-700';
+        if (t === 'Internasional') return 'bg-rose-100 text-rose-700';
+        return 'bg-slate-100 text-slate-600';
+    }
+
+    function badgeBuktiHTML(docs) {
+        var h = '';
+        for (var i = 0; i < docs.length; i++) h += buatBadgeBukti(docs[i].type, docs[i].name);
+        return h;
+    }
+
+    function applyForm(tr) {
         var instansi = mInstansi.value.trim();
         var deskripsi = mDeskripsi.value.trim() || 'Kerja sama dengan instansi mitra';
         var tahun = mTahun.value || '2026';
         var bidang = mBidang.value || 'Pendidikan';
         var tingkat = mTingkat.value || 'Lokal';
-        var bukti = mBukti.value || 'IA';
+        var docs = getDocs(docList);
+        var buktiStr = docs.map(function (d) { return d.type; }).join(' ');
 
         tr.setAttribute('data-tahun', tahun);
         tr.setAttribute('data-bidang', bidang);
         tr.setAttribute('data-tingkat', tingkat);
-        tr.setAttribute('data-bukti', bukti);
-        tr.setAttribute('data-cari', (instansi + ' ' + deskripsi + ' ' + bidang + ' ' + tingkat + ' ' + bukti).toLowerCase());
+        tr.setAttribute('data-bukti', buktiStr);
+        tr.setAttribute('data-cari', (instansi + ' ' + deskripsi + ' ' + bidang + ' ' + tingkat + ' ' + buktiStr).toLowerCase());
 
         tr.querySelector('p.font-semibold').textContent = instansi;
         tr.querySelector('p.line-clamp-1').textContent = deskripsi;
+
         var td = tr.querySelectorAll('td');
         td[1].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">' + tahun + '</span>';
-        td[2].innerHTML = '<span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">' + bukti + '</span>';
-        td[3].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">' + tingkat + '</span>';
-        td[4].innerHTML = '<div class="flex flex-wrap items-center gap-1">' + bukatas(bukti) + '</div>';
-        td[0].querySelector('.text-slate-500, :scope div div p').textContent = deskripsi;
+        td[2].innerHTML = '<span class="inline-flex items-center rounded-full ' + warnaBidang(bidang) + ' px-2.5 py-1 text-xs font-bold">' + bidang + '</span>';
+        td[3].innerHTML = '<span class="inline-flex items-center rounded-full ' + warnaTingkat(tingkat) + ' px-2.5 py-1 text-xs font-bold">' + tingkat + '</span>';
+        td[4].innerHTML = '<div class="flex flex-wrap items-center gap-1">' + badgeBuktiHTML(docs) + '</div>';
     }
 
-    mForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var instansi = mInstansi.value.trim();
-        if (instansi === '') { alert('Instansi wajib diisi.'); return; }
-        if (mEditing) {
-            applyForm(mEditing, 0);
-            toast('Perubahan disimpan');
-        } else {
-            var r = document.createElement('tr');
-            r.innerHTML = barisBaru();
-            body.appendChild(r);
-            /* terapkan data dari form ke baris baru */
-            rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
-            var nr = rows[rows.length - 1];
-            applyForm(nr, rows.length);
-            badgeNomor();
-            render();
-            toast('Kerja sama ditambahkan');
-        }
-        modal.classList.remove('show');
-        mForm.reset();
-    });
+    function barisBaru() {
+        return '<td class="py-4 pl-5 pr-4"><div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-base font-bold text-white shadow-sm"></span><div class="min-w-0"><p class="font-semibold text-slate-800 leading-snug">&#8212;</p><p class="text-xs text-slate-500 line-clamp-1"></p></div></div></td>' +
+            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2026</span></td>' +
+            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2.5 py-1 text-xs font-bold">Pendidikan</span></td>' +
+            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-2.5 py-1 text-xs font-bold">Lokal</span></td>' +
+            '<td class="px-4 py-4"><div class="flex flex-wrap items-center gap-1"></div></td>' +
+            '<td class="py-4 pr-5"><div class="flex items-center gap-1.5"><button type="button" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button><button type="button" class="btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button></div></td>';
+    }
 
     function badgeNomor() {
         var nRows = body.querySelectorAll('tr');
@@ -1539,18 +1646,28 @@
         }
     }
 
-    function barisBaru() {
-        return '<td class="py-4 pl-5 pr-4"><div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-base font-bold text-white shadow-sm"></span><div class="min-w-0"><p class="font-semibold text-slate-800 leading-snug">&#8212;</p><p class="text-xs text-slate-500 line-clamp-1"></p></div></div></td>' +
-            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">&#8212;</span></td>' +
-            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">IA</span></td>' +
-            '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Lokal</span></td>' +
-            '<td class="px-4 py-4"><div class="flex flex-wrap items-center gap-1">' + bukatas('IA') + '</div></td>' +
-            '<td class="py-4 pr-5"><div class="flex items-center gap-1.5"><button type="button" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button><button type="button" class="btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button></div></td>';
-    }
-
-    function bukatas(bukti) {
-        var nama = (bukti || 'IA').toLowerCase();
-        return '<a href="#" class="tip-wrap inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-200"><i class="fas fa-download text-[10px]"></i>' + (bukti || 'IA') + '<span class="tip">dokumen-' + nama + '.pdf</span></a>';
-    }
+    mForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var instansi = mInstansi.value.trim();
+        if (instansi === '') { alert('Instansi wajib diisi.'); return; }
+        var docs = getDocs(docList);
+        if (docs.length === 0) { alert('Minimal satu dokumen bukti harus diisi.'); return; }
+        if (mEditing) {
+            applyForm(mEditing);
+            toast('Perubahan disimpan');
+        } else {
+            var r = document.createElement('tr');
+            r.className = 'bg-white transition hover:bg-orange-50';
+            r.innerHTML = barisBaru();
+            body.appendChild(r);
+            rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+            applyForm(rows[rows.length - 1]);
+            badgeNomor();
+            render();
+            toast('Kerja sama ditambahkan');
+        }
+        modal.classList.remove('show');
+        mForm.reset();
+    });
 })();
 </script>
