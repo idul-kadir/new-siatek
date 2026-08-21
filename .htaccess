@@ -66,5 +66,8 @@ RewriteRule ^jurusan-surat/?$              index.php?page=jurusan-surat [L,QSA]
 RewriteRule ^jurusan-surat-penunjukkan/?$  index.php?page=jurusan-surat-penunjukkan [L,QSA]
 RewriteRule ^jurusan-tracer/?$             index.php?page=jurusan-tracer [L,QSA]
 
+# -- Surat --
+RewriteRule ^dokumen/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$ surat/template-a4.php?kategori=$1&nim=$2 [L,QSA]
+
 # Fallback: slug apapun yang tidak di-match di atas → ke index.php (router handle)
 RewriteRule ^([a-z0-9][a-z0-9\-]+)/?$ index.php?page=$1 [L,QSA]

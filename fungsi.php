@@ -22,3 +22,9 @@ function bersihkan($data) {
     
     return $data;
 }
+
+// Fungsi khusus untuk menampilkan data dari database agar aman di HTML,
+// termasuk saat dipakai di atribut HTML seperti data-nama-file.
+function tampil($data) {
+  return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+}

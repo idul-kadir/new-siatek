@@ -77,7 +77,7 @@ $routeMap = [
     'jurusan-program-extra'      => ['path' => 'jurusan/program-extra',        'title' => 'Jurusan - Program Extra'],
     'jurusan-skp'                => ['path' => 'jurusan/skp',                  'title' => 'Jurusan - SKP'],
     'jurusan-surat'              => ['path' => 'jurusan/surat',                'title' => 'Jurusan - Surat'],
-    'jurusan-surat-penunjukkan'  => ['path' => 'jurusan/surat/penunjukkan',    'title' => 'Jurusan - Surat Penunjukkan'],
+    'jurusan-surat-penunjukkan'  => ['path' => 'jurusan/penunjukkan',         'title' => 'Jurusan - Surat Penunjukkan'],
     'jurusan-tracer'             => ['path' => 'jurusan/tracer',               'title' => 'Jurusan - Tracer Studi'],
 ];
 
@@ -143,6 +143,8 @@ $activePage = $pageKey;
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Local CSS (fallback untuk halaman lain yang masih pakai class Bootstrap) -->
@@ -352,10 +354,51 @@ $activePage = $pageKey;
         </div>
     </div>
 
+    <!-- ===== Modal Konfirmasi Hapus (Global) ===== -->
+    <div class="modal-overlay" id="globalHapusModal" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-exclamation-triangle mr-1 text-rose-500"></i>Konfirmasi Hapus</h6>
+                <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" onclick="closeGlobalHapus()">&times;</button>
+            </div>
+            <div class="p-5">
+                <p class="text-sm text-slate-600">Yakin ingin menghapus item ini?</p>
+                <p id="globalHapusNama" class="mt-2 text-sm font-semibold text-slate-800 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 hidden"></p>
+            </div>
+            <div class="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50">
+                <button type="button" class="px-3 py-1.5 text-xs rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium" onclick="closeGlobalHapus()">Batal</button>
+                <button type="button" id="globalHapusBtn" class="px-4 py-1.5 text-xs rounded-md bg-rose-500 hover:bg-rose-600 text-white font-semibold">Hapus</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Local JS -->
     <script src="js/dashboard.js"></script>
+
+    <script>
+    /* ===== Global Delete Confirmation ===== */
+    var _globalHapusCb = null;
+    function konfirmasiHapus(nama, onConfirm) {
+        var modal = document.getElementById('globalHapusModal');
+        var namaEl = document.getElementById('globalHapusNama');
+        if (nama) { namaEl.textContent = nama; namaEl.classList.remove('hidden'); }
+        else { namaEl.classList.add('hidden'); }
+        _globalHapusCb = typeof onConfirm === 'function' ? onConfirm : null;
+        modal.classList.add('show');
+    }
+    function closeGlobalHapus() {
+        document.getElementById('globalHapusModal').classList.remove('show');
+        _globalHapusCb = null;
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('globalHapusBtn').addEventListener('click', function () {
+            closeGlobalHapus();
+            if (_globalHapusCb) _globalHapusCb();
+        });
+    });
+    </script>
 
 </body>
 </html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surat Penunjukkan Penguji Hasil Penelitian</title>
+<style>
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: auto; }
+    body { font-family: 'Times New Roman', Georgia, serif; background: #e2e8f0; color: #000; font-size: 11pt; line-height: 1.35; }
+
+    .toolbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #1e3a5f; color: #fff; font-family: Inter, Arial, sans-serif; }
+    .toolbar .tt { font-size: 13px; font-weight: 700; }
+    .toolbar .sub { font-size: 12px; opacity: .85; }
+    .toolbar .spacer { flex: 1; }
+    .toolbar button { border: 1px solid rgba(255,255,255,.45); background: #fff; color: #1e3a5f; font-weight: 700; font-size: 12px; padding: 7px 16px; border-radius: 8px; cursor: pointer; }
+    .toolbar button:hover { background: #f1f5f9; }
+
+    .sheet { background: #fff; width: 210mm; margin: 20px auto; padding: 12mm 20mm 14mm; box-shadow: 0 4px 24px rgba(15,23,42,.25); }
+
+    .kop { position: relative; }
+    .kop img.logo { position: absolute; top: 0; left: 0; width: 20mm; }
+    .kop .brand { text-align: center; margin-left: 25mm; }
+    .kop .brand .org { font-size: 11pt; line-height: 1.25; }
+    .kop .brand .addr { font-size: 9pt; line-height: 1.3; }
+    .kop hr { border: 1.4px solid #000; margin-top: 4px; }
+
+    .judul { text-align: center; margin: 7mm 0 0; }
+    .judul b, .judul u { font-size: 11.5pt; }
+
+    .nomor { text-align: center; margin-top: 4px; }
+
+    .pembuka { text-align: justify; margin-top: 6mm; }
+
+    table.data { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+    table.data td { vertical-align: top; padding: 0; }
+
+    .penutup { text-align: justify; margin-top: 4mm; }
+
+    .ttd-wrap { width: 100%; margin-top: 8mm; }
+    .ttd-wrap td { vertical-align: top; }
+    .ttd-place { height: 62px; }
+    .ttd-place img { height: 56px; }
+
+    .tembusan { margin-top: 6mm; }
+
+    @media print {
+        @page { size: A4 portrait; margin: 0; }
+        html, body { margin: 0; padding: 0; }
+        body { background: #fff; }
+        .toolbar { display: none !important; }
+        .sheet { box-shadow: none; margin: 0; width: 210mm; padding: 12mm 20mm 14mm; }
+        .kop .brand .org { font-size: 11pt; line-height: 1.25; }
+        .kop .brand .addr { font-size: 9pt; line-height: 1.3; }
+        .kop img.logo { width: 20mm; }
+        .judul { margin-top: 6mm; }
+        .pembuka { margin-top: 5mm; }
+        .ttd-wrap { margin-top: 7mm; }
+        .ttd-place { height: 56px; }
+        .ttd-place img { height: 50px; }
+        .tembusan { margin-top: 5mm; }
+    }
+</style>
+</head>
+<body class="A4">
+
+    <div class="toolbar">
+        <span class="tt">SIATEK</span>
+        <span class="sub">Surat Penunjukkan Penguji Hasil Penelitian</span>
+        <span class="spacer"></span>
+        <button onclick="window.print()">Cetak / Print (Ctrl+P)</button>
+        <button onclick="window.close()">Tutup</button>
+    </div>
+
+    <section class="sheet">
+
+        <!-- ===== Kop Surat ===== -->
+        <div class="kop">
+            <img class="logo" src="https://siatek.web.id/adm/images/logo.png" alt="Logo UNG">
+            <div class="brand">
+                <p class="org">KEMENTERIAN PENDIDIKAN, KEBUDAYAAN,<br>
+                    RISET DAN TEKNOLOGI<br>
+                    UNIVERSITAS NEGERI GORONTALO<br>
+                    FAKULTAS TEKNIK<br>
+                    JURUSAN TEKNIK ELEKTRO DAN KOMPUTER</p>
+                <p class="addr">Jalan B.J. Habibie Desa Moutong Kecamatan Tilongkabila Kab. Bone Bolango<br>
+                    Telp. (0435) 821125, Fax. (0435) 821752 Gorontalo<br>
+                    Laman : http://www.ft.ung.ac.id</p>
+            </div>
+            <hr>
+        </div>
+
+        <!-- ===== Judul & Nomor ===== -->
+        <p class="judul"><b><u>SURAT PENUNJUKAN DOSEN PENGUJI HASIL PENELITIAN</u></b></p>
+        <p class="nomor">Nomor : 141/UN47.B5.5/TD.06/2026</p>
+
+        <!-- ===== Pembuka ===== -->
+        <p class="pembuka">Ketua Jurusan Teknik Elektro Dan Komputer Fakultas Teknik Universitas Negeri Gorontalo dengan ini menunjuk Bapak/Ibu yang namanya tercantum di bawah ini sebagai Penguji Hasil Penelitian sebagai berikut :</p>
+
+        <!-- ===== Daftar Penguji ===== -->
+        <table class="data">
+            <tr>
+                <td rowspan="2" style="width:40px">1</td>
+                <td width="90px">Penguji 1</td>
+                <td width="25px">:</td>
+                <td>Ervan Hasan Harun, ST., MT.</td>
+            </tr>
+            <tr>
+                <td>NIP</td>
+                <td>:</td>
+                <td>197411252001121002</td>
+            </tr>
+            <tr>
+                <td rowspan="2" style="width:40px">2</td>
+                <td width="90px">Penguji 2</td>
+                <td width="25px">:</td>
+                <td>Jumiati Ilham, ST., MT.</td>
+            </tr>
+            <tr>
+                <td>NIP</td>
+                <td>:</td>
+                <td>197510172005012001</td>
+            </tr>
+            <tr>
+                <td rowspan="2" style="width:40px">3</td>
+                <td width="90px">Penguji 3</td>
+                <td width="25px">:</td>
+                <td>Dr. Lanto M. Kamil Amali, ST., MT.</td>
+            </tr>
+            <tr>
+                <td>NIP</td>
+                <td>:</td>
+                <td>197704042001121001</td>
+            </tr>
+            <tr>
+                <td rowspan="2" style="width:40px">4</td>
+                <td width="90px">Penguji 4</td>
+                <td width="25px">:</td>
+                <td>Ade Irawaty Tolago, ST., MT.</td>
+            </tr>
+            <tr>
+                <td>NIP</td>
+                <td>:</td>
+                <td>197502142001122004</td>
+            </tr>
+            <tr>
+                <td rowspan="2" style="width:40px">5</td>
+                <td width="90px">Penguji 5</td>
+                <td width="25px">:</td>
+                <td>Taufiq Ismail Yusuf, ST., M.Si.</td>
+            </tr>
+            <tr>
+                <td>NIP</td>
+                <td>:</td>
+                <td>197401162000121001</td>
+            </tr>
+            <tr height="10px"></tr>
+            <tr>
+                <td colspan="4">Mahasiswa yang dibimbing,</td>
+            </tr>
+            <tr>
+                <td colspan="2">Nama</td>
+                <td>:</td>
+                <td>Alya Pratiwi Putri Junus</td>
+            </tr>
+            <tr>
+                <td colspan="2">NIM</td>
+                <td>:</td>
+                <td>521422062</td>
+            </tr>
+            <tr>
+                <td colspan="2" style="vertical-align: top;">Judul Proposal Skripsi</td>
+                <td style="vertical-align: top;">:</td>
+                <td style="text-align: justify;"><b>ANALISIS FAKTOR-FAKTOR DISTRIBUSI MELALUI KARAKTERISTIK BEBAN PADA SISTEM DISTRIBUSI PT.PLN (PERSERO) UID SULUTTENGGO UP3 GORONTALO</b></td>
+            </tr>
+        </table>
+
+        <!-- ===== Penutup ===== -->
+        <p class="penutup">Kepada Bapak/Ibu yang namanya tercantum dalam Surat Penunjukan ini agar dapat melaksanakan tugas dengan penuh tanggung jawab. Surat Keputusan Dosen Penguji Hasil Penelitian akan diterbitkan kemudian.</p>
+
+        <!-- ===== Tanda Tangan ===== -->
+        <table class="ttd-wrap">
+            <tr>
+                <td></td>
+                <td>Gorontalo, 02 Maret 2026</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>Ketua Jurusan</td>
+            </tr>
+            <tr class="ttd-place">
+                <td></td>
+                <td><img src="https://siatek.web.id/adm/file/ttd-197102222001121001.png" alt="TTD"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><b><u>Yasin Mohamad, ST., MT.</u></b></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><b>NIP. 197102222001121001</b></td>
+            </tr>
+            <tr height="8px"></tr>
+            <tr>
+                <td>Tembusan disampaikan kepada Yth. :</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>1. Dosen Penguji</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>2. Mahasiswa yang bersangkutan</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>3. Arsip</td>
+                <td></td>
+            </tr>
+        </table>
+
+    </section>
+
+</body>
+</html>
