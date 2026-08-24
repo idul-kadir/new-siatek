@@ -1,10 +1,10 @@
 ﻿<?php
 /**
  * Halaman: Surat Penunjukkan (Jurusan)
- * Daftar surat penunjukkan dosen (pembimbing & penguji) skripsi tingkat jurusan,
- * beserta tombol untuk melihat/mencetak surat resmi A4.
- * Tampilan statis (dummy) â€” JS untuk tab, cari, filter tahun, pagination,
- * dan modal detail/modal pembuat surat. Data hardcoded di halaman (HTML).
+ * Daftar surat penunjukkan dosen (pembimbing/penguji) skripsi & KP tingkat jurusan.
+ * Data diambil dari tabel surat_penunjukkan DB "siatek" (nama mahasiswa & dosen
+ * dari tabel mahasiswa/dosen), lalu ditulis statis ke HTML — tanpa load PHP/JS.
+ * Sampel: 8 surat terbaru per kategori dari total 461 data.
  */
 ?>
 <style>
@@ -19,14 +19,6 @@
     .btn-circle .tip { position: absolute; top: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
     .btn-circle:hover .tip { opacity: 1; visibility: visible; }
 
-    .tab-btn { display: inline-flex; align-items: center; gap: .5rem; border-radius: .6rem; border: 1px solid #e2e8f0;
-        background: #fff; color: #475569; padding: .55rem .9rem; font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
-    .tab-btn:hover { border-color: #fdba74; color: #c2410c; }
-    .tab-btn .tdot { width: 8px; height: 8px; border-radius: 9999px; }
-    .tab-btn .tnum { min-width: 22px; text-align: center; border-radius: 9999px; padding: 1px 6px; font-size: .7rem; background: #f1f5f9; color: #64748b; }
-    .tab-btn[aria-selected="true"] { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
-    .tab-btn[aria-selected="true"] .tnum { background: rgba(255,255,255,.18); color: #fff; }
-
     .pt-badge { display: inline-block; padding: .18rem .55rem; border-radius: .45rem; font-size: 10px; font-weight: 700; white-space: nowrap; }
 
     .pin-table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -35,12 +27,6 @@
     .pin-table tbody tr:last-child td { border-bottom: none; }
     .pin-table tbody tr { transition: background .15s ease; }
     .pin-table tbody tr:hover { background: #f8fafc; }
-
-    .dosen-chip { display: inline-flex; align-items: center; gap: .5rem; max-width: 250px; padding: .28rem .5rem; border-radius: .6rem; border: 1px solid #e2e8f0; background: #f8fafc; }
-    .dosen-chip .d-ava { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 9999px; font-size: .62rem; font-weight: 700; flex-shrink: 0; }
-    .dosen-chip .d-meta { min-width: 0; }
-    .dosen-chip .d-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .72rem; color: #334155; }
-    .dosen-chip .d-sub { display: block; font-size: .63rem; color: #94a3b8; }
 
     .file-chip { display: inline-flex; align-items: center; gap: .5rem; min-width: 0; max-width: 200px; padding: .32rem .55rem; border-radius: .6rem; border: 1px solid #e2e8f0; background: #f8fafc; }
     .file-chip .f-ico { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: .45rem; font-size: .72rem; flex-shrink: 0; }
@@ -56,39 +42,16 @@
     .pg-btn:disabled { opacity: .45; cursor: not-allowed; }
     .pg-btn.on { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
 
+    .stat-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 720px; }
+    .stat-table thead th { background: #0f172a; color: #cbd5e1; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .55rem .75rem; white-space: nowrap; }
+    .stat-table thead th.grp { background: #0f172a; color: #fff; text-align: center; }
+    .stat-table thead th.gsep, .stat-table td.gsep { border-left: 1px solid rgba(148,163,184,.25); }
+    .stat-table tbody td { padding: .65rem .75rem; font-size: .78rem; color: #334155; border-bottom: 1px solid #f1f5f9; }
+    .stat-table tbody tr:last-child td { border-bottom: none; }
+    .stat-table tbody tr:hover td { background: #f8fafc; }
+
     .modal-overlay { display: none; position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
     .modal-overlay.show { display: flex; }
-
-    /* ===== Lembar surat resmi (preview on-screen) ===== */
-    .letter-sheet { font-family: Georgia, 'Times New Roman', serif; color: #1e293b; }
-    .letter-sheet .sheet { background: #fff; }
-    .letter-sheet .kop { text-align: center; border-bottom: 3px double #334155; padding-bottom: 10px; }
-    .letter-sheet .kop .l1 { font-size: 9px; letter-spacing: .3px; color: #334155; line-height: 1.5; }
-    .letter-sheet .kop h2 { font-size: 19px; font-weight: 800; letter-spacing: .5px; margin: 4px 0 2px; }
-    .letter-sheet .kop .fak { font-size: 11px; font-weight: 700; }
-    .letter-sheet .kop .al { font-size: 10px; line-height: 1.5; margin-top: 3px; }
-    .letter-sheet .tgl { text-align: right; font-size: 11px; margin-top: 14px; }
-    .letter-sheet .meta { text-align: right; font-size: 11px; line-height: 1.7; margin-top: 6px; }
-    .letter-sheet .meta b { font-weight: 600; }
-    .letter-sheet .sal { margin-top: 12px; font-size: 11px; line-height: 1.6; }
-    .letter-sheet .sal .kpd { font-weight: 600; }
-    .letter-sheet .pembuka { margin-top: 10px; font-size: 11px; line-height: 1.6; }
-    .letter-sheet .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; line-height: 1.7; }
-    .letter-sheet .table td { padding: 2px 0; vertical-align: top; }
-    .letter-sheet .table td.no { width: 30px; }
-    .letter-sheet .table td.lbl { width: 130px; }
-    .letter-sheet .table td.col { width: 18px; }
-    .letter-sheet .judul { margin-top: 18px; }
-    .letter-sheet .judul p { font-size: 13px; line-height: 1.4; text-align: center; font-weight: 700; text-decoration: underline; }
-    .letter-sheet .nomor { margin-top: 8px; font-size: 11px; }
-    .letter-sheet .larangan { margin-top: 18px; }
-    .letter-sheet .larangan p { font-size: 11px; line-height: 1.6; text-align: justify; }
-    .letter-sheet .penutup { margin-top: 12px; }
-    .letter-sheet .penutup p { font-size: 11px; line-height: 1.6; text-align: justify; }
-    .letter-sheet .ttd { margin-top: 26px; font-size: 11px; line-height: 1.6; }
-    .letter-sheet .ttd .skr { margin-bottom: 55px; }
-    .letter-sheet .ttd .nm { font-weight: 700; text-decoration: underline; }
-    .letter-sheet .dok { font-size: 10px; line-height: 1.6; margin-top: 10px; }
 
     #toastPn { position: fixed; right: 20px; bottom: 20px; z-index: 2000; display: none; align-items: center; gap: .6rem; max-width: 360px; border-radius: .75rem; background: #0f172a; color: #fff; padding: .7rem 1rem; font-size: .82rem; box-shadow: 0 12px 24px rgba(15,23,42,.25); }
     #toastPn.show { display: flex; animation: riseIn .3s ease; }
@@ -97,34 +60,30 @@
 
     <!-- ===== Page Header ===== -->
     <section class="mb-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-lg text-orange-600">
-                    <i class="fas fa-file-signature"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight text-slate-800">Surat Penunjukkan</h1>
-                    <p class="text-xs text-slate-500">Daftar surat penunjukkan dosen pembimbing dan penguji skripsi tingkat jurusan, lengkap dengan akses cetak surat resmi A4.</p>
-                </div>
+        <div class="flex items-center gap-3">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-lg text-orange-600">
+                <i class="fas fa-file-signature"></i>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="/redesain-siatek/dokumen/surat-penunjukkan-pembimbing-skripsi/521421011" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
-                    <i class="fas fa-file-pdf"></i>Contoh Surat
-                </a>
-                <button type="button" id="btnBuatPn" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
-                    <i class="fas fa-plus"></i>Buat Surat
-                </button>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800">Surat Penunjukkan</h1>
+                <p class="text-xs text-slate-500">Daftar surat penunjukkan dosen pembimbing dan penguji skripsi tingkat jurusan, lengkap dengan akses cetak surat resmi A4.</p>
             </div>
         </div>
     </section>
 
-    <!-- ===== Tab Jenis ===== -->
+    <!-- ===== Strip Statistik Beban Dosen ===== -->
     <section class="mb-4">
-        <div class="flex flex-wrap gap-2">
-            <button type="button" class="tab-btn" data-tab="semua" aria-selected="true"><span class="tdot bg-slate-500"></span>Semua<span class="tnum" id="cnt-semua">9</span></button>
-            <button type="button" class="tab-btn" data-tab="pembimbing" aria-selected="false"><span class="tdot bg-sky-500"></span>Pembimbing Skripsi<span class="tnum" id="cnt-pembimbing">4</span></button>
-            <button type="button" class="tab-btn" data-tab="penguji" aria-selected="false"><span class="tdot bg-amber-500"></span>Penguji Hasil<span class="tnum" id="cnt-penguji">3</span></button>
-            <button type="button" class="tab-btn" data-tab="tutup" aria-selected="false"><span class="tdot bg-orange-500"></span>Penguji Tutup<span class="tnum" id="cnt-tutup">2</span></button>
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
+            <div class="flex items-center gap-2.5">
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-600"><i class="fas fa-chart-simple"></i></span>
+                <div>
+                    <h6 class="text-sm font-semibold text-slate-800">Statistik Beban Dosen</h6>
+                    <p class="text-[11px] text-slate-400" id="stRingkas">—</p>
+                </div>
+            </div>
+            <button type="button" id="btnStat" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700">
+                <i class="fas fa-table-cells"></i>Lihat Pembagian
+            </button>
         </div>
     </section>
 
@@ -136,10 +95,18 @@
                 <input type="search" id="fCari" placeholder="Cari mahasiswa, NIM, dosen, nomor suratâ€¦"
                        class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white">
             </div>
+            <select id="fJenis" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
+                <option value="">Semua Kategori</option>
+                <option value="pemskr">Pembimbing Skripsi</option>
+                <option value="pemkp">Pembimbing KP</option>
+                <option value="hasil">Penguji Hasil</option>
+                <option value="pengkp">Penguji KP</option>
+                <option value="tutup">Penguji Tutup</option>
+            </select>
             <select id="fTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
                 <option value="">Semua Tahun</option>
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
             </select>
             <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset</button>
         </div>
@@ -162,7 +129,6 @@
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Jenis</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Nomor</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Mahasiswa</th>
-                            <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Dosen Ditunjuk</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Tanggal</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">File</th>
                             <th class="py-3.5 px-5 text-right font-semibold uppercase tracking-wider">Aksi</th>
@@ -170,14 +136,13 @@
                     </thead>
                     <tbody id="tbPn" class="divide-y divide-slate-100">
 
-                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pembimbing" data-tahun="2026" data-nama="Mohamad Ryan Noor Sahidu" data-nim="521421011" data-dosen="Amirudin Yunus Dako, ST., M.Eng." data-nip="197410032001121001" data-file="Surat_Penunjukkan_Pembimbing_521421011.pdf" data-nomor="300/UN47.B5.5/TD.06/2026" data-tanggal="09 Jun 2026" data-url="surat-penunjukkan-pembimbing-skripsi/521421011" data-cari="mohamad ryan noor sahidu 521421011 amirudin yunus dako pembimbing skripsi 300 un47 b5 5 td 06 2026 2026">
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Reynaldi Polingala" data-nim="521420038" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420038.pdf" data-nomor="636/UN47.B5.5/TD.06/2024" data-tanggal="1 Okt 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420038" data-cari="reynaldi polingala 521420038 636/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">1</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">300/UN47.B5.5/TD.06/2026</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohamad Ryan Noor Sahidu</p><p class="text-[10px] text-slate-400">NIM 521421011</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-sky-100 text-sky-700">AY</span><span class="d-meta"><span class="d-name">Amirudin Yunus Dako, ST., M.Eng.</span><span class="d-sub">Pembimbing 1</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">09 Jun 2026</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_521421011.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">636/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Reynaldi Polingala</p><p class="text-[10px] text-slate-400">NIM 521420038</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">1 Okt 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420038.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -186,14 +151,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pembimbing" data-tahun="2026" data-nama="Alya Pratiwi Putri Junus" data-nim="521422062" data-dosen="Ir. Hendra Wijaya, M.Eng." data-nip="197302151999031002" data-file="Surat_Penunjukkan_Pembimbing_521422062.pdf" data-nomor="B/TE/2026/101" data-tanggal="03 Jun 2026" data-url="surat-penunjukkan-pembimbing-skripsi/521422062" data-cari="alya pratiwi putri junus 521422062 ir hendra wijaya m eng pembimbing skripsi b te 2026 101 2026">
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Yudi Anas Sahri" data-nim="521419020" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521419020.pdf" data-nomor="627/UN47.B5.5/TD.06/2024" data-tanggal="26 Sep 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521419020" data-cari="yudi anas sahri 521419020 627/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">2</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2026/101</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Alya Pratiwi Putri Junus</p><p class="text-[10px] text-slate-400">NIM 521422062</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-sky-100 text-sky-700">HW</span><span class="d-meta"><span class="d-name">Ir. Hendra Wijaya, M.Eng.</span><span class="d-sub">Pembimbing 1</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">03 Jun 2026</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_521422062.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">627/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yudi Anas Sahri</p><p class="text-[10px] text-slate-400">NIM 521419020</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">26 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521419020.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -202,14 +166,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pembimbing" data-tahun="2025" data-nama="Salsabila Buka" data-nim="521420025" data-dosen="Dr. Ratna Dewi, M.Kom." data-nip="197608251999032003" data-file="Surat_Penunjukkan_Pembimbing_521420025.pdf" data-nomor="B/TE/2025/188" data-tanggal="18 Okt 2025" data-url="surat-penunjukkan-pembimbing-skripsi/521420025" data-cari="salsabila buka 521420025 dr ratna dewi m kom pembimbing skripsi b te 2025 188 2025">
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Aditya Hasin Mooduto" data-nim="521418026" data-file="Surat_Penunjukkan_Pembimbing_KP_521418026.pdf" data-nomor="624/UN47.B5.5/TD.06/2024" data-tanggal="25 Sep 2024" data-url="" data-cari="aditya hasin mooduto 521418026 624/un47.b5.5/td.06/2024 pembimbing kp 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">3</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2025/188</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Salsabila Buka</p><p class="text-[10px] text-slate-400">NIM 521420025</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-sky-100 text-sky-700">RD</span><span class="d-meta"><span class="d-name">Dr. Ratna Dewi, M.Kom.</span><span class="d-sub">Pembimbing 2</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">18 Okt 2025</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_521420025.pdf</span><span class="f-sub">2.0 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">624/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Aditya Hasin Mooduto</p><p class="text-[10px] text-slate-400">NIM 521418026</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">25 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521418026.pdf</span><span class="f-sub">2.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -218,14 +181,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pembimbing" data-tahun="2025" data-nama="Nur Uyun I Yusuf" data-nim="521418018" data-dosen="Deni Kurniawan, M.Sc." data-nip="198611122011011003" data-file="Surat_Penunjukkan_Pembimbing_521418018.pdf" data-nomor="B/TE/2025/176" data-tanggal="09 Sep 2025" data-url="surat-penunjukkan-pembimbing-skripsi/521418018" data-cari="nur uyun i yusuf 521418018 deni kurniawan m sc pembimbing skripsi b te 2025 176 2025">
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Moh. Ramdhan P" data-nim="521418057" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521418057.pdf" data-nomor="621/UN47.B5.5/TD.06/2024" data-tanggal="24 Sep 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521418057" data-cari="moh. ramdhan p 521418057 621/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">4</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2025/176</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Uyun I Yusuf</p><p class="text-[10px] text-slate-400">NIM 521418018</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-sky-100 text-sky-700">DK</span><span class="d-meta"><span class="d-name">Deni Kurniawan, M.Sc.</span><span class="d-sub">Pembimbing 1</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">09 Sep 2025</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_521418018.pdf</span><span class="f-sub">2.3 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">621/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Moh. Ramdhan P</p><p class="text-[10px] text-slate-400">NIM 521418057</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">24 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521418057.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -234,14 +196,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="penguji" data-tahun="2026" data-nama="Alya Pratiwi Putri Junus" data-nim="521422062" data-dosen="Dr. Ratna Dewi, M.Kom." data-nip="197608251999032003" data-file="Surat_Penunjukkan_Penguji_521422062.pdf" data-nomor="141/UN47.B5.5/TD.06/2026" data-tanggal="02 Mar 2026" data-url="surat-penunjukkan-penguji/521422062" data-cari="alya pratiwi putri junus 521422062 dr ratna dewi m kom penguji hasil skripsi 141 un47 b5 5 td 06 2026 2026">
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Yusran Moha" data-nim="521418039" data-file="Surat_Penunjukkan_Penguji_Hasil_521418039.pdf" data-nomor="612/UN47.B5.5/TD.06/2024" data-tanggal="19 Sep 2024" data-url="surat-penunjukkan-hasil/521418039" data-cari="yusran moha 521418039 612/un47.b5.5/td.06/2024 penguji hasil 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">5</span></td>
                             <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">141/UN47.B5.5/TD.06/2026</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Alya Pratiwi Putri Junus</p><p class="text-[10px] text-slate-400">NIM 521422062</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-amber-100 text-amber-700">RD</span><span class="d-meta"><span class="d-name">Dr. Ratna Dewi, M.Kom.</span><span class="d-sub">Penguji 1</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">02 Mar 2026</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_521422062.pdf</span><span class="f-sub">2.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">612/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yusran Moha</p><p class="text-[10px] text-slate-400">NIM 521418039</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">19 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418039.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -250,14 +211,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="penguji" data-tahun="2026" data-nama="Mohamad Ryan Noor Sahidu" data-nim="521421011" data-dosen="Ir. Hendra Wijaya, M.Eng." data-nip="197302151999031002" data-file="Surat_Penunjukkan_Penguji_521421011.pdf" data-nomor="B/TE/2026/097" data-tanggal="28 Feb 2026" data-url="surat-penunjukkan-penguji/521421011" data-cari="mohamad ryan noor sahidu 521421011 ir hendra wijaya m eng penguji hasil skripsi b te 2026 097 2026">
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Sapril" data-nim="521420035" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420035.pdf" data-nomor="610/UN47.B5.5/TD.06/2024" data-tanggal="18 Sep 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420035" data-cari="sapril 521420035 610/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">6</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2026/097</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohamad Ryan Noor Sahidu</p><p class="text-[10px] text-slate-400">NIM 521421011</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-amber-100 text-amber-700">HW</span><span class="d-meta"><span class="d-name">Ir. Hendra Wijaya, M.Eng.</span><span class="d-sub">Penguji 2</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">28 Feb 2026</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_521421011.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">610/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sapril</p><p class="text-[10px] text-slate-400">NIM 521420035</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">18 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420035.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -266,14 +226,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="penguji" data-tahun="2025" data-nama="Salsabila Buka" data-nim="521420025" data-dosen="Dr. Siti Aminah, M.M." data-nip="198009152006042002" data-file="Surat_Penunjukkan_Penguji_521420025.pdf" data-nomor="B/TE/2025/214" data-tanggal="12 Des 2025" data-url="surat-penunjukkan-penguji/521420025" data-cari="salsabila buka 521420025 dr siti aminah m m penguji hasil skripsi b te 2025 214 2025">
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Nasrun Ishak" data-nim="521417004" data-file="Surat_Penunjukkan_Penguji_Tutup_521417004.pdf" data-nomor="407/UN47.B5.5/TD.06/2024" data-tanggal="5 Sep 2024" data-url="surat-penunjukkan-penguji/521417004" data-cari="nasrun ishak 521417004 407/un47.b5.5/td.06/2024 penguji tutup 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">7</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2025/214</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Salsabila Buka</p><p class="text-[10px] text-slate-400">NIM 521420025</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-amber-100 text-amber-700">SA</span><span class="d-meta"><span class="d-name">Dr. Siti Aminah, M.M.</span><span class="d-sub">Penguji 3</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">12 Des 2025</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_521420025.pdf</span><span class="f-sub">2.5 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">5 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -282,14 +241,13 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2026" data-nama="Nur Uyun I Yusuf" data-nim="521418018" data-dosen="Prof. Dr. Ahmad Fauzi, M.T." data-nip="197205101997021002" data-file="Surat_Penunjukkan_Tutup_521418018.pdf" data-nomor="B/TE/2026/133" data-tanggal="09 Jun 2026" data-url="surat-penunjukkan-penguji/521418018" data-cari="nur uyun i yusuf 521418018 prof dr ahmad fauzi m t penguji tutup skripsi b te 2026 133 2026">
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="I Gusti Komang Apriadi" data-nim="521420010" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420010.pdf" data-nomor="586/UN47.B5.5/TD.06/2024" data-tanggal="4 Sep 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420010" data-cari="i gusti komang apriadi 521420010 586/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">8</span></td>
-                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2026/133</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Uyun I Yusuf</p><p class="text-[10px] text-slate-400">NIM 521418018</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-orange-100 text-orange-700">AF</span><span class="d-meta"><span class="d-name">Prof. Dr. Ahmad Fauzi, M.T.</span><span class="d-sub">Ketua Penguji</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">09 Jun 2026</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Tutup_521418018.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">586/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">I Gusti Komang Apriadi</p><p class="text-[10px] text-slate-400">NIM 521420010</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">4 Sep 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420010.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -298,14 +256,478 @@
                             </td>
                         </tr>
 
-                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2025" data-nama="Alya Pratiwi Putri Junus" data-nim="521422062" data-dosen="Dr. Ratna Dewi, M.Kom." data-nip="197608251999032003" data-file="Surat_Penunjukkan_Tutup_521422062.pdf" data-nomor="B/TE/2025/251" data-tanggal="20 Des 2025" data-url="surat-penunjukkan-penguji/521422062" data-cari="alya pratiwi putri junus 521422062 dr ratna dewi m kom penguji tutup skripsi b te 2025 251 2025">
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Nur Tahaja Ibrahim" data-nim="521420026" data-file="Surat_Penunjukkan_Penguji_KP_521420026.pdf" data-nomor="550/UN47.B5.5/TD.06/2024" data-tanggal="16 Agu 2024" data-url="" data-cari="nur tahaja ibrahim 521420026 550/un47.b5.5/td.06/2024 penguji kp 2024">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">9</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">550/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Tahaja Ibrahim</p><p class="text-[10px] text-slate-400">NIM 521420026</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">16 Agu 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420026.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Nur Tahaja Ibrahim" data-nim="521420026" data-file="Surat_Penunjukkan_Pembimbing_KP_521420026.pdf" data-nomor="178/UN47.B5.5/TD.06/2024" data-tanggal="8 Agu 2024" data-url="" data-cari="nur tahaja ibrahim 521420026 178/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">10</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">178/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Tahaja Ibrahim</p><p class="text-[10px] text-slate-400">NIM 521420026</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">8 Agu 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420026.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Bagus Wijaya" data-nim="521420028" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420028.pdf" data-nomor="526/UN47.B5.5/TD.06/2024" data-tanggal="6 Agu 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420028" data-cari="bagus wijaya 521420028 526/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">11</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">526/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Bagus Wijaya</p><p class="text-[10px] text-slate-400">NIM 521420028</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">6 Agu 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420028.pdf</span><span class="f-sub">1.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Kurniawan Ali Male" data-nim="521420036" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420036.pdf" data-nomor="487/UN47.B5.5/TD.06/2024" data-tanggal="17 Jul 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420036" data-cari="kurniawan ali male 521420036 487/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">12</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">487/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Kurniawan Ali Male</p><p class="text-[10px] text-slate-400">NIM 521420036</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">17 Jul 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420036.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemskr" data-tahun="2024" data-nama="Moh. Rafli A. Bolilio " data-nim="521420003" data-file="Surat_Penunjukkan_Pembimbing_Skripsi_521420003.pdf" data-nomor="482/UN47.B5.5/TD.06/2024" data-tanggal="16 Jul 2024" data-url="surat-penunjukkan-pembimbing-skripsi/521420003" data-cari="moh. rafli a. bolilio  521420003 482/un47.b5.5/td.06/2024 pembimbing skripsi 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">13</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-sky-50 text-sky-700">Pembimbing Skripsi</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">482/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Moh. Rafli A. Bolilio </p><p class="text-[10px] text-slate-400">NIM 521420003</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">16 Jul 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420003.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Mauludin" data-nim="521418031" data-file="Surat_Penunjukkan_Penguji_Tutup_521418031.pdf" data-nomor="417/UN47.B5.5/TD.06/2024" data-tanggal="26 Jun 2024" data-url="surat-penunjukkan-penguji/521418031" data-cari="mauludin 521418031 417/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">14</span></td>
                             <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
-                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">B/TE/2025/251</td>
-                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Alya Pratiwi Putri Junus</p><p class="text-[10px] text-slate-400">NIM 521422062</p></div></td>
-                            <td class="px-4 py-4"><span class="dosen-chip"><span class="d-ava bg-orange-100 text-orange-700">RD</span><span class="d-meta"><span class="d-name">Dr. Ratna Dewi, M.Kom.</span><span class="d-sub">Penguji 1</span></span></span></td>
-                            <td class="px-4 py-4 whitespace-nowrap">20 Des 2025</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Tutup_521422062.pdf</span><span class="f-sub">2.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">417/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mauludin</p><p class="text-[10px] text-slate-400">NIM 521418031</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">26 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521418031.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Adi Purwanto Umar" data-nim="521418034" data-file="Surat_Penunjukkan_Penguji_Tutup_521418034.pdf" data-nomor="413/UN47.B5.5/TD.06/2024" data-tanggal="24 Jun 2024" data-url="surat-penunjukkan-penguji/521418034" data-cari="adi purwanto umar 521418034 413/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">15</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">413/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Adi Purwanto Umar</p><p class="text-[10px] text-slate-400">NIM 521418034</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">24 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521418034.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Isnain Sarjan Mento " data-nim="521417055" data-file="Surat_Penunjukkan_Penguji_Tutup_521417055.pdf" data-nomor="387/UN47.B5.5/TD.06/2024" data-tanggal="21 Jun 2024" data-url="surat-penunjukkan-penguji/521417055" data-cari="isnain sarjan mento  521417055 387/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">16</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">387/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Isnain Sarjan Mento </p><p class="text-[10px] text-slate-400">NIM 521417055</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">21 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417055.pdf</span><span class="f-sub">2.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Nasrun Ishak" data-nim="521417004" data-file="Surat_Penunjukkan_Penguji_Tutup_521417004.pdf" data-nomor="407/UN47.B5.5/TD.06/2024" data-tanggal="20 Jun 2024" data-url="surat-penunjukkan-penguji/521417004" data-cari="nasrun ishak 521417004 407/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">17</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">20 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Hendra Palakua" data-nim="521417016" data-file="Surat_Penunjukkan_Penguji_Tutup_521417016.pdf" data-nomor="384/UN47.B5.5/TD.06/2024" data-tanggal="14 Jun 2024" data-url="surat-penunjukkan-penguji/521417016" data-cari="hendra palakua 521417016 384/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">18</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">384/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Hendra Palakua</p><p class="text-[10px] text-slate-400">NIM 521417016</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">14 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417016.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Anggi" data-nim="521417022" data-file="Surat_Penunjukkan_Penguji_Tutup_521417022.pdf" data-nomor="410/UN47.B5.5/TD.06/2024" data-tanggal="13 Jun 2024" data-url="surat-penunjukkan-penguji/521417022" data-cari="anggi 521417022 410/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">19</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">410/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Anggi</p><p class="text-[10px] text-slate-400">NIM 521417022</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">13 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417022.pdf</span><span class="f-sub">2.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="tutup" data-tahun="2024" data-nama="Nasrun Ishak" data-nim="521417004" data-file="Surat_Penunjukkan_Penguji_Tutup_521417004.pdf" data-nomor="407/UN47.B5.5/TD.06/2024" data-tanggal="13 Jun 2024" data-url="surat-penunjukkan-penguji/521417004" data-cari="nasrun ishak 521417004 407/un47.b5.5/td.06/2024 penguji tutup 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">20</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-orange-50 text-orange-700">Penguji Tutup</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">13 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Aditya Saputra Amin" data-nim="521417052" data-file="Surat_Penunjukkan_Penguji_Hasil_521417052.pdf" data-nomor="376/UN47.B5.5/TD.06/2024" data-tanggal="12 Jun 2024" data-url="surat-penunjukkan-hasil/521417052" data-cari="aditya saputra amin 521417052 376/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">21</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">376/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Aditya Saputra Amin</p><p class="text-[10px] text-slate-400">NIM 521417052</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417052.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Nasrun Ishak" data-nim="521417004" data-file="Surat_Penunjukkan_Penguji_Hasil_521417004.pdf" data-nomor="375/UN47.B5.5/TD.06/2024" data-tanggal="12 Jun 2024" data-url="surat-penunjukkan-hasil/521417004" data-cari="nasrun ishak 521417004 375/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">22</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">375/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417004.pdf</span><span class="f-sub">1.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Anggi" data-nim="521417022" data-file="Surat_Penunjukkan_Penguji_Hasil_521417022.pdf" data-nomor="374/UN47.B5.5/TD.06/2024" data-tanggal="12 Jun 2024" data-url="surat-penunjukkan-hasil/521417022" data-cari="anggi 521417022 374/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">23</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">374/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Anggi</p><p class="text-[10px] text-slate-400">NIM 521417022</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417022.pdf</span><span class="f-sub">2.3 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Abd Hayan Arune" data-nim="521417031" data-file="Surat_Penunjukkan_Penguji_Hasil_521417031.pdf" data-nomor="347/UN47.B5.5/TD.06/2024" data-tanggal="9 Jun 2024" data-url="surat-penunjukkan-hasil/521417031" data-cari="abd hayan arune 521417031 347/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">24</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">347/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Abd Hayan Arune</p><p class="text-[10px] text-slate-400">NIM 521417031</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">9 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417031.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Muh Syukriadi Ansar" data-nim="521417034" data-file="Surat_Penunjukkan_Penguji_Hasil_521417034.pdf" data-nomor="344/UN47.B5.5/TD.06/2024" data-tanggal="8 Jun 2024" data-url="surat-penunjukkan-hasil/521417034" data-cari="muh syukriadi ansar 521417034 344/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">25</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">344/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Muh Syukriadi Ansar</p><p class="text-[10px] text-slate-400">NIM 521417034</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">8 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417034.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Yulanda S.ishak" data-nim="521420033" data-file="Surat_Penunjukkan_Penguji_KP_521420033.pdf" data-nomor="337/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="yulanda s.ishak 521420033 337/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">26</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">337/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yulanda S.ishak</p><p class="text-[10px] text-slate-400">NIM 521420033</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420033.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Hijratun A. Samadi" data-nim="521420004" data-file="Surat_Penunjukkan_Penguji_KP_521420004.pdf" data-nomor="336/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="hijratun a. samadi 521420004 336/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">27</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">336/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Hijratun A. Samadi</p><p class="text-[10px] text-slate-400">NIM 521420004</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420004.pdf</span><span class="f-sub">2.5 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Sahrul Duhi" data-nim="521420032" data-file="Surat_Penunjukkan_Penguji_KP_521420032.pdf" data-nomor="335/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="sahrul duhi 521420032 335/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">28</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">335/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420032.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Mohammad Rifki Iti" data-nim="521420030" data-file="Surat_Penunjukkan_Penguji_KP_521420030.pdf" data-nomor="334/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="mohammad rifki iti 521420030 334/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">29</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">334/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohammad Rifki Iti</p><p class="text-[10px] text-slate-400">NIM 521420030</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420030.pdf</span><span class="f-sub">2.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Ariyani Djafar" data-nim="521420014" data-file="Surat_Penunjukkan_Penguji_KP_521420014.pdf" data-nomor="333/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="ariyani djafar 521420014 333/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">30</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">333/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Ariyani Djafar</p><p class="text-[10px] text-slate-400">NIM 521420014</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420014.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Zul Fikrah Arifuddin" data-nim="521420027" data-file="Surat_Penunjukkan_Penguji_KP_521420027.pdf" data-nomor="332/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="zul fikrah arifuddin 521420027 332/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">31</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">332/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Zul Fikrah Arifuddin</p><p class="text-[10px] text-slate-400">NIM 521420027</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420027.pdf</span><span class="f-sub">2.0 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pengkp" data-tahun="2024" data-nama="Muh. Arya Sumarno" data-nim="521420016" data-file="Surat_Penunjukkan_Penguji_KP_521420016.pdf" data-nomor="331/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="" data-cari="muh. arya sumarno 521420016 331/un47.b5.5/td.06/2024 penguji kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">32</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-violet-50 text-violet-700">Penguji KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">331/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Muh. Arya Sumarno</p><p class="text-[10px] text-slate-400">NIM 521420016</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420016.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Akdar" data-nim="521418012" data-file="Surat_Penunjukkan_Penguji_Hasil_521418012.pdf" data-nomor="328/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="surat-penunjukkan-hasil/521418012" data-cari="akdar 521418012 328/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">33</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">328/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Akdar</p><p class="text-[10px] text-slate-400">NIM 521418012</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418012.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="hasil" data-tahun="2024" data-nama="Adi Purwanto Umar" data-nim="521418034" data-file="Surat_Penunjukkan_Penguji_Hasil_521418034.pdf" data-nomor="327/UN47.B5.5/TD.06/2024" data-tanggal="7 Jun 2024" data-url="surat-penunjukkan-hasil/521418034" data-cari="adi purwanto umar 521418034 327/un47.b5.5/td.06/2024 penguji hasil 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">34</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-amber-50 text-amber-700">Penguji Hasil</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">327/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Adi Purwanto Umar</p><p class="text-[10px] text-slate-400">NIM 521418034</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418034.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Suhartin Rauf" data-nim="521420023" data-file="Surat_Penunjukkan_Pembimbing_KP_521420023.pdf" data-nomor="177/UN47.B5.5/TD.06/2024" data-tanggal="18 Mar 2024" data-url="" data-cari="suhartin rauf 521420023 177/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">35</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">177/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Suhartin Rauf</p><p class="text-[10px] text-slate-400">NIM 521420023</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">18 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420023.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Stella Maria Rontopaly" data-nim="521420017" data-file="Surat_Penunjukkan_Pembimbing_KP_521420017.pdf" data-nomor="176/UN47.B5.5/TD.06/2024" data-tanggal="18 Mar 2024" data-url="" data-cari="stella maria rontopaly 521420017 176/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">36</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">176/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Stella Maria Rontopaly</p><p class="text-[10px] text-slate-400">NIM 521420017</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">18 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420017.pdf</span><span class="f-sub">1.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Sahrul Duhi" data-nim="521420032" data-file="Surat_Penunjukkan_Pembimbing_KP_521420032.pdf" data-nomor="165/UN47.B5.5/TD.06/2024" data-tanggal="7 Mar 2024" data-url="" data-cari="sahrul duhi 521420032 165/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">37</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">165/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420032.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Yulanda S.ishak" data-nim="521420033" data-file="Surat_Penunjukkan_Pembimbing_KP_521420033.pdf" data-nomor="166/UN47.B5.5/TD.06/2024" data-tanggal="7 Mar 2024" data-url="" data-cari="yulanda s.ishak 521420033 166/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">38</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">166/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yulanda S.ishak</p><p class="text-[10px] text-slate-400">NIM 521420033</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420033.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-white transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Sahrul Duhi" data-nim="521420032" data-file="Surat_Penunjukkan_Pembimbing_KP_521420032.pdf" data-nomor="165/UN47.B5.5/TD.06/2024" data-tanggal="7 Mar 2024" data-url="" data-cari="sahrul duhi 521420032 165/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">39</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">165/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420032.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
+                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr class="bg-slate-50/60 transition hover:bg-orange-50 reveal" data-tab-jenis="pemkp" data-tahun="2024" data-nama="Mohammad Rifki Iti" data-nim="521420030" data-file="Surat_Penunjukkan_Pembimbing_KP_521420030.pdf" data-nomor="164/UN47.B5.5/TD.06/2024" data-tanggal="7 Mar 2024" data-url="" data-cari="mohammad rifki iti 521420030 164/un47.b5.5/td.06/2024 pembimbing kp 2024">
+                            <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">40</span></td>
+                            <td class="px-4 py-4"><span class="pt-badge bg-cyan-50 text-cyan-700">Pembimbing KP</span></td>
+                            <td class="px-4 py-4 whitespace-nowrap text-slate-500">164/UN47.B5.5/TD.06/2024</td>
+                            <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohammad Rifki Iti</p><p class="text-[10px] text-slate-400">NIM 521420030</p></div></td>
+                            <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
+                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420030.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
@@ -326,133 +748,69 @@
 
 </main>
 
-<!-- ===== Modal Buat Surat Penunjukkan ===== -->
-<div class="modal-overlay" id="buatModal" role="dialog" aria-modal="true">
-    <div class="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+<!-- ===== Modal Pembagian Beban Dosen ===== -->
+<div class="modal-overlay" id="statModal" role="dialog" aria-modal="true">
+    <div class="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-5 py-3.5">
             <div class="flex items-center gap-2.5">
-                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-sm text-orange-600"><i class="fas fa-file-signature"></i></span>
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-600"><i class="fas fa-chart-simple"></i></span>
                 <div>
-                    <h6 class="text-sm font-semibold text-slate-900">Buat Surat Penunjukkan</h6>
-                    <p class="text-[11px] text-slate-400">Isi data dosen &amp; mahasiswa â€” pratinjau langsung di sisi kanan.</p>
+                    <h6 class="text-sm font-semibold text-slate-900">Pembagian Beban Dosen</h6>
+                    <p class="text-[11px] text-slate-400">Jumlah penunjukan per dosen, skripsi &amp; kerja praktek.</p>
                 </div>
             </div>
-            <button type="button" class="text-xl leading-none text-slate-400 hover:text-slate-700" data-buat-close>&times;</button>
-        </div>
-
-        <div class="grid flex-1 gap-0 overflow-y-auto md:grid-cols-2">
-            <!-- ===== FORM ===== -->
-            <div class="space-y-3.5 border-b border-slate-200 p-5 md:border-b-0 md:border-r">
-                <div>
-                    <label for="bfJenis" class="mb-1 block text-xs font-semibold text-slate-600">Jenis Surat <span class="text-rose-500">*</span></label>
-                    <select id="bfJenis" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                        <option value="pembimbing" selected>Penunjukkan Dosen Pembimbing Skripsi</option>
-                        <option value="penguji">Penunjukkan Dosen Penguji Hasil</option>
-                        <option value="tutup">Penunjukkan Dosen Penguji Tutup</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="bfNama" class="mb-1 block text-xs font-semibold text-slate-600">Nama Mahasiswa <span class="text-rose-500">*</span></label>
-                        <input type="text" id="bfNama" placeholder="Nama lengkap mahasiswa" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                    </div>
-                    <div>
-                        <label for="bfNim" class="mb-1 block text-xs font-semibold text-slate-600">NIM <span class="text-rose-500">*</span></label>
-                        <input type="text" id="bfNim" placeholder="521421011" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="bfDosen" class="mb-1 block text-xs font-semibold text-slate-600">Nama Dosen <span class="text-rose-500">*</span></label>
-                        <input type="text" id="bfDosen" placeholder="Nama dosen yang ditunjuk" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                    </div>
-                    <div>
-                        <label for="bfSep" class="mb-1 block text-xs font-semibold text-slate-600">Sebagai</label>
-                        <select id="bfSep" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                            <option value="Pembimbing 1">Pembimbing 1</option>
-                            <option value="Pembimbing 2">Pembimbing 2</option>
-                            <option value="Ketua Penguji">Ketua Penguji</option>
-                            <option value="Penguji 1">Penguji 1</option>
-                            <option value="Penguji 2">Penguji 2</option>
-                            <option value="Penguji 3">Penguji 3</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="bfNip" class="mb-1 block text-xs font-semibold text-slate-600">NIP Dosen</label>
-                        <input type="text" id="bfNip" placeholder="197410032001121001" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                    </div>
-                    <div>
-                        <label for="bfNo" class="mb-1 block text-xs font-semibold text-slate-600">Nomor Surat</label>
-                        <input type="text" id="bfNo" placeholder="B/TE/2026/102" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                    </div>
-                </div>
-                <div>
-                    <label for="bfTanggal" class="mb-1 block text-xs font-semibold text-slate-600">Tanggal Surat <span class="text-rose-500">*</span></label>
-                    <input type="date" id="bfTanggal" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
-                </div>
-                <div>
-                    <div class="mb-1 flex items-center justify-between">
-                        <label for="bfJudul" class="block text-xs font-semibold text-slate-600">Judul Skripsi <span class="text-rose-500">*</span></label>
-                    </div>
-                    <textarea id="bfJudul" rows="3" class="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-orange-400 focus:bg-white" placeholder="Judul proposal / skripsi mahasiswa"></textarea>
-                </div>
-                <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-[11px] text-slate-500">
-                    <i class="fas fa-info-circle text-orange-400"></i>
-                    Menyimpan surat akan menambah baris ke daftar (dummy) &amp; membuka pratinjau cetak A4.
-                </div>
-            </div>
-
-            <!-- ===== PREVIEW SURAT ===== -->
-            <div class="overflow-y-auto bg-slate-100 p-5">
-                <div class="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <i class="fas fa-eye text-orange-500"></i> Pratinjau surat penunjukkan
-                    <span class="ml-auto hidden items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 md:inline-flex">
-                        <i class="fas fa-circle text-[6px]"></i> Update otomatis
-                    </span>
-                </div>
-                <div class="letter-sheet rounded-lg bg-white p-6 shadow-sm md:p-7" id="pvSheet"></div>
-            </div>
-        </div>
-
-        <div class="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-            <p class="text-[11px] text-slate-400"><i class="fas fa-print mr-1 text-orange-400"></i>Surat dicetak formal A4 oleh sistem print.</p>
             <div class="flex items-center gap-2">
-                <button type="button" class="rounded-lg bg-slate-200 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-300" data-buat-close>Batal</button>
-                <button type="button" id="btnSimpanPn" class="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600"><i class="fas fa-check mr-1"></i>Simpan ke Daftar</button>
+                <select id="stTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold outline-none focus:border-orange-400"></select>
+                <button type="button" class="text-xl leading-none text-slate-400 hover:text-slate-700" data-stat-close>&times;</button>
             </div>
+        </div>
+        <div class="overflow-auto">
+            <table class="stat-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="text-left">No</th>
+                        <th rowspan="2" class="text-left">Dosen</th>
+                        <th colspan="4" class="grp">Skripsi</th>
+                        <th colspan="3" class="grp gsep">Kerja Praktek</th>
+                        <th rowspan="2" class="text-right">Total</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Pemb 1</th>
+                        <th class="text-center">Pemb 2</th>
+                        <th class="text-center">Hasil</th>
+                        <th class="text-center">Tutup</th>
+                        <th class="gsep text-center">Pemb 1</th>
+                        <th class="text-center">Pemb 2</th>
+                        <th class="text-center">Penguji</th>
+                    </tr>
+                </thead>
+                <tbody id="tbStat"></tbody>
+            </table>
+        </div>
+        <div class="border-t border-slate-200 bg-slate-50 px-5 py-2.5">
+            <p class="text-[11px] text-slate-400"><i class="fas fa-circle-info mr-1 text-orange-400"></i>Dihitung dari seluruh surat penunjukkan pada tahun terpilih.</p>
         </div>
     </div>
 </div>
-
-<!-- iframe cetak tersembunyi (print sistem) -->
-<div hidden><iframe id="printFrame" title="Pratinjau Cetak Surat Penunjukkan"></iframe></div>
 
 <!-- Toast -->
 <div id="toastPn"></div>
 
 <script>
 (function () {
-    var tb = document.getElementById('tbPn');
     var rows = Array.prototype.slice.call(document.querySelectorAll('#tbPn tr'));
     var fCari = document.getElementById('fCari');
     var fTahun = document.getElementById('fTahun');
-    var activeTab = 'semua';
+    var fJenis = document.getElementById('fJenis');
     var page = 1, PER = 6;
 
-    var TIPE = {
-        pembimbing: { badge: 'bg-sky-50 text-sky-700', txt: 'Pembimbing Skripsi' },
-        penguji:    { badge: 'bg-amber-50 text-amber-700', txt: 'Penguji Hasil' },
-        tutup:      { badge: 'bg-orange-50 text-orange-700', txt: 'Penguji Tutup' }
+    var LABEL_JENIS = {
+        pemskr: 'Pembimbing Skripsi',
+        pemkp:  'Pembimbing KP',
+        hasil:  'Penguji Hasil',
+        pengkp: 'Penguji KP',
+        tutup:  'Penguji Tutup'
     };
-
-    function esc(t) { return (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function cval(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
-    var BULAN_P = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    function pad2(n) { return (n < 10 ? '0' : '') + n; }
-    function isoToday() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
-    function fmtTglPenuh(v) { var p = (v||'').split('-'); if (p.length !== 3) return '-'; return (+p[2]) + ' ' + BULAN_P[+p[1]-1] + ' ' + p[0]; }
 
     var toast = document.getElementById('toastPn');
     function showToast(msg, isErr) {
@@ -463,21 +821,23 @@
     }
 
     function recount() {
-        var c = { 'semua': rows.length, 'pembimbing': 0, 'penguji': 0, 'tutup': 0 };
+        var c = {};
         rows.forEach(function (tr) {
             var j = tr.getAttribute('data-tab-jenis');
-            if (c[j] !== undefined) c[j]++;
+            c[j] = (c[j] || 0) + 1;
         });
-        ['semua','pembimbing','penguji','tutup'].forEach(function (k) {
-            document.getElementById('cnt-' + k).textContent = c[k];
+        Array.prototype.forEach.call(fJenis.options, function (op) {
+            if (!op.value || !LABEL_JENIS[op.value]) return;
+            op.textContent = LABEL_JENIS[op.value] + ' (' + (c[op.value] || 0) + ')';
         });
     }
 
     function visible() {
         var kata = (fCari.value || '').toLowerCase().trim();
         var th = fTahun.value;
+        var jn = fJenis.value;
         return rows.filter(function (tr) {
-            if (activeTab !== 'semua' && tr.getAttribute('data-tab-jenis') !== activeTab) return false;
+            if (jn && tr.getAttribute('data-tab-jenis') !== jn) return false;
             if (th && tr.getAttribute('data-tahun') !== th) return false;
             return !kata || tr.getAttribute('data-cari').indexOf(kata) !== -1;
         });
@@ -514,35 +874,18 @@
         wrap.appendChild(next);
     }
 
-    function chipDosen(nama, sub) {
-        var ini = (nama || '?').split(/\s+/).filter(Boolean).slice(0,2).map(function (w) { return w[0]; }).join('').toUpperCase();
-        return '<span class="dosen-chip"><span class="d-ava bg-orange-100 text-orange-700">' + ini + '</span>' +
-            '<span class="d-meta"><span class="d-name">' + esc(nama) + '</span><span class="d-sub">' + esc(sub) + '</span></span></span>';
-    }
-    function chipFile(nama) {
-        return '<span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span>' +
-            '<span class="f-meta"><span class="f-name">' + esc(nama) + '</span><span class="f-sub">Dokumen PDF</span></span>' +
-            '<button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span>';
-    }
-
-    /* ===== Tab ===== */
-    document.querySelectorAll('.tab-btn').forEach(function (b) {
-        b.addEventListener('click', function () {
-            document.querySelectorAll('.tab-btn').forEach(function (x) { x.setAttribute('aria-selected', 'false'); });
-            b.setAttribute('aria-selected', 'true');
-            activeTab = b.getAttribute('data-tab');
-            page = 1; render();
-        });
-    });
+    /* ===== Filter ===== */
     fCari.addEventListener('input', function () { page = 1; render(); });
     fTahun.addEventListener('change', function () { page = 1; render(); });
+    fJenis.addEventListener('change', function () { page = 1; render(); });
     document.getElementById('btnReset').addEventListener('click', function () {
-        fCari.value = ''; fTahun.value = ''; page = 1; render();
+        fCari.value = ''; fTahun.value = ''; fJenis.value = ''; page = 1; render();
     });
 
     /* ===== Aksi baris: unduh/buka PDF & hapus (dummy) ===== */
     function openSurat(tr) {
         var url = tr.getAttribute('data-url');
+        if (!url) { showToast('Template surat kategori ini belum tersedia', true); return; }
         window.open('/redesain-siatek/dokumen/' + url, '_blank');
     }
     document.addEventListener('click', function (e) {
@@ -563,126 +906,54 @@
         }
     });
 
-    /* ===== Buat Surat ===== */
-    function buildBody() {
-        var jenis = cval('bfJenis') || 'pembimbing';
-        var nm = esc(cval('bfNama'));
-        var nim = esc(cval('bfNim'));
-        var dosen = esc(cval('bfDosen'));
-        var sep = esc(cval('bfSep'));
-        var nip = esc(cval('bfNip'));
-        var no = esc(cval('bfNo'));
-        var tgl = fmtTglPenuh(cval('bfTanggal'));
-        var judul = esc(cval('bfJudul'));
+    /* ===== Statistik Beban Dosen ===== */
+    var STAT_DOSEN = {"2024":[{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":5,"s2":2,"sh":10,"st":19,"k1":1,"k2":0,"kp":0,"t":37},{"n":"Jumiati Ilham,ST.,MT","s1":6,"s2":1,"sh":8,"st":14,"k1":2,"k2":0,"kp":6,"t":37},{"n":"Yasin Mohamad,ST.,MT","s1":1,"s2":5,"sh":7,"st":11,"k1":3,"k2":0,"kp":5,"t":32},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":2,"s2":2,"sh":8,"st":13,"k1":1,"k2":0,"kp":3,"t":29},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":1,"sh":7,"st":11,"k1":1,"k2":0,"kp":3,"t":23},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":1,"s2":1,"sh":6,"st":6,"k1":1,"k2":0,"kp":8,"t":23},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":1,"sh":7,"st":13,"k1":0,"k2":0,"kp":1,"t":23},{"n":"Ervan Hasan Harun,ST.,MT","s1":1,"s2":3,"sh":5,"st":9,"k1":1,"k2":0,"kp":3,"t":22},{"n":"Ifan Wiranto,ST.,MT","s1":3,"s2":1,"sh":6,"st":6,"k1":0,"k2":0,"kp":3,"t":19},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":2,"s2":1,"sh":4,"st":4,"k1":3,"k2":0,"kp":5,"t":19},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":2,"sh":6,"st":8,"k1":0,"k2":0,"kp":1,"t":17},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":2,"sh":5,"st":5,"k1":0,"k2":0,"kp":4,"t":16},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":1,"s2":1,"sh":5,"st":5,"k1":0,"k2":0,"kp":3,"t":15},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":4,"st":4,"k1":1,"k2":0,"kp":3,"t":13},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":1,"sh":2,"st":2,"k1":1,"k2":0,"kp":4,"t":10},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":1,"s2":1,"sh":2,"st":2,"k1":0,"k2":0,"kp":2,"t":8},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":3,"t":7},{"n":"Idham Halid Lahay, ST., M.Sc","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2}],"2023":[{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":5,"s2":0,"sh":12,"st":12,"k1":2,"k2":0,"kp":5,"t":36},{"n":"Jumiati Ilham,ST.,MT","s1":6,"s2":2,"sh":7,"st":5,"k1":6,"k2":0,"kp":10,"t":36},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":5,"s2":1,"sh":9,"st":9,"k1":1,"k2":0,"kp":9,"t":34},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":1,"s2":4,"sh":11,"st":11,"k1":2,"k2":0,"kp":4,"t":33},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":3,"sh":10,"st":9,"k1":1,"k2":0,"kp":9,"t":32},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":7,"s2":0,"sh":11,"st":8,"k1":1,"k2":0,"kp":3,"t":30},{"n":"Ervan Hasan Harun,ST.,MT","s1":1,"s2":7,"sh":5,"st":3,"k1":6,"k2":0,"kp":8,"t":30},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":4,"sh":9,"st":9,"k1":2,"k2":0,"kp":5,"t":29},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":1,"sh":9,"st":9,"k1":1,"k2":0,"kp":6,"t":26},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":2,"s2":1,"sh":3,"st":4,"k1":2,"k2":0,"kp":13,"t":25},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":2,"s2":2,"sh":5,"st":5,"k1":3,"k2":0,"kp":8,"t":25},{"n":"Yasin Mohamad,ST.,MT","s1":2,"s2":5,"sh":5,"st":4,"k1":1,"k2":0,"kp":7,"t":24},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":1,"sh":9,"st":6,"k1":1,"k2":0,"kp":2,"t":20},{"n":"Zainudin Bonok,ST.,MT","s1":1,"s2":1,"sh":5,"st":5,"k1":2,"k2":0,"kp":6,"t":20},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":0,"sh":6,"st":7,"k1":1,"k2":0,"kp":1,"t":16},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":1,"s2":0,"sh":7,"st":5,"k1":0,"k2":0,"kp":1,"t":14},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":1,"s2":0,"sh":5,"st":5,"k1":0,"k2":0,"kp":1,"t":12},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":2,"sh":4,"st":1,"k1":0,"k2":0,"kp":2,"t":9},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":1,"sh":3,"st":3,"k1":0,"k2":0,"kp":2,"t":9},{"n":"Idham Halid Lahay, ST., M.Sc","s1":0,"s2":1,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1}],"2022":[{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":6,"s2":1,"sh":15,"st":13,"k1":3,"k2":0,"kp":5,"t":43},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":3,"sh":12,"st":10,"k1":4,"k2":0,"kp":8,"t":37},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":1,"s2":1,"sh":11,"st":10,"k1":1,"k2":0,"kp":8,"t":32},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":0,"sh":13,"st":12,"k1":1,"k2":0,"kp":2,"t":29},{"n":"Jumiati Ilham,ST.,MT","s1":5,"s2":3,"sh":9,"st":7,"k1":2,"k2":0,"kp":3,"t":29},{"n":"Yasin Mohamad,ST.,MT","s1":1,"s2":1,"sh":11,"st":10,"k1":2,"k2":0,"kp":4,"t":29},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":5,"sh":7,"st":7,"k1":0,"k2":0,"kp":2,"t":21},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":5,"s2":1,"sh":6,"st":5,"k1":0,"k2":0,"kp":3,"t":20},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":0,"sh":6,"st":6,"k1":1,"k2":0,"kp":4,"t":17},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":1,"sh":5,"st":5,"k1":2,"k2":0,"kp":3,"t":16},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":0,"sh":5,"st":5,"k1":2,"k2":0,"kp":3,"t":15},{"n":"Ervan Hasan Harun,ST.,MT","s1":0,"s2":3,"sh":4,"st":4,"k1":1,"k2":0,"kp":3,"t":15},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":2,"sh":5,"st":5,"k1":0,"k2":0,"kp":3,"t":15},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":2,"s2":1,"sh":3,"st":2,"k1":2,"k2":0,"kp":4,"t":14},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":2,"s2":0,"sh":3,"st":4,"k1":0,"k2":0,"kp":0,"t":9},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":2,"k2":0,"kp":5,"t":9},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":2,"sh":2,"st":2,"k1":0,"k2":0,"kp":1,"t":8},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":3,"t":7},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":0,"s2":0,"sh":0,"st":0,"k1":1,"k2":0,"kp":2,"t":3}],"2021":[{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":4,"s2":2,"sh":12,"st":12,"k1":0,"k2":0,"kp":1,"t":31},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":3,"s2":2,"sh":12,"st":13,"k1":0,"k2":0,"kp":0,"t":30},{"n":"Yasin Mohamad,ST.,MT","s1":0,"s2":4,"sh":12,"st":13,"k1":0,"k2":0,"kp":0,"t":29},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":2,"sh":10,"st":11,"k1":1,"k2":0,"kp":1,"t":25},{"n":"Jumiati Ilham,ST.,MT","s1":4,"s2":0,"sh":9,"st":10,"k1":1,"k2":0,"kp":1,"t":25},{"n":"Dr.Ir. Arifin Matoka,MT","s1":1,"s2":0,"sh":10,"st":11,"k1":0,"k2":0,"kp":1,"t":23},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":0,"sh":9,"st":11,"k1":0,"k2":0,"kp":1,"t":22},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":0,"sh":6,"st":6,"k1":0,"k2":0,"kp":0,"t":12},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":5,"st":5,"k1":0,"k2":0,"kp":0,"t":11},{"n":"Ervan Hasan Harun,ST.,MT","s1":0,"s2":2,"sh":3,"st":4,"k1":0,"k2":0,"kp":1,"t":10},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":3,"sh":4,"st":3,"k1":0,"k2":0,"kp":0,"t":10},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":0,"s2":0,"sh":2,"st":2,"k1":1,"k2":0,"kp":1,"t":6},{"n":"Sri Wahyuni Dali,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":1,"t":5},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":0,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Jamal Darussalam Giu,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":1,"t":1}],"2020":[{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":4,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":6},{"n":"Yasin Mohamad,ST.,MT","s1":3,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":6},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":2,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":5},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":2,"sh":2,"st":0,"k1":0,"k2":0,"kp":0,"t":5},{"n":"Jumiati Ilham,ST.,MT","s1":1,"s2":1,"sh":1,"st":0,"k1":1,"k2":0,"kp":1,"t":5},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":1,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":1,"t":5},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":0,"s2":1,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ervan Hasan Harun,ST.,MT","s1":2,"s2":0,"sh":1,"st":0,"k1":0,"k2":0,"kp":1,"t":4},{"n":"Jamal Darussalam Giu,ST.,MT","s1":0,"s2":2,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":1,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Zainudin Bonok,ST.,MT","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Dr.Ir. Arifin Matoka,MT","s1":1,"s2":0,"sh":1,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":1,"s2":1,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Sri Wahyuni Dali,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":1,"sh":1,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":1,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":1,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1}]};
+    var stModal = document.getElementById('statModal');
+    var stTahun = document.getElementById('stTahun');
+    var tbStat = document.getElementById('tbStat');
 
-        var jdlTxt = jenis === 'pembimbing'
-            ? 'SURAT PENUNJUKAN DOSEN PEMBIMBING PROPOSAL SKRIPSI'
-            : jenis === 'tutup'
-                ? 'SURAT PENUNJUKAN DOSEN PENGUJI SIDANG TUTUP SKRIPSI'
-                : 'SURAT PENUNJUKAN DOSEN PENGUJI SIDANG HASIL SKRIPSI';
-
-        var labelDosen = jenis === 'pembimbing' ? 'Pembimbing' : 'Penguji';
-
-        var h = '<div class="sheet">';
-        h += '<div class="kop">'
-            + '<p class="l1">KEMENTERIAN PENDIDIKAN, KEBUDAYAAN, RISET, DAN TEKNOLOGI<br>UNIVERSITAS NEGERI GORONTALO â€” FAKULTAS TEKNIK</p>'
-            + '<h2>JURUSAN TEKNIK ELEKTRO</h2>'
-            + '<p class="fak">Jl. Prof. Dr. Ing. B.J. Habibie, Moutong, Tilongkabila, Kab. Bone Bolango 96554</p>'
-            + '<p class="al">Telp. (0435) 821125 &bull; e-mail: jtek@ung.ac.id &bull; laman: elektro.ung.ac.id</p>'
-            + '</div>';
-        h += '<div class="judul"><p>' + jdlTxt + '</p></div>';
-        h += '<p class="nomor">Nomor : ' + (no || '300/UN47.B5.5/TD.06/2026') + '</p>';
-        h += '<div class="larangan"><p>Ketua Jurusan Teknik Elektro dan Komputer Fakultas Teknik Universitas Negeri Gorontalo dengan ini menunjuk ' + (dosen || 'Bapak/Ibu') + ' sebagai ' + (sep || labelDosen) + ' mahasiswa sebagai berikut :</p></div>';
-        h += '<table class="table">'
-            + '<tr><td class="lbl">' + (sep || labelDosen) + '</td><td class="col">:</td><td>' + (dosen || 'â€¦') + '</td></tr>'
-            + '<tr><td class="lbl">NIP</td><td class="col">:</td><td>' + (nip || 'â€¦') + '</td></tr>'
-            + '<tr><td colspan="3" style="height:14px"></td></tr>'
-            + '<tr><td class="lbl">Nama Mahasiswa</td><td class="col">:</td><td>' + (nm || 'â€¦') + '</td></tr>'
-            + '<tr><td class="lbl">NIM</td><td class="col">:</td><td>' + (nim || 'â€¦') + '</td></tr>'
-            + '<tr><td class="lbl" style="vertical-align:top">Judul Skripsi</td><td class="col">:</td><td style="text-align:justify"><b>' + (judul || 'â€¦') + '</b></td></tr>'
-            + '</table>';
-        h += '<div class="penutup"><p>Kepada Bapak/Ibu yang namanya tercantum dalam Surat Penunjukan ini agar dapat melaksanakan tugas dengan penuh tanggung jawab.</p></div>';
-        h += '<div class="ttd">'
-            + '<p class="tgl">Gorontalo, ' + tgl + '</p>'
-            + '<p class="skr">Ketua Jurusan</p>'
-            + '<p style="height:34px"></p>'
-            + '<p class="nm">Yasin Mohamad, ST., MT.</p>'
-            + '<p><b>NIP. 197102222001121001</b></p>'
-            + '</div>';
-        h += '<div class="dok">'
-            + '<p><b>Tembusan disampaikan kepada Yth.:</b></p>'
-            + '<p>1. Dosen ' + (jenis === 'pembimbing' ? 'pembimbing I dan II' : 'penguji sidang') + '</p>'
-            + '<p>2. Mahasiswa yang bersangkutan</p>'
-            + '<p>3. Arsip</p>'
-            + '</div>';
-        h += '</div>';
-        return h;
+    function statCell(v, sep) {
+        return '<td class="' + (sep ? 'gsep ' : '') + 'text-center tabular-nums ' + (v ? 'text-slate-700' : 'text-slate-300') + '">' + v + '</td>';
     }
-    function renderPreview() { document.getElementById('pvSheet').innerHTML = buildBody(); }
+    function renderStat() {
+        var list = STAT_DOSEN[stTahun.value] || [];
+        var tot = { s1:0,s2:0,sh:0,st:0,k1:0,k2:0,kp:0,t:0 };
+        var h = '';
+        list.forEach(function (d, i) {
+            ['s1','s2','sh','st','k1','k2','kp','t'].forEach(function (k) { tot[k] += d[k]; });
+            h += '<tr class="' + (i % 2 ? 'bg-slate-50/60' : 'bg-white') + '">'
+                + '<td class="pl-5 pr-3 text-slate-400">' + (i + 1) + '</td>'
+                + '<td class="pr-5 font-medium text-slate-800">' + d.n + '</td>'
+                + statCell(d.s1) + statCell(d.s2) + statCell(d.sh) + statCell(d.st)
+                + statCell(d.k1, true) + statCell(d.k2) + statCell(d.kp)
+                + '<td class="px-5 text-right font-bold tabular-nums text-slate-900">' + d.t + '</td>'
+                + '</tr>';
+        });
+        h += '<tr class="bg-slate-100/80">'
+            + '<td class="pl-5 pr-3"></td>'
+            + '<td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>'
+            + statCell(tot.s1) + statCell(tot.s2) + statCell(tot.sh) + statCell(tot.st)
+            + statCell(tot.k1, true) + statCell(tot.k2) + statCell(tot.kp)
+            + '<td class="px-5 text-right font-extrabold tabular-nums text-slate-900">' + tot.t + '</td>'
+            + '</tr>';
+        document.getElementById('stRingkas').textContent = list.length + ' dosen \u00b7 ' + tot.t + ' penunjukan \u00b7 tahun ' + (stTahun.value || '-');
+        tbStat.innerHTML = h;
+    }
 
-    /* ===== Simpan (dummy) ===== */
-    document.getElementById('btnSimpanPn').addEventListener('click', function () {
-        var nm = cval('bfNama'); var nim = cval('bfNim'); var dosen = cval('bfDosen');
-        if (!nm || !nim || !dosen) { showToast('Nama mahasiswa, NIM, dan dosen wajib diisi', true); return; }
-        var jenis = cval('bfJenis') || 'pembimbing';
-        var t = TIPE[jenis] || TIPE.pembimbing;
-        var no = cval('bfNo') || ('B/TE/' + new Date().getFullYear() + '/102');
-        var tglIso = cval('bfTanggal') || isoToday();
-        var tglS = fmtTglPenuh(tglIso).replace(/Januari/,'Jan').replace(/Februari/,'Feb').replace(/Maret/,'Mar').replace(/April/,'Apr').replace(/Agustus/,'Agu').replace(/September/,'Sep').replace(/Oktober/,'Okt').replace(/November/,'Nov').replace(/Desember/,'Des').replace(/Juni/,'Jun').replace(/Juli/,'Jul');
-        var eps = { 'Pembimbing 1':'Pembimbing 1','Pembimbing 2':'Pembimbing 2','Ketua Penguji':'Ketua Penguji','Penguji 1':'Penguji 1','Penguji 2':'Penguji 2','Penguji 3':'Penguji 3' };
-        var sep = eps[cval('bfSep')] || (jenis === 'pembimbing' ? 'Pembimbing 1' : 'Penguji 1');
-        var file = 'Surat_Penunjukkan_' + (jenis === 'tutup' ? 'Tutup' : jenis === 'penguji' ? 'Penguji' : 'Pembimbing') + '_' + nim + '.pdf';
-        var tahun = tglIso.slice(0,4);
-        var url = (jenis === 'pembimbing' ? 'surat-penunjukkan-pembimbing-skripsi' : 'surat-penunjukkan-penguji') + '/' + nim;
-        var cari = (nm + ' ' + nim + ' ' + dosen + ' ' + t.txt + ' ' + no + ' ' + tahun).toLowerCase();
-
-        var tr = document.createElement('tr');
-        tr.setAttribute('data-tab-jenis', jenis);
-        tr.setAttribute('data-tahun', tahun);
-        tr.setAttribute('data-nama', nm);
-        tr.setAttribute('data-nim', nim);
-        tr.setAttribute('data-dosen', dosen);
-        tr.setAttribute('data-nip', cval('bfNip'));
-        tr.setAttribute('data-file', file);
-        tr.setAttribute('data-nomor', no);
-        tr.setAttribute('data-tanggal', tglS);
-        tr.setAttribute('data-url', url);
-        tr.setAttribute('data-cari', cari);
-        var zebra = (rows.length % 2 === 0) ? 'bg-white' : 'bg-slate-50/60';
-        tr.className = zebra + ' transition hover:bg-orange-50 reveal';
-        tr.innerHTML = '<td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">' + (rows.length + 1) + '</span></td>'
-            + '<td class="px-4 py-4"><span class="pt-badge ' + t.badge + '">' + t.txt + '</span></td>'
-            + '<td class="px-4 py-4 whitespace-nowrap text-slate-500">' + esc(no) + '</td>'
-            + '<td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">' + esc(nm) + '</p><p class="text-[10px] text-slate-400">NIM ' + esc(nim) + '</p></div></td>'
-            + '<td class="px-4 py-4">' + chipDosen(dosen, sep) + '</td>'
-            + '<td class="px-4 py-4 whitespace-nowrap">' + tglS + '</td>'
-            + '<td class="px-4 py-4">' + chipFile(file) + '</td>'
-            + '<td class="px-5 py-4"><div class="flex items-center justify-end gap-1.5">'
-            + '<button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>'
-            + '<button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>'
-            + '</div></td>';
-        tb.insertAdjacentElement('beforeend', tr);
-        rows = Array.prototype.slice.call(document.querySelectorAll('#tbPn tr'));
-        page = 1; recount(); render();
-        document.getElementById('buatModal').classList.remove('show');
-        showToast('Surat ' + no + ' disimpan ke daftar (dummy) âœ“');
+    Object.keys(STAT_DOSEN).sort().reverse().forEach(function (y) {
+        var op = document.createElement('option');
+        op.value = y; op.textContent = y;
+        stTahun.appendChild(op);
     });
-
-    /* ===== Init ===== */
-    document.getElementById('btnBuatPn').addEventListener('click', function () {
-        document.getElementById('bfTanggal').value = isoToday();
-        renderPreview();
-        document.getElementById('buatModal').classList.add('show');
+    stTahun.addEventListener('change', renderStat);
+    document.getElementById('btnStat').addEventListener('click', function () {
+        stModal.classList.add('show');
     });
-    var bm = document.getElementById('buatModal');
-    bm.querySelectorAll('[data-buat-close]').forEach(function (b) {
-        b.addEventListener('click', function () { bm.classList.remove('show'); });
+    stModal.querySelectorAll('[data-stat-close]').forEach(function (b) {
+        b.addEventListener('click', function () { stModal.classList.remove('show'); });
     });
-    bm.addEventListener('click', function (e) { if (e.target === bm) bm.classList.remove('show'); });
-    ['bfJenis','bfTanggal','bfNama','bfNim','bfDosen','bfSep','bfNip','bfNo','bfJudul'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) { el.addEventListener('input', renderPreview); el.addEventListener('change', renderPreview); }
-    });
+    stModal.addEventListener('click', function (e) { if (e.target === stModal) stModal.classList.remove('show'); });
+    renderStat();
 
     recount();
     render();
