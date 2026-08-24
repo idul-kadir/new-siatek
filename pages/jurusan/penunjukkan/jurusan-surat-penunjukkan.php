@@ -16,8 +16,14 @@
 
     .btn-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; transition: all .15s ease; }
     .btn-circle-lg { width: 2.5rem; height: 2.5rem; }
-    .btn-circle .tip { position: absolute; top: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
+    .btn-circle .tip { position: absolute; bottom: calc(100% + 6px); right: 0; background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
     .btn-circle:hover .tip { opacity: 1; visibility: visible; }
+
+    /* Tooltip kini muncul DI ATAS tombol & melebar ke KIRI (ke dalam tabel),
+       supaya tidak terpotong tepi kotak scroll (overflow auto memotong 2 arah)
+       dan tidak tertimpa baris setelahnya. Baris di-hover tetap diangkat. */
+    #tbPn tbody tr { position: relative; }
+    #tbPn tbody tr:hover { z-index: 30; }
 
     .pt-badge { display: inline-block; padding: .18rem .55rem; border-radius: .45rem; font-size: 10px; font-weight: 700; white-space: nowrap; }
 
@@ -28,14 +34,6 @@
     .pin-table tbody tr { transition: background .15s ease; }
     .pin-table tbody tr:hover { background: #f8fafc; }
 
-    .file-chip { display: inline-flex; align-items: center; gap: .5rem; min-width: 0; max-width: 200px; padding: .32rem .55rem; border-radius: .6rem; border: 1px solid #e2e8f0; background: #f8fafc; }
-    .file-chip .f-ico { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: .45rem; font-size: .72rem; flex-shrink: 0; }
-    .f-pdf   { background: #fee2e2; color: #dc2626; }
-    .file-chip .f-meta { min-width: 0; }
-    .file-chip .f-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .72rem; color: #334155; }
-    .file-chip .f-sub { display: block; font-size: .63rem; color: #94a3b8; }
-    .f-down { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: .4rem; background: #fff; border: 1px solid #e2e8f0; color: #64748b; cursor: pointer; flex-shrink: 0; transition: all .15s ease; }
-    .f-down:hover { background: #c2410c; border-color: #c2410c; color: #fff; }
 
     .pg-btn { min-width: 2rem; height: 2rem; border-radius: .5rem; padding: 0 .5rem; border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: .75rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
     .pg-btn:hover { border-color: #fdba74; color: #c2410c; }
@@ -130,7 +128,6 @@
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Nomor</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Mahasiswa</th>
                             <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Tanggal</th>
-                            <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">File</th>
                             <th class="py-3.5 px-5 text-right font-semibold uppercase tracking-wider">Aksi</th>
                         </tr>
                     </thead>
@@ -142,11 +139,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">636/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Reynaldi Polingala</p><p class="text-[10px] text-slate-400">NIM 521420038</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">1 Okt 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420038.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -157,11 +153,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">627/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yudi Anas Sahri</p><p class="text-[10px] text-slate-400">NIM 521419020</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">26 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521419020.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -172,11 +167,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">624/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Aditya Hasin Mooduto</p><p class="text-[10px] text-slate-400">NIM 521418026</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">25 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521418026.pdf</span><span class="f-sub">2.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -187,11 +181,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">621/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Moh. Ramdhan P</p><p class="text-[10px] text-slate-400">NIM 521418057</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">24 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521418057.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -202,11 +195,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">612/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yusran Moha</p><p class="text-[10px] text-slate-400">NIM 521418039</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">19 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418039.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -217,11 +209,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">610/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sapril</p><p class="text-[10px] text-slate-400">NIM 521420035</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">18 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420035.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -232,11 +223,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">5 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -247,11 +237,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">586/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">I Gusti Komang Apriadi</p><p class="text-[10px] text-slate-400">NIM 521420010</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">4 Sep 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420010.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -262,11 +251,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">550/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Tahaja Ibrahim</p><p class="text-[10px] text-slate-400">NIM 521420026</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">16 Agu 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420026.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -277,11 +265,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">178/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nur Tahaja Ibrahim</p><p class="text-[10px] text-slate-400">NIM 521420026</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">8 Agu 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420026.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -292,11 +279,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">526/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Bagus Wijaya</p><p class="text-[10px] text-slate-400">NIM 521420028</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">6 Agu 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420028.pdf</span><span class="f-sub">1.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -307,11 +293,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">487/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Kurniawan Ali Male</p><p class="text-[10px] text-slate-400">NIM 521420036</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">17 Jul 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420036.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -322,11 +307,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">482/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Moh. Rafli A. Bolilio </p><p class="text-[10px] text-slate-400">NIM 521420003</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">16 Jul 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_Skripsi_521420003.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -337,11 +321,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">417/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mauludin</p><p class="text-[10px] text-slate-400">NIM 521418031</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">26 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521418031.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -352,11 +335,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">413/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Adi Purwanto Umar</p><p class="text-[10px] text-slate-400">NIM 521418034</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">24 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521418034.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -367,11 +349,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">387/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Isnain Sarjan Mento </p><p class="text-[10px] text-slate-400">NIM 521417055</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">21 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417055.pdf</span><span class="f-sub">2.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -382,11 +363,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">20 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -397,11 +377,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">384/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Hendra Palakua</p><p class="text-[10px] text-slate-400">NIM 521417016</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">14 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417016.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -412,11 +391,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">410/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Anggi</p><p class="text-[10px] text-slate-400">NIM 521417022</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">13 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417022.pdf</span><span class="f-sub">2.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -427,11 +405,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">407/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">13 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Tutup_521417004.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -442,11 +419,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">376/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Aditya Saputra Amin</p><p class="text-[10px] text-slate-400">NIM 521417052</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417052.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -457,11 +433,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">375/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Nasrun Ishak</p><p class="text-[10px] text-slate-400">NIM 521417004</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417004.pdf</span><span class="f-sub">1.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -472,11 +447,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">374/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Anggi</p><p class="text-[10px] text-slate-400">NIM 521417022</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">12 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417022.pdf</span><span class="f-sub">2.3 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -487,11 +461,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">347/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Abd Hayan Arune</p><p class="text-[10px] text-slate-400">NIM 521417031</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">9 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417031.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -502,11 +475,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">344/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Muh Syukriadi Ansar</p><p class="text-[10px] text-slate-400">NIM 521417034</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">8 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521417034.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -517,11 +489,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">337/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yulanda S.ishak</p><p class="text-[10px] text-slate-400">NIM 521420033</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420033.pdf</span><span class="f-sub">2.1 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -532,11 +503,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">336/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Hijratun A. Samadi</p><p class="text-[10px] text-slate-400">NIM 521420004</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420004.pdf</span><span class="f-sub">2.5 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -547,11 +517,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">335/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420032.pdf</span><span class="f-sub">2.9 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -562,11 +531,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">334/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohammad Rifki Iti</p><p class="text-[10px] text-slate-400">NIM 521420030</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420030.pdf</span><span class="f-sub">2.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -577,11 +545,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">333/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Ariyani Djafar</p><p class="text-[10px] text-slate-400">NIM 521420014</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420014.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -592,11 +559,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">332/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Zul Fikrah Arifuddin</p><p class="text-[10px] text-slate-400">NIM 521420027</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420027.pdf</span><span class="f-sub">2.0 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -607,11 +573,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">331/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Muh. Arya Sumarno</p><p class="text-[10px] text-slate-400">NIM 521420016</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_KP_521420016.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -622,11 +587,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">328/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Akdar</p><p class="text-[10px] text-slate-400">NIM 521418012</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418012.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -637,11 +601,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">327/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Adi Purwanto Umar</p><p class="text-[10px] text-slate-400">NIM 521418034</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Jun 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Penguji_Hasil_521418034.pdf</span><span class="f-sub">1.7 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -652,11 +615,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">177/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Suhartin Rauf</p><p class="text-[10px] text-slate-400">NIM 521420023</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">18 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420023.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -667,11 +629,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">176/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Stella Maria Rontopaly</p><p class="text-[10px] text-slate-400">NIM 521420017</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">18 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420017.pdf</span><span class="f-sub">1.6 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -682,11 +643,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">165/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420032.pdf</span><span class="f-sub">2.4 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -697,11 +657,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">166/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Yulanda S.ishak</p><p class="text-[10px] text-slate-400">NIM 521420033</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420033.pdf</span><span class="f-sub">1.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -712,11 +671,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">165/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Sahrul Duhi</p><p class="text-[10px] text-slate-400">NIM 521420032</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420032.pdf</span><span class="f-sub">2.8 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -727,11 +685,10 @@
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500">164/UN47.B5.5/TD.06/2024</td>
                             <td class="px-4 py-4"><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Mohammad Rifki Iti</p><p class="text-[10px] text-slate-400">NIM 521420030</p></div></td>
                             <td class="px-4 py-4 whitespace-nowrap">7 Mar 2024</td>
-                            <td class="px-4 py-4"><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">Surat_Penunjukkan_Pembimbing_KP_521420030.pdf</span><span class="f-sub">2.2 MB</span></span><button type="button" class="f-down pn-cetak" title="Buka PDF"><i class="fas fa-file-pdf"></i></button></span></td>
                             <td class="px-5 py-4">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" class="btn-unduh btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh / Buka PDF</span></button>
-                                    <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
+                                    <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -748,6 +705,55 @@
 
 </main>
 
+
+<!-- ===== Modal Edit Surat Penunjukkan ===== -->
+<div class="modal-overlay" id="editModal" role="dialog" aria-modal="true">
+    <div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+            <div class="flex items-center gap-2.5">
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sm text-sky-600"><i class="fas fa-pen"></i></span>
+                <div>
+                    <h6 class="text-sm font-semibold text-slate-900">Edit Surat Penunjukkan</h6>
+                    <p class="text-[11px] text-slate-400">Perbarui data surat pada baris terpilih.</p>
+                </div>
+            </div>
+            <button type="button" class="text-xl leading-none text-slate-400 hover:text-slate-700" data-edit-close>&times;</button>
+        </div>
+        <div class="space-y-3.5 p-5">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="efJenis" class="mb-1 block text-xs font-semibold text-slate-600">Jenis Surat</label>
+                    <select id="efJenis" disabled class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 outline-none">
+                        <option value="pemskr">Pembimbing Skripsi</option>
+                        <option value="pemkp">Pembimbing KP</option>
+                        <option value="hasil">Penguji Hasil</option>
+                        <option value="pengkp">Penguji KP</option>
+                        <option value="tutup">Penguji Tutup</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="efNama" class="mb-1 block text-xs font-semibold text-slate-600">Nama Mahasiswa</label>
+                    <input type="text" id="efNama" readonly class="w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="efNomor" class="mb-1 block text-xs font-semibold text-slate-600">Nomor Surat <span class="text-rose-500">*</span></label>
+                    <input type="text" id="efNomor" placeholder="636/UN47.B5.5/TD.06/2024" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
+                </div>
+                <div>
+                    <label for="efTanggal" class="mb-1 block text-xs font-semibold text-slate-600">Tanggal Surat</label>
+                    <input type="text" id="efTanggal" placeholder="1 Okt 2024" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
+                </div>
+            </div>
+            <div id="efDosenWrap" class="grid grid-cols-2 gap-3"></div>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+            <button type="button" class="rounded-lg bg-slate-200 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-300" data-edit-close>Batal</button>
+            <button type="button" id="btnSimpanEdit" class="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600"><i class="fas fa-check mr-1"></i>Simpan Perubahan</button>
+        </div>
+    </div>
+</div>
 <!-- ===== Modal Pembagian Beban Dosen ===== -->
 <div class="modal-overlay" id="statModal" role="dialog" aria-modal="true">
     <div class="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -760,7 +766,13 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <select id="stTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold outline-none focus:border-orange-400"></select>
+                <select id="stTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold outline-none focus:border-orange-400">
+                    <option value="2024" selected>2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                    <option value="2021">2021</option>
+                    <option value="2020">2020</option>
+                </select>
                 <button type="button" class="text-xl leading-none text-slate-400 hover:text-slate-700" data-stat-close>&times;</button>
             </div>
         </div>
@@ -784,7 +796,1209 @@
                         <th class="text-center">Penguji</th>
                     </tr>
                 </thead>
-                <tbody id="tbStat"></tbody>
+                <tbody id="tbStat">
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">1</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Lanto M. Kamil Amali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="text-center tabular-nums text-slate-700">19</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">37</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">2</td>
+    <td class="pr-5 font-medium text-slate-800">Jumiati Ilham,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="text-center tabular-nums text-slate-700">14</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">37</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">3</td>
+    <td class="pr-5 font-medium text-slate-800">Yasin Mohamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">32</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">4</td>
+    <td class="pr-5 font-medium text-slate-800">Taufiq Ismail Yusuf,ST.,M.Si</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">5</td>
+    <td class="pr-5 font-medium text-slate-800">Ade Irawaty Tolago,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">23</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">6</td>
+    <td class="pr-5 font-medium text-slate-800">Amirudin Yunus Dako,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">23</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">7</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">23</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">8</td>
+    <td class="pr-5 font-medium text-slate-800">Ervan Hasan Harun,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">22</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">9</td>
+    <td class="pr-5 font-medium text-slate-800">Ifan Wiranto,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">19</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">10</td>
+    <td class="pr-5 font-medium text-slate-800">Salmawaty Tansa,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">19</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">11</td>
+    <td class="pr-5 font-medium text-slate-800">Dr.Ir. Arifin Matoka,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">17</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">12</td>
+    <td class="pr-5 font-medium text-slate-800">Zainudin Bonok,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">16</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">13</td>
+    <td class="pr-5 font-medium text-slate-800">Rahmat D.R. Dako, ST., M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">15</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">14</td>
+    <td class="pr-5 font-medium text-slate-800">Ir. Wahab Musa,MT.,Ph.D</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">13</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">15</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Bambang Panji Asmara,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">10</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">16</td>
+    <td class="pr-5 font-medium text-slate-800">Iskandar Z. Nasibu, S.Pd, M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">8</td>
+</tr>
+<tr class="bg-white" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">17</td>
+    <td class="pr-5 font-medium text-slate-800">Syahrir Abdussamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">7</td>
+</tr>
+<tr class="bg-slate-50/60" data-tahun="2024">
+    <td class="pl-5 pr-3 text-slate-400">18</td>
+    <td class="pr-5 font-medium text-slate-800">Idham Halid Lahay, ST., M.Sc</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-slate-100/80 st-total" data-tahun="2024">
+    <td class="pl-5 pr-3"></td>
+    <td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>
+    <td class="text-center tabular-nums text-slate-700">25</td>
+    <td class="text-center tabular-nums text-slate-700">25</td>
+    <td class="text-center tabular-nums text-slate-700">95</td>
+    <td class="text-center tabular-nums text-slate-700">135</td>
+    <td class="gsep text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">0</td>
+    <td class="text-center tabular-nums text-slate-700">57</td>
+    <td class="px-5 text-right font-extrabold tabular-nums text-slate-900">352</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">1</td>
+    <td class="pr-5 font-medium text-slate-800">Ir. Wahab Musa,MT.,Ph.D</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">36</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">2</td>
+    <td class="pr-5 font-medium text-slate-800">Jumiati Ilham,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">36</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">3</td>
+    <td class="pr-5 font-medium text-slate-800">Taufiq Ismail Yusuf,ST.,M.Si</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">34</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">4</td>
+    <td class="pr-5 font-medium text-slate-800">Iskandar Z. Nasibu, S.Pd, M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">33</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">5</td>
+    <td class="pr-5 font-medium text-slate-800">Ade Irawaty Tolago,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">32</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">6</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Lanto M. Kamil Amali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">30</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">7</td>
+    <td class="pr-5 font-medium text-slate-800">Ervan Hasan Harun,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="gsep text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">30</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">8</td>
+    <td class="pr-5 font-medium text-slate-800">Ifan Wiranto,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">9</td>
+    <td class="pr-5 font-medium text-slate-800">Syahrir Abdussamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">26</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">10</td>
+    <td class="pr-5 font-medium text-slate-800">Amirudin Yunus Dako,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">25</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">11</td>
+    <td class="pr-5 font-medium text-slate-800">Rahmat D.R. Dako, ST., M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">25</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">12</td>
+    <td class="pr-5 font-medium text-slate-800">Yasin Mohamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">24</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">13</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">20</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">14</td>
+    <td class="pr-5 font-medium text-slate-800">Zainudin Bonok,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">20</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">15</td>
+    <td class="pr-5 font-medium text-slate-800">Wrastawa Ridwan,ST.,MT, MCE, CDSEA</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">16</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">16</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Bambang Panji Asmara,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">14</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">17</td>
+    <td class="pr-5 font-medium text-slate-800">Salmawaty Tansa,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">12</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">18</td>
+    <td class="pr-5 font-medium text-slate-800">Dr.Ir. Arifin Matoka,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">9</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">19</td>
+    <td class="pr-5 font-medium text-slate-800">Ikhsan Hidayat, S.Kom, M.T</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">9</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3 text-slate-400">20</td>
+    <td class="pr-5 font-medium text-slate-800">Idham Halid Lahay, ST., M.Sc</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">1</td>
+</tr>
+<tr class="bg-slate-100/80 st-total" style="display:none" data-tahun="2023">
+    <td class="pl-5 pr-3"></td>
+    <td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>
+    <td class="text-center tabular-nums text-slate-700">36</td>
+    <td class="text-center tabular-nums text-slate-700">36</td>
+    <td class="text-center tabular-nums text-slate-700">135</td>
+    <td class="text-center tabular-nums text-slate-700">120</td>
+    <td class="gsep text-center tabular-nums text-slate-700">32</td>
+    <td class="text-center tabular-nums text-slate-700">0</td>
+    <td class="text-center tabular-nums text-slate-700">102</td>
+    <td class="px-5 text-right font-extrabold tabular-nums text-slate-900">461</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">1</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Lanto M. Kamil Amali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="gsep text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">43</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">2</td>
+    <td class="pr-5 font-medium text-slate-800">Ade Irawaty Tolago,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="gsep text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">37</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">3</td>
+    <td class="pr-5 font-medium text-slate-800">Taufiq Ismail Yusuf,ST.,M.Si</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">8</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">32</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">4</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">5</td>
+    <td class="pr-5 font-medium text-slate-800">Jumiati Ilham,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">6</td>
+    <td class="pr-5 font-medium text-slate-800">Yasin Mohamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">7</td>
+    <td class="pr-5 font-medium text-slate-800">Iskandar Z. Nasibu, S.Pd, M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="text-center tabular-nums text-slate-700">7</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">21</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">8</td>
+    <td class="pr-5 font-medium text-slate-800">Ir. Wahab Musa,MT.,Ph.D</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">20</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">9</td>
+    <td class="pr-5 font-medium text-slate-800">Dr.Ir. Arifin Matoka,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">17</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">10</td>
+    <td class="pr-5 font-medium text-slate-800">Ifan Wiranto,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">16</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">11</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Bambang Panji Asmara,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">15</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">12</td>
+    <td class="pr-5 font-medium text-slate-800">Ervan Hasan Harun,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">15</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">13</td>
+    <td class="pr-5 font-medium text-slate-800">Syahrir Abdussamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">15</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">14</td>
+    <td class="pr-5 font-medium text-slate-800">Rahmat D.R. Dako, ST., M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">14</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">15</td>
+    <td class="pr-5 font-medium text-slate-800">Salmawaty Tansa,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">9</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">16</td>
+    <td class="pr-5 font-medium text-slate-800">Zainudin Bonok,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">9</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">17</td>
+    <td class="pr-5 font-medium text-slate-800">Wrastawa Ridwan,ST.,MT, MCE, CDSEA</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">8</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">18</td>
+    <td class="pr-5 font-medium text-slate-800">Ikhsan Hidayat, S.Kom, M.T</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">7</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3 text-slate-400">19</td>
+    <td class="pr-5 font-medium text-slate-800">Amirudin Yunus Dako,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-slate-100/80 st-total" style="display:none" data-tahun="2022">
+    <td class="pl-5 pr-3"></td>
+    <td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>
+    <td class="text-center tabular-nums text-slate-700">24</td>
+    <td class="text-center tabular-nums text-slate-700">24</td>
+    <td class="text-center tabular-nums text-slate-700">120</td>
+    <td class="text-center tabular-nums text-slate-700">110</td>
+    <td class="gsep text-center tabular-nums text-slate-700">24</td>
+    <td class="text-center tabular-nums text-slate-700">0</td>
+    <td class="text-center tabular-nums text-slate-700">66</td>
+    <td class="px-5 text-right font-extrabold tabular-nums text-slate-900">368</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">1</td>
+    <td class="pr-5 font-medium text-slate-800">Taufiq Ismail Yusuf,ST.,M.Si</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">31</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">2</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Lanto M. Kamil Amali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">30</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">3</td>
+    <td class="pr-5 font-medium text-slate-800">Yasin Mohamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">12</td>
+    <td class="text-center tabular-nums text-slate-700">13</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">29</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">4</td>
+    <td class="pr-5 font-medium text-slate-800">Ade Irawaty Tolago,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">25</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">5</td>
+    <td class="pr-5 font-medium text-slate-800">Jumiati Ilham,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">25</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">6</td>
+    <td class="pr-5 font-medium text-slate-800">Dr.Ir. Arifin Matoka,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">23</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">7</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="text-center tabular-nums text-slate-700">11</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">22</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">8</td>
+    <td class="pr-5 font-medium text-slate-800">Syahrir Abdussamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="text-center tabular-nums text-slate-700">6</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">12</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">9</td>
+    <td class="pr-5 font-medium text-slate-800">Ir. Wahab Musa,MT.,Ph.D</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="text-center tabular-nums text-slate-700">5</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">11</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">10</td>
+    <td class="pr-5 font-medium text-slate-800">Ervan Hasan Harun,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">10</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">11</td>
+    <td class="pr-5 font-medium text-slate-800">Iskandar Z. Nasibu, S.Pd, M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">10</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">12</td>
+    <td class="pr-5 font-medium text-slate-800">Rahmat D.R. Dako, ST., M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">6</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">13</td>
+    <td class="pr-5 font-medium text-slate-800">Sri Wahyuni Dali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">5</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">14</td>
+    <td class="pr-5 font-medium text-slate-800">Zainudin Bonok,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">4</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">15</td>
+    <td class="pr-5 font-medium text-slate-800">Ifan Wiranto,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">16</td>
+    <td class="pr-5 font-medium text-slate-800">Salmawaty Tansa,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">17</td>
+    <td class="pr-5 font-medium text-slate-800">Wrastawa Ridwan,ST.,MT, MCE, CDSEA</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">18</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Bambang Panji Asmara,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">19</td>
+    <td class="pr-5 font-medium text-slate-800">Jamal Darussalam Giu,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3 text-slate-400">20</td>
+    <td class="pr-5 font-medium text-slate-800">Ikhsan Hidayat, S.Kom, M.T</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">1</td>
+</tr>
+<tr class="bg-slate-100/80 st-total" style="display:none" data-tahun="2021">
+    <td class="pl-5 pr-3"></td>
+    <td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>
+    <td class="text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">105</td>
+    <td class="text-center tabular-nums text-slate-700">110</td>
+    <td class="gsep text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-700">0</td>
+    <td class="text-center tabular-nums text-slate-700">9</td>
+    <td class="px-5 text-right font-extrabold tabular-nums text-slate-900">257</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">1</td>
+    <td class="pr-5 font-medium text-slate-800">Iskandar Z. Nasibu, S.Pd, M.Eng</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">4</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">6</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">2</td>
+    <td class="pr-5 font-medium text-slate-800">Yasin Mohamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">6</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">3</td>
+    <td class="pr-5 font-medium text-slate-800">Ade Irawaty Tolago,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">5</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">4</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">5</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">5</td>
+    <td class="pr-5 font-medium text-slate-800">Jumiati Ilham,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">5</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">6</td>
+    <td class="pr-5 font-medium text-slate-800">Taufiq Ismail Yusuf,ST.,M.Si</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">5</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">7</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Lanto M. Kamil Amali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">4</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">8</td>
+    <td class="pr-5 font-medium text-slate-800">Ervan Hasan Harun,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">4</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">9</td>
+    <td class="pr-5 font-medium text-slate-800">Jamal Darussalam Giu,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">2</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">4</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">10</td>
+    <td class="pr-5 font-medium text-slate-800">Wrastawa Ridwan,ST.,MT, MCE, CDSEA</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">4</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">11</td>
+    <td class="pr-5 font-medium text-slate-800">Ir. Wahab Musa,MT.,Ph.D</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">12</td>
+    <td class="pr-5 font-medium text-slate-800">Zainudin Bonok,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">3</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">13</td>
+    <td class="pr-5 font-medium text-slate-800">Dr.Ir. Arifin Matoka,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">14</td>
+    <td class="pr-5 font-medium text-slate-800">Rahmat D.R. Dako, ST., M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">15</td>
+    <td class="pr-5 font-medium text-slate-800">Sri Wahyuni Dali,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">16</td>
+    <td class="pr-5 font-medium text-slate-800">Syahrir Abdussamad,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">2</td>
+</tr>
+<tr class="bg-white" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">17</td>
+    <td class="pr-5 font-medium text-slate-800">Dr. Bambang Panji Asmara,ST.,MT</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">1</td>
+</tr>
+<tr class="bg-slate-50/60" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3 text-slate-400">18</td>
+    <td class="pr-5 font-medium text-slate-800">Salmawaty Tansa,ST.,M.Eng</td>
+    <td class="text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="gsep text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="text-center tabular-nums text-slate-300">0</td>
+    <td class="px-5 text-right font-bold tabular-nums text-slate-900">1</td>
+</tr>
+<tr class="bg-slate-100/80 st-total" style="display:none" data-tahun="2020">
+    <td class="pl-5 pr-3"></td>
+    <td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>
+    <td class="text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">15</td>
+    <td class="text-center tabular-nums text-slate-700">20</td>
+    <td class="text-center tabular-nums text-slate-700">10</td>
+    <td class="gsep text-center tabular-nums text-slate-700">1</td>
+    <td class="text-center tabular-nums text-slate-700">0</td>
+    <td class="text-center tabular-nums text-slate-700">3</td>
+    <td class="px-5 text-right font-extrabold tabular-nums text-slate-900">64</td>
+</tr>
+
+</tbody>
             </table>
         </div>
         <div class="border-t border-slate-200 bg-slate-50 px-5 py-2.5">
@@ -882,69 +2096,108 @@
         fCari.value = ''; fTahun.value = ''; fJenis.value = ''; page = 1; render();
     });
 
-    /* ===== Aksi baris: unduh/buka PDF & hapus (dummy) ===== */
+    /* ===== Aksi baris: unduh/buka PDF & edit (dummy) ===== */
     function openSurat(tr) {
         var url = tr.getAttribute('data-url');
         if (!url) { showToast('Template surat kategori ini belum tersedia', true); return; }
         window.open('/redesain-siatek/dokumen/' + url, '_blank');
     }
+
+    var DOSEN_LABELS = {
+        pemskr: ['Pembimbing 1', 'Pembimbing 2'],
+        pemkp:  ['Pembimbing 1', 'Pembimbing 2'],
+        hasil:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5'],
+        pengkp: ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5'],
+        tutup:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5']
+    };
+    var editModal = document.getElementById('editModal');
+    var editRow = null;
+    function esc(t) { return (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    /* Daftar nama dosen dibaca dari baris tabel statistik beban dosen (data tetap di HTML) */
+    function dosenNames() {
+        var seen = {}, out = [];
+        Array.prototype.forEach.call(document.querySelectorAll('#tbStat tr:not(.st-total)'), function (tr) {
+            var n = (tr.cells[1] ? tr.cells[1].textContent : '').trim();
+            if (n && !seen[n]) { seen[n] = 1; out.push(n); }
+        });
+        return out.sort(function (a, b) { return a.localeCompare(b); });
+    }
+    function renderDosenFields(jenis, vals) {
+        var wrap = document.getElementById('efDosenWrap');
+        var labels = DOSEN_LABELS[jenis] || DOSEN_LABELS.pemskr;
+        var names = dosenNames();
+        var h = '';
+        labels.forEach(function (lbl, i) {
+            h += '<div><label class="mb-1 block text-xs font-semibold text-slate-600">' + lbl + '</label>'
+                + '<select data-dosen-idx="' + i + '" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">'
+                + '<option value="">— Pilih dosen —</option>';
+            names.forEach(function (n) {
+                h += '<option value="' + esc(n) + '"' + (vals[i] === n ? ' selected' : '') + '>' + esc(n) + '</option>';
+            });
+            h += '</select></div>';
+        });
+        wrap.innerHTML = h;
+    }
+
     document.addEventListener('click', function (e) {
         var btnU = e.target.closest('.btn-unduh');
         if (btnU) { var tr = btnU.closest('tr'); if (tr) openSurat(tr); return; }
-        var chip = e.target.closest('.pn-cetak');
-        if (chip) { var tr2 = chip.closest('tr'); if (tr2) openSurat(tr2); return; }
-        var btnH = e.target.closest('.btn-hapus');
-        if (btnH) {
-            var tr3 = btnH.closest('tr');
-            var nm = tr3 ? tr3.getAttribute('data-nama') : 'surat';
-            tr3.classList.remove('reveal');
-            tr3.remove();
-            rows = Array.prototype.slice.call(document.querySelectorAll('#tbPn tr'));
-            page = 1; recount(); render();
-            showToast('Surat penunjukkan ' + nm + ' dihapus (dummy)', true);
-            return;
-        }
+        var btnE = e.target.closest('.btn-edit');
+        if (!btnE) return;
+        editRow = btnE.closest('tr');
+        if (!editRow) return;
+        var jenis = editRow.getAttribute('data-tab-jenis') || 'pemskr';
+        document.getElementById('efJenis').value = jenis;
+        document.getElementById('efNama').value = editRow.getAttribute('data-nama') || '';
+        document.getElementById('efNomor').value = editRow.getAttribute('data-nomor') || '';
+        document.getElementById('efTanggal').value = editRow.getAttribute('data-tanggal') || '';
+        renderDosenFields(jenis, (editRow.getAttribute('data-dosen') || '').split('|'));
+        editModal.classList.add('show');
+    });
+    editModal.querySelectorAll('[data-edit-close]').forEach(function (b) {
+        b.addEventListener('click', function () { editModal.classList.remove('show'); });
+    });
+    editModal.addEventListener('click', function (e) { if (e.target === editModal) editModal.classList.remove('show'); });
+
+    document.getElementById('btnSimpanEdit').addEventListener('click', function () {
+        if (!editRow) return;
+        var nomor = document.getElementById('efNomor').value.trim();
+        var tanggal = document.getElementById('efTanggal').value.trim();
+        if (!nomor) { showToast('Nomor surat wajib diisi', true); return; }
+        var dosenVals = Array.prototype.slice.call(document.querySelectorAll('#efDosenWrap select'))
+            .map(function (s) { return s.value.trim(); }).filter(Boolean);
+        editRow.setAttribute('data-nomor', nomor);
+        editRow.setAttribute('data-tanggal', tanggal);
+        editRow.setAttribute('data-dosen', dosenVals.join('|'));
+        var nama = editRow.getAttribute('data-nama') || '';
+        editRow.setAttribute('data-cari', (nama + ' ' + nomor + ' ' + tanggal + ' ' + dosenVals.join(' ')).toLowerCase());
+        var tds = editRow.querySelectorAll('td');
+        tds[2].textContent = nomor;
+        tds[4].textContent = tanggal;
+        editModal.classList.remove('show');
+        render();
+        showToast('Surat penunjukkan diperbarui (dummy)');
     });
 
     /* ===== Statistik Beban Dosen ===== */
-    var STAT_DOSEN = {"2024":[{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":5,"s2":2,"sh":10,"st":19,"k1":1,"k2":0,"kp":0,"t":37},{"n":"Jumiati Ilham,ST.,MT","s1":6,"s2":1,"sh":8,"st":14,"k1":2,"k2":0,"kp":6,"t":37},{"n":"Yasin Mohamad,ST.,MT","s1":1,"s2":5,"sh":7,"st":11,"k1":3,"k2":0,"kp":5,"t":32},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":2,"s2":2,"sh":8,"st":13,"k1":1,"k2":0,"kp":3,"t":29},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":1,"sh":7,"st":11,"k1":1,"k2":0,"kp":3,"t":23},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":1,"s2":1,"sh":6,"st":6,"k1":1,"k2":0,"kp":8,"t":23},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":1,"sh":7,"st":13,"k1":0,"k2":0,"kp":1,"t":23},{"n":"Ervan Hasan Harun,ST.,MT","s1":1,"s2":3,"sh":5,"st":9,"k1":1,"k2":0,"kp":3,"t":22},{"n":"Ifan Wiranto,ST.,MT","s1":3,"s2":1,"sh":6,"st":6,"k1":0,"k2":0,"kp":3,"t":19},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":2,"s2":1,"sh":4,"st":4,"k1":3,"k2":0,"kp":5,"t":19},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":2,"sh":6,"st":8,"k1":0,"k2":0,"kp":1,"t":17},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":2,"sh":5,"st":5,"k1":0,"k2":0,"kp":4,"t":16},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":1,"s2":1,"sh":5,"st":5,"k1":0,"k2":0,"kp":3,"t":15},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":4,"st":4,"k1":1,"k2":0,"kp":3,"t":13},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":1,"sh":2,"st":2,"k1":1,"k2":0,"kp":4,"t":10},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":1,"s2":1,"sh":2,"st":2,"k1":0,"k2":0,"kp":2,"t":8},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":3,"t":7},{"n":"Idham Halid Lahay, ST., M.Sc","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2}],"2023":[{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":5,"s2":0,"sh":12,"st":12,"k1":2,"k2":0,"kp":5,"t":36},{"n":"Jumiati Ilham,ST.,MT","s1":6,"s2":2,"sh":7,"st":5,"k1":6,"k2":0,"kp":10,"t":36},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":5,"s2":1,"sh":9,"st":9,"k1":1,"k2":0,"kp":9,"t":34},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":1,"s2":4,"sh":11,"st":11,"k1":2,"k2":0,"kp":4,"t":33},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":3,"sh":10,"st":9,"k1":1,"k2":0,"kp":9,"t":32},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":7,"s2":0,"sh":11,"st":8,"k1":1,"k2":0,"kp":3,"t":30},{"n":"Ervan Hasan Harun,ST.,MT","s1":1,"s2":7,"sh":5,"st":3,"k1":6,"k2":0,"kp":8,"t":30},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":4,"sh":9,"st":9,"k1":2,"k2":0,"kp":5,"t":29},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":1,"sh":9,"st":9,"k1":1,"k2":0,"kp":6,"t":26},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":2,"s2":1,"sh":3,"st":4,"k1":2,"k2":0,"kp":13,"t":25},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":2,"s2":2,"sh":5,"st":5,"k1":3,"k2":0,"kp":8,"t":25},{"n":"Yasin Mohamad,ST.,MT","s1":2,"s2":5,"sh":5,"st":4,"k1":1,"k2":0,"kp":7,"t":24},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":1,"sh":9,"st":6,"k1":1,"k2":0,"kp":2,"t":20},{"n":"Zainudin Bonok,ST.,MT","s1":1,"s2":1,"sh":5,"st":5,"k1":2,"k2":0,"kp":6,"t":20},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":0,"sh":6,"st":7,"k1":1,"k2":0,"kp":1,"t":16},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":1,"s2":0,"sh":7,"st":5,"k1":0,"k2":0,"kp":1,"t":14},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":1,"s2":0,"sh":5,"st":5,"k1":0,"k2":0,"kp":1,"t":12},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":2,"sh":4,"st":1,"k1":0,"k2":0,"kp":2,"t":9},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":1,"sh":3,"st":3,"k1":0,"k2":0,"kp":2,"t":9},{"n":"Idham Halid Lahay, ST., M.Sc","s1":0,"s2":1,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1}],"2022":[{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":6,"s2":1,"sh":15,"st":13,"k1":3,"k2":0,"kp":5,"t":43},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":3,"sh":12,"st":10,"k1":4,"k2":0,"kp":8,"t":37},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":1,"s2":1,"sh":11,"st":10,"k1":1,"k2":0,"kp":8,"t":32},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":0,"sh":13,"st":12,"k1":1,"k2":0,"kp":2,"t":29},{"n":"Jumiati Ilham,ST.,MT","s1":5,"s2":3,"sh":9,"st":7,"k1":2,"k2":0,"kp":3,"t":29},{"n":"Yasin Mohamad,ST.,MT","s1":1,"s2":1,"sh":11,"st":10,"k1":2,"k2":0,"kp":4,"t":29},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":5,"sh":7,"st":7,"k1":0,"k2":0,"kp":2,"t":21},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":5,"s2":1,"sh":6,"st":5,"k1":0,"k2":0,"kp":3,"t":20},{"n":"Dr.Ir. Arifin Matoka,MT","s1":0,"s2":0,"sh":6,"st":6,"k1":1,"k2":0,"kp":4,"t":17},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":1,"sh":5,"st":5,"k1":2,"k2":0,"kp":3,"t":16},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":0,"sh":5,"st":5,"k1":2,"k2":0,"kp":3,"t":15},{"n":"Ervan Hasan Harun,ST.,MT","s1":0,"s2":3,"sh":4,"st":4,"k1":1,"k2":0,"kp":3,"t":15},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":2,"sh":5,"st":5,"k1":0,"k2":0,"kp":3,"t":15},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":2,"s2":1,"sh":3,"st":2,"k1":2,"k2":0,"kp":4,"t":14},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":2,"s2":0,"sh":3,"st":4,"k1":0,"k2":0,"kp":0,"t":9},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":2,"k2":0,"kp":5,"t":9},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":2,"sh":2,"st":2,"k1":0,"k2":0,"kp":1,"t":8},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":3,"t":7},{"n":"Amirudin Yunus Dako,ST.,M.Eng","s1":0,"s2":0,"sh":0,"st":0,"k1":1,"k2":0,"kp":2,"t":3}],"2021":[{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":4,"s2":2,"sh":12,"st":12,"k1":0,"k2":0,"kp":1,"t":31},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":3,"s2":2,"sh":12,"st":13,"k1":0,"k2":0,"kp":0,"t":30},{"n":"Yasin Mohamad,ST.,MT","s1":0,"s2":4,"sh":12,"st":13,"k1":0,"k2":0,"kp":0,"t":29},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":2,"sh":10,"st":11,"k1":1,"k2":0,"kp":1,"t":25},{"n":"Jumiati Ilham,ST.,MT","s1":4,"s2":0,"sh":9,"st":10,"k1":1,"k2":0,"kp":1,"t":25},{"n":"Dr.Ir. Arifin Matoka,MT","s1":1,"s2":0,"sh":10,"st":11,"k1":0,"k2":0,"kp":1,"t":23},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":0,"sh":9,"st":11,"k1":0,"k2":0,"kp":1,"t":22},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":0,"sh":6,"st":6,"k1":0,"k2":0,"kp":0,"t":12},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":5,"st":5,"k1":0,"k2":0,"kp":0,"t":11},{"n":"Ervan Hasan Harun,ST.,MT","s1":0,"s2":2,"sh":3,"st":4,"k1":0,"k2":0,"kp":1,"t":10},{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":3,"sh":4,"st":3,"k1":0,"k2":0,"kp":0,"t":10},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":0,"s2":0,"sh":2,"st":2,"k1":1,"k2":0,"kp":1,"t":6},{"n":"Sri Wahyuni Dali,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":1,"t":5},{"n":"Zainudin Bonok,ST.,MT","s1":0,"s2":0,"sh":2,"st":2,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ifan Wiranto,ST.,MT","s1":0,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":0,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Jamal Darussalam Giu,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Ikhsan Hidayat, S.Kom, M.T","s1":0,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":1,"t":1}],"2020":[{"n":"Iskandar Z. Nasibu, S.Pd, M.Eng","s1":0,"s2":4,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":6},{"n":"Yasin Mohamad,ST.,MT","s1":3,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":6},{"n":"Ade Irawaty Tolago,ST.,MT","s1":0,"s2":2,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":5},{"n":"Dr. Ir. Sardi Salim, M.Pd., IPU., ASEAN Eng.","s1":1,"s2":2,"sh":2,"st":0,"k1":0,"k2":0,"kp":0,"t":5},{"n":"Jumiati Ilham,ST.,MT","s1":1,"s2":1,"sh":1,"st":0,"k1":1,"k2":0,"kp":1,"t":5},{"n":"Taufiq Ismail Yusuf,ST.,M.Si","s1":1,"s2":0,"sh":2,"st":1,"k1":0,"k2":0,"kp":1,"t":5},{"n":"Dr. Lanto M. Kamil Amali,ST.,MT","s1":0,"s2":1,"sh":2,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ervan Hasan Harun,ST.,MT","s1":2,"s2":0,"sh":1,"st":0,"k1":0,"k2":0,"kp":1,"t":4},{"n":"Jamal Darussalam Giu,ST.,MT","s1":0,"s2":2,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Wrastawa Ridwan,ST.,MT, MCE, CDSEA","s1":1,"s2":1,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":4},{"n":"Ir. Wahab Musa,MT.,Ph.D","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Zainudin Bonok,ST.,MT","s1":1,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":3},{"n":"Dr.Ir. Arifin Matoka,MT","s1":1,"s2":0,"sh":1,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Rahmat D.R. Dako, ST., M.Eng","s1":1,"s2":1,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Sri Wahyuni Dali,ST.,MT","s1":0,"s2":0,"sh":1,"st":1,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Syahrir Abdussamad,ST.,MT","s1":0,"s2":1,"sh":1,"st":0,"k1":0,"k2":0,"kp":0,"t":2},{"n":"Dr. Bambang Panji Asmara,ST.,MT","s1":1,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1},{"n":"Salmawaty Tansa,ST.,M.Eng","s1":1,"s2":0,"sh":0,"st":0,"k1":0,"k2":0,"kp":0,"t":1}]};
     var stModal = document.getElementById('statModal');
     var stTahun = document.getElementById('stTahun');
     var tbStat = document.getElementById('tbStat');
 
-    function statCell(v, sep) {
-        return '<td class="' + (sep ? 'gsep ' : '') + 'text-center tabular-nums ' + (v ? 'text-slate-700' : 'text-slate-300') + '">' + v + '</td>';
-    }
     function renderStat() {
-        var list = STAT_DOSEN[stTahun.value] || [];
-        var tot = { s1:0,s2:0,sh:0,st:0,k1:0,k2:0,kp:0,t:0 };
-        var h = '';
-        list.forEach(function (d, i) {
-            ['s1','s2','sh','st','k1','k2','kp','t'].forEach(function (k) { tot[k] += d[k]; });
-            h += '<tr class="' + (i % 2 ? 'bg-slate-50/60' : 'bg-white') + '">'
-                + '<td class="pl-5 pr-3 text-slate-400">' + (i + 1) + '</td>'
-                + '<td class="pr-5 font-medium text-slate-800">' + d.n + '</td>'
-                + statCell(d.s1) + statCell(d.s2) + statCell(d.sh) + statCell(d.st)
-                + statCell(d.k1, true) + statCell(d.k2) + statCell(d.kp)
-                + '<td class="px-5 text-right font-bold tabular-nums text-slate-900">' + d.t + '</td>'
-                + '</tr>';
+        var y = stTahun.value;
+        var vis = 0, totT = 0;
+        Array.prototype.forEach.call(tbStat.querySelectorAll('tr'), function (tr) {
+            var show = tr.getAttribute('data-tahun') === y;
+            tr.style.display = show ? '' : 'none';
+            if (!show) return;
+            if (tr.classList.contains('st-total')) totT = parseInt(tr.querySelector('td:last-child').textContent, 10) || 0;
+            else vis++;
         });
-        h += '<tr class="bg-slate-100/80">'
-            + '<td class="pl-5 pr-3"></td>'
-            + '<td class="pr-5 font-bold uppercase tracking-wide text-slate-600">Total</td>'
-            + statCell(tot.s1) + statCell(tot.s2) + statCell(tot.sh) + statCell(tot.st)
-            + statCell(tot.k1, true) + statCell(tot.k2) + statCell(tot.kp)
-            + '<td class="px-5 text-right font-extrabold tabular-nums text-slate-900">' + tot.t + '</td>'
-            + '</tr>';
-        document.getElementById('stRingkas').textContent = list.length + ' dosen \u00b7 ' + tot.t + ' penunjukan \u00b7 tahun ' + (stTahun.value || '-');
-        tbStat.innerHTML = h;
+        document.getElementById('stRingkas').textContent = vis + ' dosen \u00b7 ' + totT + ' penunjukan \u00b7 tahun ' + y;
     }
 
-    Object.keys(STAT_DOSEN).sort().reverse().forEach(function (y) {
-        var op = document.createElement('option');
-        op.value = y; op.textContent = y;
-        stTahun.appendChild(op);
-    });
     stTahun.addEventListener('change', renderStat);
     document.getElementById('btnStat').addEventListener('click', function () {
         stModal.classList.add('show');
