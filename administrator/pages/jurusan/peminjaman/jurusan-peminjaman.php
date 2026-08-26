@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Halaman: Peminjaman Inventaris (Jurusan)
  * Tampilan murni HTML statis (dummy) — SEMUA data ditulis langsung di HTML.

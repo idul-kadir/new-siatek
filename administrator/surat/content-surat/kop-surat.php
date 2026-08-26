@@ -8,12 +8,12 @@
      Konten yang TIDAK butuh kop cukup tidak memanggil file ini.
 
      Catatan: src logo memakai path absolut web
-     (/redesain-siatek/surat/img/logo.png) agar tetap tampil
+     (/redesain-siatek/administrator/surat/img/logo.png) agar tetap tampil
      walau surat dibuka lewat URL bersih /dokumen/<kategori>/<nim>.
      ============================================================ -->
 
 <div class="kop">
-    <img class="logo" src="/redesain-siatek/surat/img/logo.png" alt="Logo">
+    <img class="logo" src="/redesain-siatek/administrator/surat/img/logo.png" alt="Logo">
     <div class="brand">
         <p class="org">KEMENTERIAN PENDIDIKAN,KEBUDAYAAN,<br>
             RISET DAN TEKNOLOGI<br>

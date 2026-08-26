@@ -1,6 +1,6 @@
 <?php
 /**
- * Halaman Beranda â€” Dasbor utama (Tailwind).
+ * Halaman Beranda " Dasbor utama (Tailwind).
  *
  * LATAR TERANG dengan komposisi tegas & proporsional:
  *   - Hero band navy (panel, bukan latar halaman) sebagai momen "wow".
@@ -353,7 +353,7 @@ $spark = spark_path($mhsPerYear);
                 <div>
                     <h2 class="text-base font-semibold text-slate-800">Mahasiswa per Angkatan</h2>
                     <p class="mt-0.5 text-xs text-slate-500">
-                        Yang sedang menjalani Kerja Praktek &amp; Skripsi (status aktif) — tahun <?= $tahunSekarang ?>
+                        Yang sedang menjalani Kerja Praktek &amp; Skripsi (status aktif) - tahun <?= $tahunSekarang ?>
                     </p>
                 </div>
                 <?php
@@ -485,7 +485,7 @@ $spark = spark_path($mhsPerYear);
                     <?php endforeach; ?>
                 </ul>
                 <a href="index.php?page=jurusan-surat-penunjukkan" class="block border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-center text-xs font-semibold text-orange-600 hover:bg-orange-50 transition">
-                    Buka semua surat penunjukkan â†’
+                    Buka semua surat penunjukkan &rarr;'
                 </a>
                 <?php endif; ?>
             </div>
@@ -511,7 +511,7 @@ $spark = spark_path($mhsPerYear);
                         </span>
                         <div class="min-w-0">
                             <p class="text-sm font-semibold leading-snug text-slate-800"><?= htmlspecialchars($g['agenda']) ?></p>
-                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> Â· <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
+                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> - <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
                         </div>
                     </li>
                     <?php endforeach; ?>
@@ -526,7 +526,7 @@ $spark = spark_path($mhsPerYear);
                     <h2 class="text-base font-semibold text-slate-800">Berita &amp; Informasi Jurusan</h2>
                     <p class="mt-0.5 text-xs text-slate-500">Publikasi terbaru</p>
                 </div>
-                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita â†’</a>
+                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita &rarr;'</a>
             </div>
             <?php if (count($beritaItems) === 0): ?>
                 <p class="py-8 text-center text-sm text-slate-400">Belum ada berita jurusan.</p>

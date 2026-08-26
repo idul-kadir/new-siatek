@@ -1,9 +1,9 @@
-﻿<?php
+<?php
 /**
  * Halaman: Surat Penunjukkan (Jurusan)
  * Daftar surat penunjukkan dosen (pembimbing/penguji) skripsi & KP tingkat jurusan.
  * Data diambil dari tabel surat_penunjukkan DB "siatek" (nama mahasiswa & dosen
- * dari tabel mahasiswa/dosen), lalu ditulis statis ke HTML — tanpa load PHP/JS.
+ * dari tabel mahasiswa/dosen), lalu ditulis statis ke HTML - tanpa load PHP/JS.
  * Sampel: 8 surat terbaru per kategori dari total 461 data.
  */
 ?>
@@ -76,7 +76,7 @@
                 <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-600"><i class="fas fa-chart-simple"></i></span>
                 <div>
                     <h6 class="text-sm font-semibold text-slate-800">Statistik Beban Dosen</h6>
-                    <p class="text-[11px] text-slate-400" id="stRingkas">—</p>
+                    <p class="text-[11px] text-slate-400" id="stRingkas">-</p>
                 </div>
             </div>
             <button type="button" id="btnStat" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700">
@@ -90,7 +90,7 @@
         <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <div class="relative flex-1 min-w-[200px]">
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
-                <input type="search" id="fCari" placeholder="Cari mahasiswa, NIM, dosen, nomor suratâ€¦"
+                <input type="search" id="fCari" placeholder="Cari mahasiswa, NIM, dosen, nomor surat..."
                        class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white">
             </div>
             <select id="fJenis" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
@@ -2100,7 +2100,7 @@
     function openSurat(tr) {
         var url = tr.getAttribute('data-url');
         if (!url) { showToast('Template surat kategori ini belum tersedia', true); return; }
-        window.open('/redesain-siatek/dokumen/' + url, '_blank');
+        window.open('/redesain-siatek/administrator/dokumen/' + url, '_blank');
     }
 
     var DOSEN_LABELS = {
@@ -2131,7 +2131,7 @@
         labels.forEach(function (lbl, i) {
             h += '<div><label class="mb-1 block text-xs font-semibold text-slate-600">' + lbl + '</label>'
                 + '<select data-dosen-idx="' + i + '" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">'
-                + '<option value="">— Pilih dosen —</option>';
+                + '<option value="">- Pilih dosen -</option>';
             names.forEach(function (n) {
                 h += '<option value="' + esc(n) + '"' + (vals[i] === n ? ' selected' : '') + '>' + esc(n) + '</option>';
             });

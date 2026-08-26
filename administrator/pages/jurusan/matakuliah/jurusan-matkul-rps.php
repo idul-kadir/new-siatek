@@ -1,4 +1,4 @@
-﻿<style>
+<style>
     .content-scroll { overflow-y: auto; min-height: 0; }
 
     /* ===== Hover lift & reveal ===== */
@@ -2272,7 +2272,7 @@
     }
     initRpsButtons();
 
-    /* Donut chart â€” Chart.js dimuat setelah include halaman ini, jadi tunggu */
+    /* Donut chart " Chart.js dimuat setelah include halaman ini, jadi tunggu */
     var chartData = {
         labels: ["S1 Teknik Elektro","S1 Teknik Komputer","S1 Pendidikan Vokasi Rekayasa Elektro"],
         values: [34,27,25],
@@ -2306,7 +2306,7 @@
         filterAll();
     });
 
-    /* Filter global: cari + prodi + kurikulum(tahun) â€” hormati pill semester aktif */
+    /* Filter global: cari + prodi + kurikulum(tahun) " hormati pill semester aktif */
     function filterAll() {
         var kata = (fCari && fCari.value || '').toLowerCase().trim();
         var prodi = fProdi ? fProdi.value : '';

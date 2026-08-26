@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Halaman: SKP — Sasaran Kinerja Pegawai (Jurusan)
  * Monitoring SKP dosen yang sudah masuk (diunggah dari akun masing-masing dosen).
