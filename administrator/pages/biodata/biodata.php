@@ -420,7 +420,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
     var q = new URLSearchParams(location.search);
     if (FLASH[q.get('ok')]) showToast(FLASH[q.get('ok')], false);
     if (FLASH_ERR[q.get('err')]) showToast(FLASH_ERR[q.get('err')], true);
-    if (q.get('ok') || q.get('err')) history.replaceState(null, '', location.pathname + '?page=biodata');
+    if (q.get('ok') || q.get('err')) history.replaceState(null, '', location.pathname);
 
     document.getElementById('btnFoto').addEventListener('click', function () {
         showToast('Fitur unggah foto profil (dummy)', true);

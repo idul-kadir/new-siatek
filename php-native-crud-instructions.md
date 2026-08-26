@@ -118,7 +118,7 @@ $('#form-tambah-arsip').on('submit', function(e){
         success: function(respon){
             if(respon.status){
                 alert(respon.pesan);
-                location.reload(); // reload supaya tabel data ikut update
+                muat_ulang_tabel_arsip(); // reload HANYA konten tabel, bukan seluruh halaman
             } else {
                 alert(respon.pesan);
             }
@@ -128,6 +128,18 @@ $('#form-tambah-arsip').on('submit', function(e){
         }
     });
 });
+
+// function ini yang bertugas reload konten tabel saja, dipanggil ulang tiap ada perubahan data
+function muat_ulang_tabel_arsip(){
+    $.ajax({
+        url: 'proses.php',
+        method: 'POST',
+        data: { 'ambil-tabel-arsip': 1 },
+        success: function(html){
+            $('#tabel-arsip').html(html); // ganti isi div tabel saja, sisa halaman tidak ikut reload
+        }
+    });
+}
 ```
 
 ## Pola function.php (induk)
@@ -208,6 +220,15 @@ Aturan echo variabel:
 - Untuk menampilkan 1 variabel PHP di tengah HTML, selalu pakai short echo tag `<?= $variabel; ?>`, bukan `<?php echo $variabel; ?>` dan bukan digabung ke dalam string `echo`.
 - Untuk atribut HTML dinamis (misal `value`, `href`) juga tetap pakai `<?= ?>`, contoh: `<input type="text" name="nama" value="<?= $data['nama']; ?>">`.
 
+## Aturan reload konten (WAJIB — jangan reload/redirect seluruh halaman)
+
+Setiap ada perubahan data (tambah/edit/hapus), yang di-reload **HANYA konten yang berubah** (misalnya isi tabel di dalam sebuah `<div>`), **BUKAN seluruh halaman**. Ini artinya:
+
+- **DILARANG** pakai `location.reload()` atau `window.location.reload()` setelah AJAX sukses.
+- **DILARANG** redirect pakai URL penuh/hardcoded seperti `window.location.href = 'http://localhost/nama-project/administrator/index.php?page=biodata'`. Pola redirect semacam ini sampah — jangan pernah dipakai.
+- Yang benar: setelah AJAX sukses, panggil function JS terpisah (misalnya `muat_ulang_tabel_x()`) yang melakukan AJAX lagi ke `proses.php` untuk ambil ulang HANYA bagian konten yang berubah (misal isi `<tbody>` tabel), lalu suntikkan hasilnya ke elemen terkait pakai `.html()` atau `.load()`. Sisa halaman (header, sidebar, form, dsb) tidak ikut reload sama sekali.
+- Kalau halaman ini pakai sistem SPA-ish dengan query `?page=nama-halaman` (load konten lewat AJAX ke dalam satu container utama), maka pindah konten pun harus tetap lewat AJAX yang ganti isi container itu, bukan lewat `window.location.href` yang bikin seluruh halaman (termasuk header/sidebar) reload dari server.
+
 ## Komentar wajib
 
 Setiap blok proses (`if(isset($_POST[...]))`) dan setiap function diberi komentar singkat di atasnya yang menjelaskan tujuannya, supaya konsep alurnya gampang dibaca ulang. Gunakan header komentar seperti `// ================= TAMBAH DATA X =================` untuk memisahkan tiap blok secara visual, dan komentar satu baris untuk menjelaskan baris-baris penting (misalnya kenapa sebuah input dibersihkan, apa yang di-return sebuah function).
@@ -228,6 +249,7 @@ Sebelum menganggap kode selesai, AI harus mengecek ulang:
 - [ ] Echo variabel tunggal ke HTML pakai `<?= $data['x']; ?>`, bukan `<?php echo ?>` atau digabung string
 - [ ] Setiap blok proses di `proses.php` diakhiri `echo json_encode(['status' => ..., 'pesan' => ...])`, TIDAK ADA `<script>alert()</script>` atau `document.location.href` dari PHP
 - [ ] Request ke `proses.php` dari sisi tampilan pakai jQuery AJAX (`$.ajax`/`$.post`) dengan `dataType: 'json'`, dan hasilnya ditangani di `success:` (alert, reload, dsb dikerjakan di JS, bukan di PHP)
+- [ ] Setelah AJAX sukses, yang direload HANYA konten yang berubah (misalnya tabel) lewat AJAX lagi — TIDAK ADA `location.reload()` dan TIDAK ADA redirect pakai `window.location.href` ke URL halaman penuh (misal `index.php?page=...`)
 - [ ] Ada komentar penjelas di atas tiap blok proses dan tiap function
 
 ## Aturan perilaku AI sendiri saat mengerjakan tugas ini (WAJIB — sering dilanggar)
@@ -331,7 +353,7 @@ $('#form-tambah-entitas').on('submit', function(e){
         success: function(respon){
             if(respon.status){
                 alert(respon.pesan);
-                location.reload();
+                muat_ulang_tabel_entitas(); // reload HANYA konten tabel, JANGAN location.reload()
             } else {
                 alert(respon.pesan);
             }
@@ -341,6 +363,18 @@ $('#form-tambah-entitas').on('submit', function(e){
         }
     });
 });
+
+// function terpisah untuk reload konten tabel saja lewat AJAX
+function muat_ulang_tabel_entitas(){
+    $.ajax({
+        url: 'proses.php',
+        method: 'POST',
+        data: { 'ambil-tabel-entitas': 1 },
+        success: function(html){
+            $('#tabel-entitas').html(html); // ganti isi container tabel saja
+        }
+    });
+}
 
 */ ?>
 

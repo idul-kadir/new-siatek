@@ -8,6 +8,14 @@
  */
 $pageTitle = $pageTitle ?? 'Beranda';
 
+/* ===== Identitas pengguna aktif (dari session login) ===== */
+$nmUser = trim((string)($_SESSION['nama'] ?? '')) !== '' ? $_SESSION['nama'] : 'Pengguna';
+$tipeU  = strtolower(trim((string)($_SESSION['tipe_login'] ?? '')));
+$levelU = (string)($_SESSION['level'] ?? '');
+$roleTeks = ($tipeU === 'superadmin' || $levelU === '0')
+    ? 'Super Admin'
+    : ($tipeU === 'admin' ? 'Admin' : 'Dosen');
+
 /**
  * Render avatar SVG inline (32×32 default).
  * Gradient: navy-700 → accent-500. Initial uppercase diambil dari nama.
@@ -28,6 +36,7 @@ function navbar_avatar(string $name, int $size = 32): string {
         // kalau single word, pakai 2 huruf pertama
         $initial = mb_strtoupper(mb_substr($parts[0], 0, 2));
     }
+    $initial = htmlspecialchars($initial, ENT_QUOTES, 'UTF-8');
     $id = 'av_' . substr(md5($name . $size), 0, 8);
     $s  = (int) $size;
     return <<<SVG
@@ -63,16 +72,16 @@ SVG;
         <!-- Divider vertikal halus -->
         <span class="hidden md:block w-px h-8 bg-slate-200 mx-1"></span>
         <button type="button" class="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-slate-50 transition" aria-label="Menu pengguna">
-            <?= navbar_avatar('Admin Dept', 32) ?>
+            <?= navbar_avatar($nmUser, 32) ?>
             <div class="hidden md:block leading-tight text-left">
                 <div class="flex items-center gap-1.5">
-                    <p class="text-sm font-medium text-slate-900">Admin Dept</p>
+                    <p class="text-sm font-medium text-slate-900"><?= htmlspecialchars($nmUser) ?></p>
                     <span class="relative flex h-2 w-2" title="Online">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                 </div>
-                <p class="text-xs text-slate-500">Super Admin</p>
+                <p class="text-xs text-slate-500"><?= htmlspecialchars($roleTeks) ?></p>
             </div>
             <i class="fas fa-chevron-down text-[10px] text-slate-400 hidden md:block"></i>
         </button>

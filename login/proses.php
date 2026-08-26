@@ -25,8 +25,8 @@ $BASE = '/redesain-siatek';
  *   4. Isi dua konstanta di bawah ini. Selesai.
  * Login hanya diterima bila email Google terdaftar di kolom `email`
  * tabel dosen atau mahasiswa. */
-define('GOOGLE_CLIENT_ID',     '');
-define('GOOGLE_CLIENT_SECRET', '');
+define('GOOGLE_CLIENT_ID',     '116659103026-hbbc0e5g0menji91ufmc7v8fcdhebl4r.apps.googleusercontent.com');
+define('GOOGLE_CLIENT_SECRET', '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');
 define('GOOGLE_REDIRECT_URI',  'http://localhost/redesain-siatek/login/proses.php');
 /* Bila ingin membatasi domain email (mis. hanya @ung.ac.id), isi 'ung.ac.id'.
    Kosongkan ('') untuk menerima email apapun yang terdaftar. */
@@ -266,7 +266,11 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
         $_SESSION['level']      = $akun['level'];
         $_SESSION['peran']      = 'staf';
         $key = $akun['nip'];
-        query("UPDATE dosen SET foto='$fotoGoogle' WHERE nip='$key'");
+        // kolom foto di tabel dosen bernama `profil`
+        if ($fotoGoogle !== '') {
+            $aman = bersihkan($fotoGoogle);
+            query("UPDATE dosen SET profil='$aman' WHERE nip='$key'");
+        }
         $target = '/administrator';
     } else {
         $_SESSION['user_id']  = $akun['nim'];
@@ -276,7 +280,10 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
         $_SESSION['prodi']    = $akun['prodi'];
         $_SESSION['peran']    = 'mahasiswa';
         $key = $akun['nim'];
-        query("UPDATE mahasiswa SET foto='$fotoGoogle' WHERE nim='$key'");
+        if ($fotoGoogle !== '') {
+            $aman = bersihkan($fotoGoogle);
+            query("UPDATE mahasiswa SET foto='$aman' WHERE nim='$key'");
+        }
         $target = '/mahasiswa';
     }
 

@@ -23,7 +23,7 @@ if (isset($_GET['nip']) && preg_match('/^[0-9]{6,25}$/', (string)$_GET['nip'])) 
 }
 
 function prg(array $p) {
-    header('Location: index.php?page=biodata&' . http_build_query($p));
+    header('Location: /redesain-siatek/administrator/biodata?' . http_build_query($p));
     exit;
 }
 
