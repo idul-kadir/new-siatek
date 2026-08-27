@@ -109,6 +109,14 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-center gap-5">
                 <div class="relative shrink-0">
+                    <?php
+                    // profil menyimpan id file di tabel files -> ubah jadi URL nyata
+                    $fotoProfil = trim((string)$d['profil']);
+                    $srcFoto = $fotoProfil !== '' ? url_file($fotoProfil) : '';
+                    if ($srcFoto !== '') {
+                    ?>
+                    <img src="<?= tampil($srcFoto) ?>" alt="Foto Profil" class="h-[88px] w-[88px] rounded-full object-cover ring-2 ring-slate-200">
+                    <?php } else { ?>
                     <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true">
                         <defs>
                             <linearGradient id="bioAvGrad" x1="0" y1="0" x2="88" y2="88" gradientUnits="userSpaceOnUse">
@@ -118,6 +126,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                         <rect width="88" height="88" rx="44" fill="url(#bioAvGrad)"/>
                         <text x="44" y="46" fill="#fff" font-family="Inter, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="central"><?= tampil(mb_substr(preg_replace('/[^\p{L}]/u', '', explode(',', (string)$d['nama'])[0]), 0, 2)) ?></text>
                     </svg>
+                    <?php } ?>
                     <button type="button" id="btnFoto" class="btn-circle absolute -bottom-1 -right-1 bg-orange-500 text-white shadow-md hover:bg-orange-600">
                         <i class="fas fa-camera text-xs"></i><span class="tip">Ganti Foto Profil</span>
                     </button>
@@ -128,7 +137,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                     <div class="mt-2.5 flex flex-wrap gap-1.5">
                         <?php if (trim((string)$d['posisi']) !== ''): ?><span class="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-bold text-orange-700"><i class="fas fa-flask"></i><?= tampil($d['posisi']) ?></span><?php endif; ?>
                         <?php if (count($bidangArr) > 0): ?><span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold text-sky-700"><i class="fas fa-microscope"></i>Bidang Ilmu: <span id="badgeBidang"><?= count($bidangArr) ?></span></span><?php endif; ?>
-                        <?php if ($eduTerakhir !== ''): ?><span class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700"><i class="fas fa-graduation-cap"></i><?= tampil($eduTerakhir) ?></span><?php endif; ?>
+                        <?php if ($eduTerakhir !== ''): ?><span id="badgeEdu" class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700"><i class="fas fa-graduation-cap"></i><?= tampil($eduTerakhir) ?></span><?php endif; ?>
                     </div>
                 </div>
                 <div class="w-full sm:w-auto lg:min-w-[290px]">
@@ -265,14 +274,14 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                         <div class="edu-row">
                             <span class="e-badge"><?= tampil($r['jenjang']) ?></span>
                             <div class="min-w-0 flex-1"><p class="e-title truncate"><?= tampil($r['program_studi']) ?></p><p class="e-sub"><?= tampil($r['universitas']) ?><?= $r['tahun'] ? ' · ' . (int)$r['tahun'] : '' ?></p></div>
-                            <a href="/redesain-siatek/administrator/pages/biodata/proses.php?hapus-pendidikan=<?= (int)$r['id'] ?>" onclick="return confirm('Hapus riwayat pendidikan ini?')" class="edu-del btn-circle bg-slate-200 text-slate-500 hover:bg-rose-100 hover:text-rose-600"><i class="fas fa-trash text-[10px]"></i><span class="tip">Hapus</span></a>
+                            <a href="#" data-hapus-pendidikan="<?= (int)$r['id'] ?>" class="edu-del btn-circle bg-slate-200 text-slate-500 hover:bg-rose-100 hover:text-rose-600" title="Hapus"><i class="fas fa-trash text-[10px]"></i><span class="tip">Hapus</span></a>
                         </div>
                         <?php endwhile; ?>
                     </div>
                 </div>
 
                 <div class="flex justify-end pt-1">
-                    <button type="submit" name="ubah-biodata" value="1" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
+                    <button type="submit" id="btnSimpanAkademik" name="ubah-biodata" value="1" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
                         <i class="fas fa-check"></i>Simpan Perubahan
                     </button>
                 </div>
@@ -333,7 +342,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                     <p id="pwMatchInfo" class="mt-1 hidden text-[11px] font-semibold text-rose-500"><i class="fas fa-circle-exclamation mr-1"></i>Konfirmasi belum sama dengan password baru.</p>
                 </div>
                 <div class="flex justify-end pt-1">
-                    <button type="submit" name="ubah-password" value="1" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
+                    <button type="submit" id="btnUbahPassword" name="ubah-password" value="1" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600">
                         <i class="fas fa-key"></i>Ubah Password
                     </button>
                 </div>
@@ -346,7 +355,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
 
 <!-- ===== Modal Tambah Riwayat Pendidikan ===== -->
 <div class="modal-overlay" id="eduModal" role="dialog" aria-modal="true">
-    <form method="post" action="/redesain-siatek/administrator/pages/biodata/proses.php" class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" novalidate>
+    <form id="formEdu" method="post" action="/redesain-siatek/administrator/pages/biodata/proses.php" class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" novalidate>
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
             <div class="flex items-center gap-2.5">
                 <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-sm text-orange-600"><i class="fas fa-graduation-cap"></i></span>
@@ -384,7 +393,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         </div>
         <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
             <button type="button" class="rounded-lg bg-slate-200 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-300" data-edu-close>Batal</button>
-            <button type="submit" name="tambah-pendidikan" value="1" class="rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600"><i class="fas fa-plus mr-1"></i>Tambahkan</button>
+            <button type="submit" id="btnTambahPendidikan" name="tambah-pendidikan" value="1" class="rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600"><i class="fas fa-plus mr-1"></i>Tambahkan</button>
         </div>
     </form>
 </div>
@@ -402,25 +411,26 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         showToast._t = setTimeout(function () { toast.className = ''; }, 2600);
     }
 
-    /* Flash hasil aksi server (via URL setelah redirect) */
-    var FLASH = <?= json_encode([
-        'akademik' => 'Data kepegawaian & akademik tersimpan.',
-        'password' => 'Password berhasil diubah.',
-        'rp_add'   => 'Riwayat pendidikan ditambahkan.',
-        'rp_del'   => 'Riwayat pendidikan dihapus.',
-    ]) ?>;
-    var FLASH_ERR = <?= json_encode([
-        'nama'    => 'Nama lengkap wajib diisi.',
-        'pwlama'  => 'Password saat ini salah.',
-        'pwpndek' => 'Password baru minimal 8 karakter.',
-        'pwlemah' => 'Password harus memuat huruf besar, kecil, dan angka.',
-        'pwbeda'  => 'Konfirmasi password belum sama.',
-        'rp'      => 'Data riwayat pendidikan belum lengkap/valid.',
-    ]) ?>;
-    var q = new URLSearchParams(location.search);
-    if (FLASH[q.get('ok')]) showToast(FLASH[q.get('ok')], false);
-    if (FLASH_ERR[q.get('err')]) showToast(FLASH_ERR[q.get('err')], true);
-    if (q.get('ok') || q.get('err')) history.replaceState(null, '', location.pathname);
+    /* ===== Loading state tombol =====
+       Ubah isi tombol jadi spinner + teks "Menyimpan...", matikan klik,
+       lalu kembalikan isi semula saat selesai. */
+    function setLoading(btn, aktif) {
+        if (!btn) return;
+        if (aktif) {
+            btn.disabled = true;
+            btn.dataset.html = btn.innerHTML;
+            // tombol ikon-only (btn-circle) cukup spinner; tombol teks pakai + label
+            var punyaTeks = /[A-Za-z]/.test(btn.textContent.trim());
+            btn.innerHTML = punyaTeks
+                ? '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'
+                : '<i class="fas fa-spinner fa-spin"></i>';
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
+        } else {
+            btn.disabled = false;
+            if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }
+            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+    }
 
     document.getElementById('btnFoto').addEventListener('click', function () {
         showToast('Fitur unggah foto profil (dummy)', true);
@@ -481,14 +491,44 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         document.getElementById('bidangList').appendChild(o);
     });
 
-    /* Kirim tag sebagai string pipe ke server */
+    /* ===== Kirim tag bidang + simpan biodata lewat AJAX ===== */
     document.getElementById('formAkademik').addEventListener('submit', function (e) {
+        e.preventDefault();
         var nama = document.getElementById('inNama').value.trim();
-        if (!nama) { e.preventDefault(); showToast('Nama lengkap wajib diisi', true); return; }
-        if (bidangTags.children.length === 0) { e.preventDefault(); showToast('Tambahkan minimal satu bidang ilmu', true); return; }
+        if (!nama) { showToast('Nama lengkap wajib diisi', true); return; }
+        if (bidangTags.children.length === 0) { showToast('Tambahkan minimal satu bidang ilmu', true); return; }
         var vals = [];
         Array.prototype.forEach.call(bidangTags.children, function (t) { vals.push(t.getAttribute('data-nama')); });
-        document.getElementById('bidangData').value = vals.join('|');
+        var form = e.target;
+        var data = new FormData(form);
+        data.set('bidang', vals.join('|'));
+        data.set('ubah-biodata', '1');
+
+        var btnSimpan = document.getElementById('btnSimpanAkademik');
+        setLoading(btnSimpan, true);
+
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: data,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function (respon) {
+                setLoading(btnSimpan, false);
+                if (respon.status) {
+                    showToast(respon.pesan, false);
+                    // update nama & badge bidang di kartu profil
+                    document.getElementById('pfNama').textContent = respon.data.nama;
+                    var bd = respon.data.bidang || [];
+                    var badge = document.getElementById('badgeBidang');
+                    if (badge) badge.textContent = bd.length;
+                } else {
+                    showToast(respon.pesan, true);
+                }
+            },
+            error: function () { setLoading(btnSimpan, false); showToast('Terjadi kesalahan pada server', true); }
+        });
     });
 
     /* ===== Modal riwayat pendidikan ===== */
@@ -505,6 +545,80 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         b.addEventListener('click', function () { eduModal.classList.remove('show'); });
     });
     eduModal.addEventListener('click', function (e) { if (e.target === eduModal) eduModal.classList.remove('show'); });
+
+    /* ===== Reload konten daftar riwayat pendidikan (hanya bagian itu) ===== */
+    function muatUlangPendidikan() {
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: { 'detail-pendidikan': 1 },
+            dataType: 'json',
+            success: function (respon) {
+                if (respon.status) {
+                    $('#eduList').html(respon.data);
+                    pasangHapusPendidikan();
+                    // perbarui badge jenjang terakhir di kartu profil
+                    var rows = $('#eduList .e-badge').map(function () { return this.textContent.trim(); }).get();
+                    var rank = { TK:0, SD:1, 'SMA/SMK':2, D1:3, D2:4, D3:5, D4:6, S1:7, S2:8, S3:9 };
+                    rows.sort(function (a, b) { return (rank[b] ?? -1) - (rank[a] ?? -1); });
+                    var badgeEdu = document.getElementById('badgeEdu');
+                    if (badgeEdu) badgeEdu.textContent = rows[0] || '';
+                }
+            },
+            error: function () { showToast('Gagal memuat riwayat pendidikan', true); }
+        });
+    }
+
+    /* ===== Tambah riwayat pendidikan (AJAX) ===== */
+    document.getElementById('formEdu').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btnTambah = document.getElementById('btnTambahPendidikan');
+        setLoading(btnTambah, true);
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: $(this).serialize() + '&tambah-pendidikan=1',
+            dataType: 'json',
+            success: function (respon) {
+                setLoading(btnTambah, false);
+                if (respon.status) {
+                    showToast(respon.pesan, false);
+                    eduModal.classList.remove('show');
+                    muatUlangPendidikan();
+                } else {
+                    showToast(respon.pesan, true);
+                }
+            },
+            error: function () { setLoading(btnTambah, false); showToast('Terjadi kesalahan pada server', true); }
+        });
+    });
+
+    /* ===== Hapus riwayat pendidikan (AJAX) ===== */
+    function pasangHapusPendidikan() {
+        $('#eduList [data-hapus-pendidikan]').off('click').on('click', function (e) {
+            e.preventDefault();
+            if (!confirm('Hapus riwayat pendidikan ini?')) return;
+            var id = $(this).data('hapus-pendidikan');
+            var btn = this;
+            setLoading(btn, true);
+            $.ajax({
+                url: '/redesain-siatek/administrator/pages/biodata/proses.php?hapus-pendidikan=' + id,
+                method: 'GET',
+                dataType: 'json',
+                success: function (respon) {
+                    setLoading(btn, false);
+                    if (respon.status) {
+                        showToast(respon.pesan, false);
+                        muatUlangPendidikan();
+                    } else {
+                        showToast(respon.pesan, true);
+                    }
+                },
+                error: function () { setLoading(btn, false); showToast('Terjadi kesalahan pada server', true); }
+            });
+        });
+    }
+    pasangHapusPendidikan();
 
     /* ===== Show/hide password ===== */
     document.querySelectorAll('[data-toggle-pw]').forEach(function (btn) {
@@ -552,9 +666,31 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
     pwKonf.addEventListener('input', paintStrength);
     paintStrength();
 
-    /* Konfirmasi password sebelum submit */
+    /* Kirim ganti password lewat AJAX */
     document.getElementById('formPassword').addEventListener('submit', function (e) {
-        if (pwBaru.value !== pwKonf.value) { e.preventDefault(); showToast('Konfirmasi password belum sama', true); }
+        e.preventDefault();
+        if (pwBaru.value !== pwKonf.value) { showToast('Konfirmasi password belum sama', true); return; }
+        var btnPw = document.getElementById('btnUbahPassword');
+        setLoading(btnPw, true);
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: $(this).serialize() + '&ubah-password=1',
+            dataType: 'json',
+            success: function (respon) {
+                setLoading(btnPw, false);
+                if (respon.status) {
+                    showToast(respon.pesan, false);
+                    document.getElementById('inPwLama').value = '';
+                    document.getElementById('inPwBaru').value = '';
+                    document.getElementById('inPwKonfirmasi').value = '';
+                    paintStrength();
+                } else {
+                    showToast(respon.pesan, true);
+                }
+            },
+            error: function () { setLoading(btnPw, false); showToast('Terjadi kesalahan pada server', true); }
+        });
     });
 })();
 </script>

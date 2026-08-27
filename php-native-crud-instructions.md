@@ -173,6 +173,138 @@ function bersihkan($data){
 ?>
 ```
 
+## Pola upload file (WAJIB — semua fitur upload file di project ini pakai pola ini)
+
+Semua file yang diunggah user (foto, dokumen, lampiran, dsb) **TIDAK BOLEH** disimpan langsung ke tabel entitasnya (misal tabel `arsip`, `pegawai`, dst) sebagai file fisik. Aturannya:
+
+- **File fisik** (hasil upload) selalu disimpan di folder `file/` yang ada di **root utama** project (sejajar dengan `function.php`), bukan di folder halaman masing-masing.
+- **Data file** (nama asli, nama file di server, ekstensi, dsb) disimpan ke tabel `file` (tabel ini sudah ada di database, jangan buat ulang strukturnya — sesuaikan nama kolom pada contoh di bawah dengan struktur tabel `file` yang sudah ada kalau berbeda).
+- Tabel entitas lain (misal `arsip`, `pegawai`) **HANYA** menyimpan **id file** (foreign key ke tabel `file`), **TIDAK PERNAH** menyimpan nama file atau path file langsung di tabel entitas tersebut.
+- Karena dipakai di banyak halaman (setiap halaman yang punya fitur upload), function upload wajib ditulis di `function.php` (induk), bukan di `proses.php` masing-masing halaman.
+
+### Function `upload_file()` di `function.php`
+
+Function ini menerima array file dari `$_FILES`, memindahkan file fisik ke folder `file/` di root, menyimpan datanya ke tabel `file`, lalu **mengembalikan id file** yang dipakai tabel entitas lain sebagai referensi.
+
+Id file dibuat dengan menggabungkan **string acak** + **waktu unix (`time()`)**, supaya praktis mustahil ada id yang sama (bentrok/duplikat):
+
+```php
+// ================= FUNCTION UPLOAD FILE =================
+// dipakai di semua halaman yang punya fitur upload file (foto, dokumen, lampiran, dll)
+// file fisik disimpan ke folder "file" di root project, datanya disimpan ke tabel "file"
+// return: id file (kalau berhasil) untuk disimpan di tabel entitas yang butuh, atau false (kalau gagal)
+function upload_file($file){
+    global $koneksi;
+
+    // pastikan ada file yang diunggah dan tidak ada error dari sisi PHP
+    if(!isset($file['tmp_name']) || $file['error'] != 0){
+        return false;
+    }
+
+    // ambil nama asli & ekstensi file dari user
+    $nama_asli = $file['name'];
+    $ekstensi  = strtolower(pathinfo($nama_asli, PATHINFO_EXTENSION));
+
+    // buat id file yang praktis mustahil sama dengan yang lain:
+    // gabungan waktu unix (time()) + string acak (random_bytes -> hex)
+    $id_file = time() . '_' . bin2hex(random_bytes(8));
+
+    // nama file fisik yang disimpan di server = id_file + ekstensi asli
+    $nama_file = $id_file . '.' . $ekstensi;
+
+    // folder tujuan SELALU folder "file" di root project.
+    // pakai __DIR__ (lokasi function.php) supaya path selalu tepat ke root,
+    // berapa pun dalamnya proses.php pemanggil di dalam subfolder halaman.
+    $folder_tujuan = __DIR__ . '/file/' . $nama_file;
+
+    // pindahkan file dari folder sementara (tmp) ke folder file/ di root
+    $upload = move_uploaded_file($file['tmp_name'], $folder_tujuan);
+
+    if(!$upload){
+        return false;
+    }
+
+    // simpan data file ke tabel "file" (sesuaikan nama kolom dengan tabel file yang sudah ada)
+    $nama_asli_bersih = bersihkan($nama_asli);
+    $nama_file_bersih = bersihkan($nama_file);
+    $ekstensi_bersih  = bersihkan($ekstensi);
+
+    $simpan = query("INSERT INTO file (id, nama_asli, nama_file, ekstensi) VALUES ('$id_file', '$nama_asli_bersih', '$nama_file_bersih', '$ekstensi_bersih')");
+
+    if(!$simpan){
+        return false;
+    }
+
+    // kembalikan id file, ini yang disimpan di tabel entitas lain (misal kolom id_file)
+    return $id_file;
+}
+```
+
+### Cara pakai di `proses.php` halaman manapun
+
+Karena `upload_file()` ada di `function.php`, `proses.php` yang butuh upload tinggal `require_once '../function.php';` (sudah wajib ada di setiap `proses.php`) lalu panggil function-nya sebelum insert/update ke tabel entitas:
+
+```php
+// ================= TAMBAH DATA ARSIP (DENGAN LAMPIRAN FILE) =================
+if(isset($_POST['tambah-data-arsip'])){
+    $nomor   = bersihkan($_POST['nomor']);
+    $perihal = bersihkan($_POST['perihal']);
+
+    // upload file lampiran dulu (kalau user memang mengunggah file)
+    $id_file = null;
+    if(isset($_FILES['lampiran']) && $_FILES['lampiran']['error'] == 0){
+        $id_file = upload_file($_FILES['lampiran']);
+
+        // kalau upload gagal, hentikan proses & beri tahu lewat JSON
+        if($id_file === false){
+            echo json_encode(['status' => false, 'pesan' => 'Upload file gagal']);
+            exit;
+        }
+    }
+
+    // simpan ke tabel arsip: HANYA id_file yang disimpan, bukan nama/path file
+    $simpan = query("INSERT INTO arsip (nomor, perihal, id_file) VALUES ('$nomor', '$perihal', " . ($id_file ? "'$id_file'" : "NULL") . ")");
+
+    if($simpan){
+        echo json_encode(['status' => true, 'pesan' => 'Data berhasil ditambahkan']);
+    } else {
+        echo json_encode(['status' => false, 'pesan' => 'Data gagal ditambahkan']);
+    }
+}
+```
+
+Di sisi tampilan (`index.php`), form yang punya input file wajib pakai `enctype="multipart/form-data"` dan dikirim lewat `FormData` (bukan `.serialize()` biasa) karena AJAX untuk upload file butuh `FormData`, `processData: false`, dan `contentType: false`:
+
+```js
+$('#form-tambah-arsip').on('submit', function(e){
+    e.preventDefault();
+
+    // pakai FormData karena ada input file, tidak bisa pakai .serialize() biasa
+    var data = new FormData(this);
+    data.append('tambah-data-arsip', 1);
+
+    $.ajax({
+        url: 'proses.php',
+        method: 'POST',
+        data: data,
+        contentType: false, // wajib false, biar browser yang atur boundary multipart
+        processData: false, // wajib false, biar FormData tidak diubah jadi string
+        dataType: 'json',
+        success: function(respon){
+            if(respon.status){
+                alert(respon.pesan);
+                muat_ulang_tabel_arsip();
+            } else {
+                alert(respon.pesan);
+            }
+        },
+        error: function(){
+            alert('Terjadi kesalahan pada server');
+        }
+    });
+});
+```
+
 ## Pola query & fetch data
 
 - Untuk membaca data selalu pakai `query()`:
@@ -229,6 +361,37 @@ Setiap ada perubahan data (tambah/edit/hapus), yang di-reload **HANYA konten yan
 - Yang benar: setelah AJAX sukses, panggil function JS terpisah (misalnya `muat_ulang_tabel_x()`) yang melakukan AJAX lagi ke `proses.php` untuk ambil ulang HANYA bagian konten yang berubah (misal isi `<tbody>` tabel), lalu suntikkan hasilnya ke elemen terkait pakai `.html()` atau `.load()`. Sisa halaman (header, sidebar, form, dsb) tidak ikut reload sama sekali.
 - Kalau halaman ini pakai sistem SPA-ish dengan query `?page=nama-halaman` (load konten lewat AJAX ke dalam satu container utama), maka pindah konten pun harus tetap lewat AJAX yang ganti isi container itu, bukan lewat `window.location.href` yang bikin seluruh halaman (termasuk header/sidebar) reload dari server.
 
+## Aturan URL & path dinamis (WAJIB — jangan path/URL statis yang rusak saat deploy)
+
+Path URL yang mengarah ke file/folder/halaman proyek **DILARANG di-hardcode** sebagai string statis yang mengunci ke satu lokasi (misal `/redesain-siatek/...` atau `http://localhost/redesain-siatek/...`). Saat aplikasi di-deploy ke server (di docroot langsung, di subfolder, atau nama folder berubah), path statis ini pasti rusak. Aturannya:
+
+- **Path file yang disimpan di lokasi proyek** (contoh: folder `file/` di root) harus di-resolve ke **URL dinamis**, dihitung dari posisi proyek terhadap `DOCUMENT_ROOT` server. Contoh pola helper `base_url()` yang menghitung otomatis (deploy di docroot -> `''`, di subfolder -> `/nama-subfolder`):
+
+  ```php
+  // ================= FUNCTION BASE URL =================
+  // Hitung base path URL proyek dari lokasi file ini terhadap DOCUMENT_ROOT server.
+  // Otomatis menyesuaikan saat deploy: di docroot -> '', di subfolder -> '/nama-subfolder'.
+  function base_url(){
+    $root = str_replace('\\', '/', rtrim((string)dirname(__DIR__), '/')); // folder yang jadi "root proyek"
+    $doc  = str_replace('\\', '/', rtrim((string)(getenv('DOCUMENT_ROOT') ?: ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/'));
+    if ($doc === ''){
+      return ''; // tidak dikenal (mis. CLI): fallback aman kosong
+    }
+    if (strpos($root . '/', $doc . '/') === 0){
+      return substr($root, strlen($doc));
+    }
+    return '';
+  }
+  ```
+
+  Lalu setiap URL file memakai helper itu, contoh: `return base_url() . '/file/' . $nama_file;`.
+
+- **Path fisik penyimpanan file** (untuk `move_uploaded_file`/`file_put_contents`) memakai `__DIR__` (atau `dirname(__DIR__)` dari subfolder), **bukan** string path absolut yang dihardcode. `__DIR__` selalu mengikuti lokasi file di server, jadi otomatis benar di mana pun proyek diletakkan.
+
+- Untuk redirect/login `header('Location: ...')` maupun ajax `target`, kalau memang butuh base path proyek, hitung dari helper di atas (atau simpan di konstanta yang diambil dari helper), **jangan** menulis `/redesain-siatek/...` mentah-mentah.
+
+- Pengecualian: URL eksternal (mis. CDN, endpoint Google OAuth) memang mutlak web absolute — itu sah. Yang dilarang adalah path internal proyek yang di-hardcode.
+
 ## Komentar wajib
 
 Setiap blok proses (`if(isset($_POST[...]))`) dan setiap function diberi komentar singkat di atasnya yang menjelaskan tujuannya, supaya konsep alurnya gampang dibaca ulang. Gunakan header komentar seperti `// ================= TAMBAH DATA X =================` untuk memisahkan tiap blok secara visual, dan komentar satu baris untuk menjelaskan baris-baris penting (misalnya kenapa sebuah input dibersihkan, apa yang di-return sebuah function).
@@ -251,14 +414,27 @@ Sebelum menganggap kode selesai, AI harus mengecek ulang:
 - [ ] Request ke `proses.php` dari sisi tampilan pakai jQuery AJAX (`$.ajax`/`$.post`) dengan `dataType: 'json'`, dan hasilnya ditangani di `success:` (alert, reload, dsb dikerjakan di JS, bukan di PHP)
 - [ ] Setelah AJAX sukses, yang direload HANYA konten yang berubah (misalnya tabel) lewat AJAX lagi — TIDAK ADA `location.reload()` dan TIDAK ADA redirect pakai `window.location.href` ke URL halaman penuh (misal `index.php?page=...`)
 - [ ] Ada komentar penjelas di atas tiap blok proses dan tiap function
+- [ ] Kalau halaman ini punya fitur upload file: file fisik disimpan ke folder `file/` di root (bukan folder halaman), datanya disimpan ke tabel `file`, dan tabel entitas hanya menyimpan **id file**, bukan nama/path file
+- [ ] Upload file selalu lewat function `upload_file()` di `function.php` (induk), tidak ditulis ulang di tiap `proses.php`
+- [ ] Form yang ada input file pakai `enctype`/`FormData` + `contentType: false, processData: false` di AJAX-nya
+- [ ] TIDAK ADA path/URL internal proyek yang di-hardcode statis (mis. `/redesain-siatek/...` atau `http://localhost/...`) — semua URL/path file proyek di-resolve dinamis via helper `base_url()` (dihitung dari `DOCUMENT_ROOT`) dan path fisik pakai `__DIR__`, supaya tidak rusak saat deploy ke server
 
 ## Aturan perilaku AI sendiri saat mengerjakan tugas ini (WAJIB — sering dilanggar)
 
-Dua masalah ini bukan soal gaya PHP, tapi soal cara AI bekerja, dan harus dihindari:
+Tiga masalah ini bukan soal gaya PHP, tapi soal cara AI bekerja, dan harus dihindari:
 
 1. **Jangan sampai ada karakter rusak/mojibake** (contoh: `â€™`, `â€œ`, `â€`, `â€"`) muncul di kode atau komentar yang ditulis. Ini biasanya muncul kalau tanda kutip pintar ("smart quotes"), dash panjang, atau karakter non-ASCII lain ditulis/di-copy dengan encoding yang salah. Solusinya: AI harus selalu pakai tanda kutip lurus biasa (petik satu dan petik dua) dan tanda hubung biasa di dalam kode maupun komentar PHP -- jangan pernah pakai smart quotes atau em dash di dalam file .php. Sebelum mengirim file final, cek ulang tidak ada karakter aneh semacam itu.
 
 2. **Jangan bilang "akan saya perbaiki" lalu berhenti tanpa benar-benar mengerjakannya.** Kalau AI mengidentifikasi ada yang perlu direvisi (baik dari feedback user maupun temuan sendiri), langsung lakukan revisinya di respons yang sama -- jangan cuma menjanjikan dan berhenti. Juga jangan mengulang-ulang langkah yang sama (misalnya baca-tulis file bolak-balik) tanpa progres nyata, karena ini boros token dan bikin user harus dorong ulang berkali-kali. Kerjakan sampai selesai dalam satu jalan, baru laporkan hasilnya ke user.
+
+3. **DILARANG mengambil keputusan sepihak yang berisiko fatal terhadap program tanpa izin eksplisit dari user, sekecil apapun keputusan itu terlihat di mata AI.** Yang dimaksud keputusan berisiko fatal, termasuk tapi tidak terbatas pada:
+   - Melakukan **rollback** (baik lewat perintah git seperti `git reset`/`git checkout`/`git revert`, maupun dengan cara menimpa/mengembalikan file ke versi sebelumnya secara manual) tanpa diminta.
+   - **Menghapus atau menimpa (overwrite) file, folder, tabel, atau kolom database** yang sudah ada, termasuk data di dalamnya (`DROP TABLE`, `TRUNCATE`, `DELETE FROM ... ` tanpa `WHERE`, menghapus file lewat kode, dsb).
+   - **Menulis ulang total (rewrite) sebuah file besar atau seluruh halaman/fitur** padahal user hanya minta perbaikan/tambahan kecil di bagian tertentu.
+   - **Mengubah struktur database** (menambah/menghapus/mengganti nama kolom atau tabel) atau **mengubah konvensi/pola coding project** (misalnya pola di file instruksi ini) di luar apa yang diminta.
+   - Tindakan apa pun yang **sulit atau tidak bisa dibalik** (irreversible) dan **berdampak ke bagian program lain di luar scope permintaan user saat itu**.
+
+   AI seringkali menganggap tindakan semacam ini "kecil" atau "solusi cepat", padahal bagi user dampaknya bisa fatal dan bikin program jadi kacau. Karena itu: kalau AI merasa perlu melakukan salah satu hal di atas untuk menyelesaikan masalah, AI **WAJIB berhenti dulu, jelaskan ke user apa yang mau dilakukan beserta risikonya, dan minta konfirmasi eksplisit** sebelum benar-benar mengeksekusinya -- jangan langsung dieksekusi lalu baru dilaporkan setelah kejadian. Kalau ada cara lain yang lebih kecil/lebih aman (scoped) untuk mencapai tujuan yang sama tanpa rollback/hapus/rewrite besar, AI harus tawarkan cara itu duluan sebagai opsi utama.
 
 ## Template lengkap
 
@@ -416,6 +592,56 @@ function bersihkan($data){
     $data = trim($data);                              // buang spasi di awal/akhir
     $data = mysqli_real_escape_string($koneksi, $data); // escape karakter berbahaya
     return $data;
+}
+
+// ================= FUNCTION UPLOAD FILE =================
+// dipakai di semua halaman yang punya fitur upload file (foto, dokumen, lampiran, dll)
+// file fisik disimpan ke folder "file" di root project, datanya disimpan ke tabel "file"
+// return: id file (kalau berhasil) untuk disimpan di tabel entitas yang butuh, atau false (kalau gagal)
+function upload_file($file){
+    global $koneksi;
+
+    // pastikan ada file yang diunggah dan tidak ada error dari sisi PHP
+    if(!isset($file['tmp_name']) || $file['error'] != 0){
+        return false;
+    }
+
+    // ambil nama asli & ekstensi file dari user
+    $nama_asli = $file['name'];
+    $ekstensi  = strtolower(pathinfo($nama_asli, PATHINFO_EXTENSION));
+
+    // buat id file yang praktis mustahil sama dengan yang lain:
+    // gabungan waktu unix (time()) + string acak (random_bytes -> hex)
+    $id_file = time() . '_' . bin2hex(random_bytes(8));
+
+    // nama file fisik yang disimpan di server = id_file + ekstensi asli
+    $nama_file = $id_file . '.' . $ekstensi;
+
+    // folder tujuan SELALU folder "file" di root project.
+    // pakai __DIR__ (lokasi function.php) supaya path selalu tepat ke root,
+    // berapa pun dalamnya proses.php pemanggil di dalam subfolder halaman.
+    $folder_tujuan = __DIR__ . '/file/' . $nama_file;
+
+    // pindahkan file dari folder sementara (tmp) ke folder file/ di root
+    $upload = move_uploaded_file($file['tmp_name'], $folder_tujuan);
+
+    if(!$upload){
+        return false;
+    }
+
+    // simpan data file ke tabel "file" (sesuaikan nama kolom dengan tabel file yang sudah ada)
+    $nama_asli_bersih = bersihkan($nama_asli);
+    $nama_file_bersih = bersihkan($nama_file);
+    $ekstensi_bersih  = bersihkan($ekstensi);
+
+    $simpan = query("INSERT INTO file (id, nama_asli, nama_file, ekstensi) VALUES ('$id_file', '$nama_asli_bersih', '$nama_file_bersih', '$ekstensi_bersih')");
+
+    if(!$simpan){
+        return false;
+    }
+
+    // kembalikan id file, ini yang disimpan di tabel entitas lain (misal kolom id_file)
+    return $id_file;
 }
 
 // ================= FUNCTION LINTAS HALAMAN LAINNYA =================

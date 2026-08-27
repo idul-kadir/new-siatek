@@ -147,7 +147,7 @@ $activePage = $pageKey;
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title><?= htmlspecialchars($pageTitle) ?> " SIATEK</title>
+    <title><?= htmlspecialchars($pageTitle) ?> - SIATEK</title>
 
     <!-- Preconnect -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -392,6 +392,8 @@ $activePage = $pageKey;
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- jQuery (dipakai untuk AJAX di halaman konten, contoh: biodata) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- Local JS -->
     <script src="js/dashboard.js"></script>
 

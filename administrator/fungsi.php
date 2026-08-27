@@ -1,30 +1,11 @@
 <?php
-require __DIR__ . '/koneksi.php';
-
-function query($sql){
-  global $koneksi;
-  return mysqli_query($koneksi,$sql);
-}
-
-function bersihkan($data) {
-  global $koneksi;
-    // 1. Buang spasi di awal dan akhir
-    $data = trim($data);
-    
-    // 2. Buang backslash (\)
-    $data = stripslashes($data);
-    
-    // 3. Buang tag HTML / Script (XSS protection)
-    $data = strip_tags($data);
-    
-    // 4. Escape karakter khusus SQL seperti ' atau " (SQL Injection protection)
-    $data = mysqli_real_escape_string($koneksi, $data);
-    
-    return $data;
-}
-
-// Fungsi khusus untuk menampilkan data dari database agar aman di HTML,
-// termasuk saat dipakai di atribut HTML seperti data-nama-file.
-function tampil($data) {
-  return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
-}
+/**
+ * Fungsi bersama di-unifikasi ke root/fungsi.php (satu-satunya sumber kebenaran).
+ * File ini cukup jadi alias: me-require root/fungsi.php supaya halaman-halaman
+ * lama yang sudah me-require __DIR__/fungsi.php (mis. sidebar, top-navbar,
+ * biodata, dsb) tetap bekerja tanpa mengubah satu per satu require-nya.
+ *
+ * Semua fungsi (query, bersihkan, tampil, base_url, url_file, upload_file,
+ * catat_file) kini didefinisikan sekali saja di root/fungsi.php.
+ */
+require_once dirname(__DIR__) . '/fungsi.php';

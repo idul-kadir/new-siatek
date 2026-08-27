@@ -1,15 +1,15 @@
 <?php
 /**
  * PROSES BIODATA — semua aksi simpan halaman Biodata ditangani di sini.
- * Dipanggil dari pages/biodata/biodata.php (form method="post").
+ * Dipanggil VIA AJAX (jQuery) dari pages/biodata/biodata.php.
+ * Respons selalu JSON {status: bool, pesan: '...', data?: {...}}.
  *
  * Aksi:
  *   POST ubah-biodata       -> update profil dosen/pegawai + bidang ilmu (keahlian)
  *   POST ubah-password      -> verifikasi lama lalu ganti password (password_hash)
  *   POST tambah-pendidikan  -> insert riwayat pendidikan
  *   GET  hapus-pendidikan   -> delete riwayat pendidikan milik sendiri
- *
- * Semua query memakai prepared statement (lebih aman daripada escaping manual).
+ *   POST detail-pendidikan  -> kembalikan HTML daftar riwayat pendidikan (untuk reload konten)
  */
 require __DIR__ . "/../../fungsi.php";
 
@@ -18,12 +18,9 @@ mysqli_set_charset($GLOBALS['koneksi'], 'utf8mb4');
 
 /* NIP pengguna aktif: session login -> fallback admin/laboran */
 $nipAktif = $_SESSION['nip'] ?? $_SESSION['username'] ?? '10041993';
-if (isset($_GET['nip']) && preg_match('/^[0-9]{6,25}$/', (string)$_GET['nip'])) {
-    $nipAktif = $_GET['nip']; // mode lihat biodata orang lain (opsional)
-}
 
-function prg(array $p) {
-    header('Location: /redesain-siatek/administrator/biodata?' . http_build_query($p));
+function kirim(array $p) {
+    echo json_encode($p);
     exit;
 }
 
@@ -31,7 +28,7 @@ function prg(array $p) {
 if (isset($_POST['ubah-biodata'])) {
 
     $nama = trim((string)($_POST['nama'] ?? ''));
-    if ($nama === '') prg(['err' => 'nama']);
+    if ($nama === '') kirim(['status' => false, 'pesan' => 'Nama lengkap wajib diisi']);
 
     $nidn    = preg_replace('/[^0-9]/', '', (string)($_POST['nidn'] ?? ''));
     $jabfung = trim((string)($_POST['jabfung'] ?? ''));
@@ -52,9 +49,15 @@ if (isset($_POST['ubah-biodata'])) {
          tahun_mulai_bertugas=?, prodi=?, email=?, no_telp=?, keahlian=? WHERE nip=?'
     );
     mysqli_stmt_bind_param($stmt, 'ssssisssss', $nama, $nidn, $jabfung, $status, $tahunN, $prodi, $email, $hp, $bidang, $nipAktif);
-    mysqli_stmt_execute($stmt);
+    $ok = mysqli_stmt_execute($stmt);
 
-    prg(['ok' => 'akademik']);
+    if (!$ok) kirim(['status' => false, 'pesan' => 'Gagal menyimpan data']);
+
+    kirim([
+        'status' => true,
+        'pesan'  => 'Data kepegawaian & akademik tersimpan.',
+        'data'   => ['nama' => $nama, 'bidang' => array_filter(array_map('trim', explode(',', $bidang)), 'strlen')],
+    ]);
 }
 
 /* ===================== UBAH PASSWORD ===================== */
@@ -75,18 +78,18 @@ if (isset($_POST['ubah-password'])) {
         hash_equals($stored, md5($lama)) ||
         hash_equals($stored, $lama)
     );
-    if (!$validLama) prg(['err' => 'pwlama']);
-    if (strlen($baru) < 8) prg(['err' => 'pwpndek']);
+    if (!$validLama) kirim(['status' => false, 'pesan' => 'Password saat ini salah']);
+    if (strlen($baru) < 8) kirim(['status' => false, 'pesan' => 'Password baru minimal 8 karakter']);
     if (!preg_match('/[A-Z]/', $baru) || !preg_match('/[a-z]/', $baru) || !preg_match('/[0-9]/', $baru))
-        prg(['err' => 'pwlemah']);
-    if ($baru !== $konf) prg(['err' => 'pwbeda']);
+        kirim(['status' => false, 'pesan' => 'Password harus memuat huruf besar, kecil, dan angka']);
+    if ($baru !== $konf) kirim(['status' => false, 'pesan' => 'Konfirmasi password belum sama']);
 
     $hash = password_hash($baru, PASSWORD_DEFAULT);
     $u = mysqli_prepare($GLOBALS['koneksi'], 'UPDATE dosen SET password=? WHERE nip=?');
     mysqli_stmt_bind_param($u, 'ss', $hash, $nipAktif);
     mysqli_stmt_execute($u);
 
-    prg(['ok' => 'password']);
+    kirim(['status' => true, 'pesan' => 'Password berhasil diubah']);
 }
 
 /* ===================== TAMBAH RIWAYAT PENDIDIKAN ===================== */
@@ -99,7 +102,7 @@ if (isset($_POST['tambah-pendidikan'])) {
     $valid   = ['TK','SD','SMP','SMA/SMK','D1','D2','D3','D4','S1','S2','S3'];
 
     if (!in_array($jenjang, $valid, true) || $prodiR === '' || $univ === '' || $tahun < 1950 || $tahun > 2100)
-        prg(['err' => 'rp']);
+        kirim(['status' => false, 'pesan' => 'Data riwayat pendidikan belum lengkap/valid']);
 
     $s = mysqli_prepare(
         $GLOBALS['koneksi'],
@@ -108,7 +111,7 @@ if (isset($_POST['tambah-pendidikan'])) {
     mysqli_stmt_bind_param($s, 'ssssi', $nipAktif, $jenjang, $prodiR, $univ, $tahun);
     mysqli_stmt_execute($s);
 
-    prg(['ok' => 'rp_add']);
+    kirim(['status' => true, 'pesan' => 'Riwayat pendidikan ditambahkan']);
 }
 
 /* ===================== HAPUS RIWAYAT PENDIDIKAN ===================== */
@@ -119,8 +122,33 @@ if (isset($_GET['hapus-pendidikan'])) {
     mysqli_stmt_bind_param($d, 'is', $id, $nipAktif);
     mysqli_stmt_execute($d);
 
-    prg(['ok' => 'rp_del']);
+    kirim(['status' => true, 'pesan' => 'Riwayat pendidikan dihapus']);
 }
 
-/* Akses langsung tanpa aksi: kembali ke halaman biodata */
-prg([]);
+/* ===================== AMBIL DAFTAR PENDIDIKAN (reload konten) ===================== */
+if (isset($_POST['detail-pendidikan'])) {
+
+    $stmt = mysqli_prepare($GLOBALS['koneksi'], 'SELECT * FROM riwayat_pendidikan WHERE nip=? ORDER BY tahun DESC, id DESC');
+    mysqli_stmt_bind_param($stmt, 's', $nipAktif);
+    mysqli_stmt_execute($stmt);
+    $resRp = mysqli_stmt_get_result($stmt);
+
+    $html = '';
+    if (mysqli_num_rows($resRp) === 0) {
+        $html = '<p class="py-3 text-center text-xs italic text-slate-400">Belum ada data pendidikan — klik Tambah untuk mengisi.</p>';
+    } else {
+        while ($r = mysqli_fetch_assoc($resRp)) {
+            $html .= '<div class="edu-row">'
+                . '<span class="e-badge">' . tampil($r['jenjang']) . '</span>'
+                . '<div class="min-w-0 flex-1"><p class="e-title truncate">' . tampil($r['program_studi']) . '</p>'
+                . '<p class="e-sub">' . tampil($r['universitas']) . ($r['tahun'] ? ' &middot; ' . (int)$r['tahun'] : '') . '</p></div>'
+                . '<a href="#" data-hapus-pendidikan="' . (int)$r['id'] . '" class="edu-del btn-circle bg-slate-200 text-slate-500 hover:bg-rose-100 hover:text-rose-600" title="Hapus"><i class="fas fa-trash text-[10px]"></i><span class="tip">Hapus</span></a>'
+                . '</div>';
+        }
+    }
+
+    kirim(['status' => true, 'data' => $html]);
+}
+
+/* Akses langsung tanpa aksi */
+kirim(['status' => false, 'pesan' => 'Aksi tidak dikenali']);

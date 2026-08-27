@@ -16,24 +16,56 @@ $roleTeks = ($tipeU === 'superadmin' || $levelU === '0')
     ? 'Super Admin'
     : ($tipeU === 'admin' ? 'Admin' : 'Dosen');
 
+/* ===== Fungsi bersama (upload_file, url_file, dll) ===== */
+require_once __DIR__ . '/../fungsi.php';
+
+/* ===== Foto profil: prefer session, fallback query DB =====
+   Kolom profil (dosen) / foto (mahasiswa) menyimpan id file di tabel files.
+   Dipakai url_file() untuk dirubah jadi URL nyata. */
+$fotoProfil = (string)($_SESSION['profil'] ?? '');
+if (trim($fotoProfil) === '' && !empty($_SESSION['peran'])) {
+    // ambil dari DB agar user yang belum re-login tetap dapat fotonya
+    $idRef = $_SESSION['nip'] ?? $_SESSION['nim'] ?? '';
+    if ($idRef !== '') {
+        if ($_SESSION['peran'] === 'staf') {
+            $kol = 'profil'; $tab = 'dosen'; $keyCol = 'nip';
+        } else {
+            $kol = 'foto';   $tab = 'mahasiswa'; $keyCol = 'nim';
+        }
+        $q = mysqli_query($GLOBALS['koneksi'], "SELECT `$kol` AS f FROM `$tab` WHERE `$keyCol` = '" . mysqli_real_escape_string($GLOBALS['koneksi'], $idRef) . "' LIMIT 1");
+        $r = $q ? mysqli_fetch_assoc($q) : null;
+        if ($r && trim((string)$r['f']) !== '') {
+            $fotoProfil = $r['f'];
+            $_SESSION['profil'] = $fotoProfil;
+        }
+    }
+}
+
 /**
- * Render avatar SVG inline (32×32 default).
- * Gradient: navy-700 → accent-500. Initial uppercase diambil dari nama.
+ * Render avatar: foto profil jika ada, SVG inisial jika tidak.
  *
  * @param string $name  Nama user (akan di-trim ke 2 karakter awal).
  * @param int    $size  Ukuran pixel (square).
- * @return string       Markup <svg>.
+ * @param string $foto  URL/path foto profil (kosong = SVG inisial).
+ * @return string       Markup <img> atau <svg>.
  */
-function navbar_avatar(string $name, int $size = 32): string {
+function navbar_avatar(string $name, int $size = 32, string $foto = ''): string {
+    // jika ada foto profil, tampilkan sebagai img
+    $foto = trim($foto);
+    if ($foto !== '') {
+        $s = (int) $size;
+        $src = htmlspecialchars($foto, ENT_QUOTES, 'UTF-8');
+        return '<img src="' . $src . '" alt="Avatar" width="' . $s . '" height="' . $s . '" class="rounded-full object-cover" style="width:' . $s . 'px;height:' . $s . 'px;">';
+    }
+
+    // fallback: SVG inisial nama
     $name = trim($name);
     if ($name === '') $name = '?';
-    // Ambil inisial: huruf pertama dari kata pertama + huruf pertama dari kata kedua (kalau ada)
     $parts = preg_split('/\s+/', $name);
     $initial = mb_strtoupper(mb_substr($parts[0], 0, 1));
     if (isset($parts[1]) && $parts[1] !== '') {
         $initial .= mb_strtoupper(mb_substr($parts[1], 0, 1));
     } else {
-        // kalau single word, pakai 2 huruf pertama
         $initial = mb_strtoupper(mb_substr($parts[0], 0, 2));
     }
     $initial = htmlspecialchars($initial, ENT_QUOTES, 'UTF-8');
@@ -72,7 +104,15 @@ SVG;
         <!-- Divider vertikal halus -->
         <span class="hidden md:block w-px h-8 bg-slate-200 mx-1"></span>
         <button type="button" class="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-slate-50 transition" aria-label="Menu pengguna">
-            <?= navbar_avatar($nmUser, 32) ?>
+            <?php
+            // $fotoProfil berisi id file di tabel files -> ubah jadi URL file asli
+            if (trim($fotoProfil) !== '') {
+                $fotoSrc = url_file($fotoProfil);
+            } else {
+                $fotoSrc = '';
+            }
+            ?>
+            <?= navbar_avatar($nmUser, 32, $fotoSrc) ?>
             <div class="hidden md:block leading-tight text-left">
                 <div class="flex items-center gap-1.5">
                     <p class="text-sm font-medium text-slate-900"><?= htmlspecialchars($nmUser) ?></p>

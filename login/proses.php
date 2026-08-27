@@ -75,6 +75,7 @@ if (isset($_POST['masuk-login'])) {
         $_SESSION['tipe_login'] = $row['tipe_login'];
         $_SESSION['level']      = $row['level'];
         $_SESSION['peran']      = 'staf';
+        $_SESSION['profil']     = $row['profil'] ?? '';
 
         echo json_encode([
             'status' => true,
@@ -114,6 +115,7 @@ if (isset($_POST['masuk-login'])) {
         $_SESSION['nama']     = $m['nama'];
         $_SESSION['prodi']    = $m['prodi'];
         $_SESSION['peran']    = 'mahasiswa';
+        $_SESSION['profil']   = $m['foto'] ?? '';
 
         echo json_encode([
             'status' => true,
@@ -258,18 +260,23 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
 
     session_regenerate_id(true);
     if ($tipe === 'staf') {
-        $_SESSION['user_id']    = $akun['nip'];
+        $_SESSION['user_id']    = $akun['id'];
         $_SESSION['nip']        = $akun['nip'];
         $_SESSION['username']   = $akun['nip'];
         $_SESSION['nama']       = $akun['nama'];
         $_SESSION['tipe_login'] = $akun['tipe_login'];
         $_SESSION['level']      = $akun['level'];
         $_SESSION['peran']      = 'staf';
+        $_SESSION['profil']     = $akun['profil'] ?? '';
         $key = $akun['nip'];
-        // kolom foto di tabel dosen bernama `profil`
-        if ($fotoGoogle !== '') {
-            $aman = bersihkan($fotoGoogle);
-            query("UPDATE dosen SET profil='$aman' WHERE nip='$key'");
+        // kolom foto di tabel dosen bernama `profil` (menyimpan id file dari tabel files)
+        // hanya simpan foto Google jika user belum punya foto
+        if ($fotoGoogle !== '' && empty($akun['profil'])) {
+            $id_file = simpan_foto_google($fotoGoogle, 'dosen');
+            if ($id_file !== '') {
+                query("UPDATE dosen SET profil='" . bersihkan($id_file) . "' WHERE nip='" . $key . "'");
+                $_SESSION['profil'] = $id_file;
+            }
         }
         $target = '/administrator';
     } else {
@@ -279,14 +286,66 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
         $_SESSION['nama']     = $akun['nama'];
         $_SESSION['prodi']    = $akun['prodi'];
         $_SESSION['peran']    = 'mahasiswa';
+        $_SESSION['profil']   = $akun['foto'] ?? '';
         $key = $akun['nim'];
-        if ($fotoGoogle !== '') {
-            $aman = bersihkan($fotoGoogle);
-            query("UPDATE mahasiswa SET foto='$aman' WHERE nim='$key'");
+        // kolom foto di tabel mahasiswa bernama `foto` (menyimpan id file dari tabel files)
+        // hanya simpan foto Google jika user belum punya foto
+        if ($fotoGoogle !== '' && empty($akun['foto'])) {
+            $id_file = simpan_foto_google($fotoGoogle, 'mahasiswa');
+            if ($id_file !== '') {
+                query("UPDATE mahasiswa SET foto='" . bersihkan($id_file) . "' WHERE nim='" . $key . "'");
+                $_SESSION['profil'] = $id_file;
+            }
         }
         $target = '/mahasiswa';
     }
 
     header('Location: ' . $BASE . $target);
     exit;
+}
+
+// unduh foto Google lalu simpan ke folder "file" di root project + catat ke tabel "files"
+// mengikuti konvensi upload file (file fisik di root, data di tabel files, entitas simpan id file).
+// return: id file (untuk disimpan di kolom profil/foto entitas) atau '' bila gagal.
+function simpan_foto_google($url, $tabel_asal) {
+    $url = trim((string)$url);
+    if ($url === '' || !str_starts_with($url, 'http')) return '';
+
+    // unduh isi gambar
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $data = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($code !== 200 || $data === false || $data === '') return '';
+
+    // ekstensi default jpg (foto profil Google umumnya jpeg/png)
+    $ekstensi = 'jpg';
+
+    // buat id file (gabungan waktu unix + string acak, mustahil bentrok)
+    $id_file   = time() . '_' . bin2hex(random_bytes(8));
+    $nama_file = $id_file . '.' . $ekstensi;
+
+    // folder "file" di root project (sejajar fungsi.php); login/ berada satu
+    // tingkat di bawah root, jadi root = dirname(__DIR__)
+    $folder = dirname(__DIR__) . '/file';
+    if (!is_dir($folder)) @mkdir($folder, 0775, true);
+
+    $pathFull = $folder . DIRECTORY_SEPARATOR . $nama_file;
+    if (@file_put_contents($pathFull, $data) === false) return '';
+
+    // catat metadata ke tabel files; kalau gagal, hapus file fisiknya
+    if (!catat_file($id_file, $nama_file, $ekstensi, $tabel_asal)) {
+        @unlink($pathFull);
+        return '';
+    }
+
+    return $id_file;
 }

@@ -28,3 +28,96 @@ function bersihkan($data) {
 function tampil($data) {
   return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
 }
+
+// ================= FUNCTION CATAT DATA FILE =================
+// Dipakai upload_file() dan fungsi unduhan foto (simpan_foto_google).
+// Mencatat metadata file yang SUDAH dipindahkan ke folder "file" root
+// ke tabel "files" (struktur tabel files yang sudah ada).
+// return: bool sukses/gagal.
+function catat_file($id_file, $nama_file, $ekstensi, $tabel_asal){
+  global $koneksi;
+  $id_file_b      = bersihkan($id_file);
+  $nama_file_b    = bersihkan($nama_file);
+  $ekstensi_b     = bersihkan($ekstensi);
+  $tabel_asal_b   = bersihkan($tabel_asal);
+  $waktu          = time();
+  // lokasi = path relatif file (mis. file/1787809027_d9cb8a4f0d18388e.jpg)
+  $lokasi_b       = bersihkan('file/' . $nama_file);
+  return query("INSERT INTO files (id, nama_file, format_file, waktu_unggah, tabel_asal, lokasi) VALUES ('$id_file_b', '$nama_file_b', '$ekstensi_b', $waktu, '$tabel_asal_b', '$lokasi_b')");
+}
+
+// ================= FUNCTION UPLOAD FILE =================
+// Dipakai di halaman yang punya fitur upload file (foto, dokumen, lampiran dll).
+// File fisik dipindahkan ke folder "file" di root project (__DIR__ = lokasi
+// fungsi.php), datanya dicatat ke tabel "files".
+// return: id file (kalau berhasil, dipakai tabel entitas) atau false (gagal).
+function upload_file($file, $tabel_asal){
+  if(!isset($file['tmp_name']) || $file['error'] != 0){
+    return false;
+  }
+
+  $nama_asli = $file['name'];
+  $ekstensi  = strtolower(pathinfo($nama_asli, PATHINFO_EXTENSION));
+
+  // id file: gabungan waktu unix + string acak, praktis mustahil bentrok
+  $id_file   = time() . '_' . bin2hex(random_bytes(8));
+  $nama_file = $id_file . '.' . $ekstensi;
+
+  $folder_tujuan = __DIR__ . '/file/' . $nama_file;
+
+  $upload = move_uploaded_file($file['tmp_name'], $folder_tujuan);
+  if(!$upload){
+    return false;
+  }
+
+  if(!catat_file($id_file, $nama_file, $ekstensi, $tabel_asal)){
+    @unlink($folder_tujuan);
+    return false;
+  }
+
+  return $id_file;
+}
+
+// ================= FUNCTION BASE URL =================
+// Menghitung base path URL proyek secara dinamis dari letak folder proyek
+// (tempat fungsi.php ini berada = root proyek) terhadap DOCUMENT_ROOT server.
+// Hasilnya otomatis menyesuaikan saat deploy: di docroot langsung -> '',
+// di subfolder (mis. /redesain-siatek) -> '/redesain-siatek'.
+// Jadi tidak perlu hardcode path dan tidak rusak pindah-pindah server.
+function base_url(){
+  // root proyek = lokasi file ini (fungsi.php ada sejajar folder "file")
+  $root = str_replace('\\', '/', rtrim((string)__DIR__, '/'));
+  $doc  = str_replace('\\', '/', rtrim((string)(getenv('DOCUMENT_ROOT') ?: ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/'));
+  if ($doc === ''){
+    // tidak dikenal (mis. CLI): fallback aman kosong
+    return '';
+  }
+  if (strpos($root . '/', $doc . '/') === 0){
+    // root proyek berada di dalam docroot -> base = sisa path setelah docroot
+    return substr($root, strlen($doc));
+  }
+  // root proyek bukan di dalam docroot: biarkan '' (pakai path absolut dari web root)
+  return '';
+}
+
+// ================= FUNCTION URL FILE =================
+// Mengubah id file (yang disimpan di kolom entitas, misal profil/foto) menjadi
+// URL publik yang bisa dipakai di atribut src, dengan lookup ke tabel "files".
+// return: string URL (mis. /redesain-siatek/file/xxx.jpg) atau '' bila kosong/tak ditemukan.
+function url_file($id_file){
+  global $koneksi;
+  $id_file = trim((string)$id_file);
+  if($id_file === ''){
+    return '';
+  }
+  $q = query("SELECT nama_file FROM files WHERE id = '" . mysqli_real_escape_string($koneksi, $id_file) . "' LIMIT 1");
+  if(!$q){
+    return '';
+  }
+  $r = mysqli_fetch_assoc($q);
+  $nama_file = trim((string)($r['nama_file'] ?? ''));
+  if($nama_file === ''){
+    return '';
+  }
+  return base_url() . '/file/' . $nama_file;
+}
