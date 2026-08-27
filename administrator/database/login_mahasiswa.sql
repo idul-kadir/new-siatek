@@ -26,5 +26,5 @@ CREATE TABLE IF NOT EXISTS `mahasiswa` (
 -- Akun contoh (dummy): NIM 521421011, password: Kuat12345
 INSERT IGNORE INTO `mahasiswa` (`nim`,`nama`,`password`,`prodi`,`angkatan`,`status`)
 VALUES ('521421011','Mohamad Ryan Noor Sahidu',
-        '$2y$10$eImiTXuWVxfM37uY4JANjQ==', -- placeholder, digenerate ulang di bawah
+        '$2y$10$qq4YdwU9wzHPH/KpMI65SuIsxKje.E3erdQq3B3nNqy0UNpKI30Nu', -- bcrypt dari "Kuat12345"
         'S1 Teknik Elektro',2021,'aktif');
