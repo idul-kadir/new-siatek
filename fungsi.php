@@ -49,9 +49,20 @@ function catat_file($id_file, $nama_file, $ekstensi, $tabel_asal){
 // ================= FUNCTION UPLOAD FILE =================
 // Dipakai di halaman yang punya fitur upload file (foto, dokumen, lampiran dll).
 // File fisik dipindahkan ke folder "file" di root project (__DIR__ = lokasi
-// fungsi.php), datanya dicatat ke tabel "files".
-// return: id file (kalau berhasil, dipakai tabel entitas) atau false (gagal).
-function upload_file($file, $tabel_asal){
+// fungsi.php), datanya dicatat/diubah di tabel "files".
+//
+// @param string $id_file (opsional)
+//   - KOSONG  = upload BARU: id unik dibuat otomatis, baris tabel "files" di-INSERT,
+//               kolom entitas (mis. profil/foto) diisi id baru.
+//   - BERISI  = MENGANTI file yang sudah ada: id TETAP dipakai (referensi kolom
+//               entitas tidak berubah), file fisik lama dihapus, lalu baris di tabel
+//               "files" di-UPDATE hanya nama_file, format_file, waktu & lokasi.
+// Karena itu id tidak harus sama dengan nama file: id adalah referensi stabil
+// tabel entitas, nama file adalah gerbang unik tiap kali file diganti.
+//
+// return: id file (kalau berhasil) atau false (gagal).
+function upload_file($file, $tabel_asal, $id_file = ''){
+  global $koneksi;
   if(!isset($file['tmp_name']) || $file['error'] != 0){
     return false;
   }
@@ -59,18 +70,50 @@ function upload_file($file, $tabel_asal){
   $nama_asli = $file['name'];
   $ekstensi  = strtolower(pathinfo($nama_asli, PATHINFO_EXTENSION));
 
-  // id file: gabungan waktu unix + string acak, praktis mustahil bentrok
-  $id_file   = time() . '_' . bin2hex(random_bytes(8));
-  $nama_file = $id_file . '.' . $ekstensi;
+  // tentukan id file
+  $id_file = trim((string)$id_file);
+  $ganti   = ($id_file !== '');
+  if(!$ganti){
+    // id file baru: gabungan waktu unix + string acak, praktis mustahil bentrok
+    $id_file = time() . '_' . bin2hex(random_bytes(8));
+  }
 
-  $folder_tujuan = __DIR__ . '/file/' . $nama_file;
+  $nama_file      = $id_file . '.' . $ekstensi;
+  $folder_tujuan  = __DIR__ . '/file/' . $nama_file;
+  $waktu          = time();
+  $lokasi         = 'file/' . $nama_file;
 
+  // mode ganti: hapus file fisik lama (nama_file lama yang tersimpan di tabel files)
+  if($ganti){
+    $rowLama = mysqli_fetch_assoc(query("SELECT nama_file FROM files WHERE id='" . mysqli_real_escape_string($koneksi, $id_file) . "' LIMIT 1"));
+    if($rowLama){
+      $lama = trim((string)($rowLama['nama_file'] ?? ''));
+      if($lama !== '' && $lama !== $nama_file){
+        $pathLama = __DIR__ . '/file/' . $lama;
+        if(file_exists($pathLama)){ @unlink($pathLama); }
+      }
+    }
+  }
+
+  // pindahkan file baru ke folder file/ root
   $upload = move_uploaded_file($file['tmp_name'], $folder_tujuan);
   if(!$upload){
     return false;
   }
 
-  if(!catat_file($id_file, $nama_file, $ekstensi, $tabel_asal)){
+  if($ganti){
+    // ubah HANYA nama_file, format_file, waktu & lokasi (id & tabel_asal tetap)
+    $ok = query(
+      "UPDATE files SET nama_file='" . bersihkan($nama_file) . "', format_file='" . bersihkan($ekstensi) . "', "
+      . "waktu_unggah=" . (int)$waktu . ", lokasi='" . bersihkan($lokasi) . "' "
+      . "WHERE id='" . bersihkan($id_file) . "'"
+    );
+  } else {
+    // upload baru: insert baris baru
+    $ok = catat_file($id_file, $nama_file, $ekstensi, $tabel_asal);
+  }
+
+  if(!$ok){
     @unlink($folder_tujuan);
     return false;
   }

@@ -109,6 +109,7 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-center gap-5">
                 <div class="relative shrink-0">
+                    <div id="avatarWrap" class="relative shrink-0">
                     <?php
                     // profil menyimpan id file di tabel files -> ubah jadi URL nyata
                     $fotoProfil = trim((string)$d['profil']);
@@ -127,9 +128,27 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                         <text x="44" y="46" fill="#fff" font-family="Inter, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="central"><?= tampil(mb_substr(preg_replace('/[^\p{L}]/u', '', explode(',', (string)$d['nama'])[0]), 0, 2)) ?></text>
                     </svg>
                     <?php } ?>
-                    <button type="button" id="btnFoto" class="btn-circle absolute -bottom-1 -right-1 bg-orange-500 text-white shadow-md hover:bg-orange-600">
-                        <i class="fas fa-camera text-xs"></i><span class="tip">Ganti Foto Profil</span>
-                    </button>
+                    </div>
+                    <?php
+                    // kendali foto: SATU tombol -> saat diklik muncul 2 pilihan (Ganti/Hapus).
+                    // Dropdown diposisikan ke kanan (right-0) dengan z-index tinggi supaya
+                    // tidak tertimpa sidebar/konten di sebelah kirinya.
+                    $adaFoto = ($srcFoto !== '');
+                    ?>
+                    <div class="absolute -bottom-1 right-0">
+                        <button type="button" id="btnFoto" class="btn-circle bg-orange-500 text-white shadow-md hover:bg-orange-600" title="Aksi Foto Profil">
+                            <i class="fas fa-camera text-xs"></i><span class="tip">Aksi Foto Profil</span>
+                        </button>
+                        <div id="menuFoto" class="hidden absolute right-0 bottom-full mb-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg z-50">
+                            <button type="button" id="menuGantiFoto" class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                <i class="fas fa-camera text-orange-500"></i>Ganti Foto
+                            </button>
+                            <button type="button" id="menuHapusFoto" <?= $adaFoto ? '' : 'disabled' ?> class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium <?= $adaFoto ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-300 cursor-not-allowed' ?>">
+                                <i class="fas fa-trash"></i>Hapus Foto
+                            </button>
+                        </div>
+                    </div>
+                    <input type="file" id="inputFoto" accept="image/*" hidden>
                 </div>
                 <div class="min-w-0 flex-1">
                     <h2 id="pfNama" class="truncate text-lg font-bold tracking-tight text-slate-800"><?= tampil($d['nama']) ?></h2>
@@ -160,8 +179,10 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         </div>
     </section>
 
-    <!-- ===== Dua Kolom: Data Akademik & Password ===== -->
-    <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <!-- ===== Dua Kolom: Data Akademik & Password =====
+         items-start: tiap card memakai tinggi sesuai isinya sendiri,
+         tidak setara/di-stretch mengikuti card sebelahnya. -->
+    <section class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
 
         <!-- Data Kepegawaian & Akademik -->
         <div class="reveal rounded-xl border border-slate-200 bg-white shadow-sm" style="animation-delay:.05s">
@@ -181,8 +202,8 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
                 </div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                        <label class="form-label" for="inNip">NIP <span class="text-[10px] font-normal text-slate-400">(tidak dapat diubah)</span></label>
-                        <input type="text" id="inNip" value="<?= tampil($d['nip']) ?>" readonly class="form-input">
+                        <label class="form-label" for="inNip">NIP</label>
+                        <input type="text" id="inNip" name="nip" value="<?= tampil($d['nip']) ?>" inputmode="numeric" class="form-input">
                     </div>
                     <div>
                         <label class="form-label" for="inNidn">NIDN</label>
@@ -432,8 +453,129 @@ $levelTeks = (string)$d['level'] === '0' ? 'Super Admin' : ((string)$d['level'] 
         }
     }
 
-    document.getElementById('btnFoto').addEventListener('click', function () {
-        showToast('Fitur unggah foto profil (dummy)', true);
+    /* ===== Aksi foto profil: satu tombol -> pilihan Ganti / Hapus ===== */
+    var btnFoto = document.getElementById('btnFoto');
+    var menuFoto = document.getElementById('menuFoto');
+    var inputFoto = document.getElementById('inputFoto');
+    var menuGanti = document.getElementById('menuGantiFoto');
+    var menuHapus = document.getElementById('menuHapusFoto');
+
+    // bangun ulang avatar jadi SVG inisial (dipakai kalau foto dihapus)
+    function avatarSvg() {
+        var nama = (document.getElementById('pfNama') || {}).textContent || '?';
+        var parts = nama.trim().split(/\s+/);
+        var inisial = (parts[0] || '?').charAt(0);
+        if (parts.length > 1 && parts[1]) inisial += parts[1].charAt(0);
+        inisial = inisial.toUpperCase() || '?';
+        return '<svg id="avY" width="88" height="88" viewBox="0 0 88 88" aria-hidden="true">'
+            + '<defs><linearGradient id="avYGrad" x1="0" y1="0" x2="88" y2="88" gradientUnits="userSpaceOnUse">'
+            + '<stop offset="0" stop-color="#1a365d"/><stop offset="1" stop-color="#f97316"/>'
+            + '</linearGradient></defs>'
+            + '<rect width="88" height="88" rx="44" fill="url(#avYGrad)"/>'
+            + '<text x="44" y="46" fill="#fff" font-family="Inter, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="central">'
+            + inisial + '</text></svg>';
+    }
+
+    // tampilkan/sembunyikan menu, beri status aktif untuk opsi hapus
+    function setMenuHapus(adaFoto) {
+        if (adaFoto) {
+            menuHapus.disabled = false;
+            menuHapus.className = 'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50';
+        } else {
+            menuHapus.disabled = true;
+            menuHapus.className = 'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-300 cursor-not-allowed';
+        }
+    }
+    function tutupMenuFoto() { menuFoto.classList.add('hidden'); }
+
+    // klik tombol kamera -> buka/tutup menu pilihan
+    btnFoto.addEventListener('click', function (e) {
+        e.stopPropagation();
+        menuFoto.classList.toggle('hidden');
+    });
+    // klik di mana pun di luar menu -> tutup
+    document.addEventListener('click', function (e) {
+        if (!menuFoto.contains(e.target)) tutupMenuFoto();
+    });
+    menuFoto.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    // pilih "Ganti Foto" -> buka dialog pilih file
+    menuGanti.addEventListener('click', function () {
+        tutupMenuFoto();
+        inputFoto.value = '';
+        inputFoto.click();
+    });
+
+    // pilih "Hapus Foto" -> AJAX hapus lalu avatar kembali ke SVG inisial
+    menuHapus.addEventListener('click', function () {
+        tutupMenuFoto();
+        if (!window.confirm('Hapus foto profil ini?')) return;
+
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: { 'hapus-foto': 1 },
+            dataType: 'json',
+            success: function (respon) {
+                if (respon.status) {
+                    document.getElementById('avatarWrap').innerHTML = avatarSvg();
+                    setMenuHapus(false);
+                    showToast(respon.pesan, false);
+                } else {
+                    showToast(respon.pesan || 'Gagal menghapus foto', true);
+                }
+            },
+            error: function () { showToast('Terjadi kesalahan pada server', true); }
+        });
+    });
+
+    // pilih file -> upload foto
+    inputFoto.addEventListener('change', function () {
+        var file = inputFoto.files && inputFoto.files[0];
+        if (!file) return;
+
+        // validasi tipe & ukuran di sisi client sebelum dikirim
+        if (!/\.(jpe?g|png|gif|webp)$/i.test(file.name)) {
+            showToast('Format file harus JPG/PNG/GIF/WEBP', true);
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            showToast('Ukuran foto maksimal 2 MB', true);
+            return;
+        }
+
+        var btn = btnFoto;
+        btn.disabled = true;
+
+        var fd = new FormData();
+        fd.append('foto', file);
+        fd.append('unggah-foto', 1);
+
+        $.ajax({
+            url: '/redesain-siatek/administrator/pages/biodata/proses.php',
+            method: 'POST',
+            data: fd,
+            contentType: false, // wajib untuk upload file
+            processData: false, // wajib untuk upload file
+            dataType: 'json',
+            success: function (respon) {
+                btn.disabled = false;
+                if (respon.status && respon.data && respon.data.foto_url) {
+                    // segarkan HANYA konten avatar, tanpa reload halaman
+                    var url = respon.data.foto_url;
+                    document.getElementById('avatarWrap').innerHTML =
+                        '<img src="' + url + '" alt="Foto Profil" class="h-[88px] w-[88px] rounded-full object-cover ring-2 ring-slate-200">';
+                    setMenuHapus(true);
+                    showToast(respon.pesan, false);
+                } else {
+                    showToast(respon.pesan || 'Gagal mengunggah foto', true);
+                }
+            },
+            error: function () {
+                btn.disabled = false;
+                showToast('Terjadi kesalahan pada server', true);
+            }
+        });
     });
 
     /* ===== Bidang Ilmu: tag input ===== */

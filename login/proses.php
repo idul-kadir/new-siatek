@@ -68,6 +68,7 @@ if (isset($_POST['masuk-login'])) {
         }
 
         session_regenerate_id(true);
+        $_SESSION['id']         = $row['id'];
         $_SESSION['user_id']    = $row['nip'];
         $_SESSION['nip']        = $row['nip'];
         $_SESSION['username']   = $row['nip'];
@@ -260,7 +261,8 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
 
     session_regenerate_id(true);
     if ($tipe === 'staf') {
-        $_SESSION['user_id']    = $akun['id'];
+        $_SESSION['id']         = $akun['id'];
+        $_SESSION['user_id']    = $akun['nip'];
         $_SESSION['nip']        = $akun['nip'];
         $_SESSION['username']   = $akun['nip'];
         $_SESSION['nama']       = $akun['nama'];
