@@ -1,10 +1,59 @@
 <?php
 /**
  * Halaman: Dokumen Akreditasi
- * Data dummy murni HTML (tanpa PHP/DB). Layout: accordion per kriteria
- * (Kriteria 1-9). JS hanya untuk: buka/tutup accordion, cari + filter kategori/tahun,
- * buka semua/tutup semua, pagination per kriteria, dan modal unggah/edit (dummy).
+ * Data dari tabel dokumen_akreditas, dikelompokkan per kriteria dari tabel
+ * kategori-akreditas. Layout: accordion per kriteria (Kriteria 1-9).
+ * JS untuk: buka/tutup accordion, cari + filter kriteria/tahun, buka semua,
+ * pagination per kriteria, modal unggah/edit (AJAX ke proses.php), hapus
+ * (konfirmasiHapus global), dan toast notifikasi.
  */
+require __DIR__ . "/../../../fungsi.php";
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// pastikan user sudah login
+$sudahLogin = !empty($_SESSION['user_id']) || !empty($_SESSION['nip']) || !empty($_SESSION['username']);
+if (!$sudahLogin) {
+    header('Location: ' . base_url() . '/');
+    exit;
+}
+
+// ================= DATA AWAL =================
+// daftar kriteria (untuk accordion + select kriteria di toolbar & modal)
+$kategoriList = [];
+$qKat = query("SELECT * FROM `kategori-akreditas` ORDER BY no ASC");
+while($k = mysqli_fetch_assoc($qKat)){ $kategoriList[] = $k; }
+
+// metadata tampilan tiap kriteria (ikon, warna, subjudul) - mengikuti desain halaman
+$metaKriteria = [
+    1 => ['ikon' => 'fa-bullseye',      'warna' => 'orange',  'sub' => 'Dokumen visi misi, renstra, dan strategi pencapaian'],
+    2 => ['ikon' => 'fa-sitemap',       'warna' => 'sky',     'sub' => 'Organisasi, SOP, dan dokumen kerjasama'],
+    3 => ['ikon' => 'fa-user-graduate', 'warna' => 'emerald', 'sub' => 'Statistik, penerimaan, beasiswa, dan layanan mahasiswa'],
+    4 => ['ikon' => 'fa-users',         'warna' => 'violet',  'sub' => 'Dosen dan tenaga kependidikan'],
+    5 => ['ikon' => 'fa-coins',         'warna' => 'indigo',  'sub' => 'Pengelolaan keuangan serta sarana prasarana'],
+    6 => ['ikon' => 'fa-book-open',     'warna' => 'amber',   'sub' => 'Kurikulum, pembelajaran, dan penilaian'],
+    7 => ['ikon' => 'fa-flask',         'warna' => 'rose',    'sub' => 'Penelitian dosen dan luaran penelitian'],
+    8 => ['ikon' => 'fa-hands-helping', 'warna' => 'teal',    'sub' => 'Pengabdian dosen dan luaran pengabdian'],
+    9 => ['ikon' => 'fa-trophy',        'warna' => 'lime',    'sub' => 'Capaian kinerja tridharma dan mutu lulusan'],
+];
+
+// dokumen dikelompokkan per kategori (join files untuk data file,
+// join dosen untuk nama pengunggah dari id yang tersimpan di kolom pengupload)
+$perKat = [];
+$qDok = query("SELECT d.*, f.format_file, f.nama_file AS nama_file_server, u.nama AS nama_user FROM dokumen_akreditas d LEFT JOIN files f ON d.lokasi = f.id LEFT JOIN dosen u ON d.pengupload = u.id ORDER BY d.kategori ASC, d.tahun DESC, d.id DESC");
+while($d = mysqli_fetch_assoc($qDok)){ $perKat[(int)$d['kategori']][] = $d; }
+
+// tahun unik untuk filter toolbar
+$tahunTersedia = [];
+$qTh = query("SELECT DISTINCT tahun FROM dokumen_akreditas ORDER BY tahun DESC");
+while($t = mysqli_fetch_assoc($qTh)){ $tahunTersedia[] = $t['tahun']; }
+
+// total dokumen untuk ringkasan awal
+$totalDok = 0;
+foreach($perKat as $arr){ $totalDok += count($arr); }
+
+// hak akses edit/hapus: pengupload sendiri ATAU level >= 5
+$levelLogin = (int)($_SESSION['level'] ?? 1);
+$idLogin    = (string)($_SESSION['id'] ?? '');
 ?>
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
@@ -85,10 +134,63 @@
     @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
     .reveal { animation: riseIn .5s cubic-bezier(.16,1,.3,1) forwards; }
     @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
-    #toastDok { position: fixed; right: 20px; bottom: 20px; z-index: 2000; display: none; align-items: center; gap: .6rem; max-width: 360px; border-radius: .75rem; background: #0f172a; color: #fff; padding: .7rem 1rem; font-size: .82rem; box-shadow: 0 12px 24px rgba(15,23,42,.25); }
-    #toastDok.show { display: flex; animation: riseIn .3s ease; }
+
+    /* Toast Notification */
+    #toastContainer {
+        position: fixed;
+        top: 1.5rem;
+        right: 1.5rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        pointer-events: none;
+    }
+    .toast-item {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1.25rem;
+        border-radius: 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #fff;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+        transform: translateX(120%);
+        opacity: 0;
+        transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+        max-width: 380px;
+    }
+    .toast-item.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    .toast-item.hide {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    .toast-success { background: linear-gradient(135deg, #059669, #10b981); }
+    .toast-error   { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .toast-info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+    .toast-icon { font-size: 1rem; flex-shrink: 0; }
+    .toast-close {
+        margin-left: auto;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1rem;
+        padding: 0;
+    }
+    .toast-close:hover { opacity: 1; }
 </style>
 <main class="content-area content-scroll">
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
 
     <!-- ===== Page Header ===== -->
     <section class="mb-5">
@@ -99,10 +201,10 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Dokumen Akreditasi</h1>
-                    <p class="text-xs text-slate-500">Dokumen pendukung akreditasi jurusan Teknik Elektro &amp; Komputer, dikelompokkan per kriteria (Kriteria 1-9).</p>
+                    <p class="text-xs text-slate-500">Dokumen pendukung akreditasi jurusan Teknik Elektro & Komputer, dikelompokkan per kriteria (Kriteria 1-9).</p>
                 </div>
             </div>
-            <button type="button" data-upload-open class="btn-circle btn-circle-lg bg-sky-500 text-white shadow-md shadow-sky-500/25 hover:bg-sky-600">
+            <button type="button" data-upload-open class="btn-circle btn-circle-lg bg-orange-500 text-white shadow-md shadow-orange-500/25 hover:bg-orange-600">
                 <i class="fas fa-plus text-sm"></i>
                 <span class="tip">Unggah Dokumen</span>
             </button>
@@ -119,21 +221,15 @@
             </div>
             <select id="fKategori" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
                 <option value="">Semua Kriteria</option>
-                <option value="c1">Kriteria 1 - Visi, Misi, Tujuan dan Strategi</option>
-                <option value="c2">Kriteria 2 - Tata Pamong, Tata Kelola dan Kerjasama</option>
-                <option value="c3">Kriteria 3 - Mahasiswa</option>
-                <option value="c4">Kriteria 4 - Sumber Daya Manusia</option>
-                <option value="c5">Kriteria 5 - Keuangan, Sarana dan Prasarana</option>
-                <option value="c6">Kriteria 6 - Pendidikan</option>
-                <option value="c7">Kriteria 7 - Penelitian</option>
-                <option value="c8">Kriteria 8 - Pengabdian kepada Masyarakat</option>
-                <option value="c9">Kriteria 9 - Luaran dan Capaian Tridharma</option>
+                <?php foreach($kategoriList as $k){ ?>
+                <option value="c<?= $k['no']; ?>">Kriteria <?= $k['no']; ?> - <?= tampil($k['keterangan']); ?></option>
+                <?php } ?>
             </select>
             <select id="fTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
                 <option value="">Semua Tahun</option>
-                <option value="2022">2022</option>
-                <option value="2021">2021</option>
-                <option value="2020">2020</option>
+                <?php foreach($tahunTersedia as $th){ ?>
+                <option value="<?= $th; ?>"><?= $th; ?></option>
+                <?php } ?>
             </select>
             <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset</button>
         </div>
@@ -141,198 +237,87 @@
 
     <!-- ===== Ringkasan + Buka/Tutup Semua ===== -->
     <section class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p class="text-xs text-slate-500">Menampilkan <b id="jmlDitemukan" class="text-slate-800">108</b> dokumen</p>
+        <p class="text-xs text-slate-500">Menampilkan <b id="jmlDitemukan" class="text-slate-800"><?= $totalDok; ?></b> dokumen</p>
         <button type="button" id="btnExpandAll" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100">
             <i class="fas fa-expand-alt text-[10px]"></i> Buka Semua
         </button>
     </section>
 
     <!-- ===== Accordion per Kriteria ===== -->
-    <section class="space-y-4">
-        <!-- KRITERIA 1 -->
-        <div class="acc-item acc-c1 reveal open" data-cat="c1">
-            <button type="button" class="acc-head" aria-expanded="true">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-lg text-orange-600"><i class="fas fa-bullseye"></i></span>
+    <section class="space-y-4" id="accordionWrap">
+        <?php $idx = 0; foreach($kategoriList as $kat){
+            $no   = (int)$kat['no'];
+            $cat  = 'c' . $no;
+            $m    = $metaKriteria[$no] ?? ['ikon' => 'fa-folder', 'warna' => 'slate', 'sub' => ''];
+            $rows = $perKat[$no] ?? [];
+            $open = ($idx === 0) ? ' open' : '';
+            $delay = ($idx > 0) ? ' style="animation-delay:.' . sprintf('%02d', $idx) . 's"' : '';
+        ?>
+        <div class="acc-item acc-c<?= $no; ?> reveal<?= $open; ?>" data-cat="<?= $cat; ?>"<?= $delay; ?>>
+            <button type="button" class="acc-head" aria-expanded="<?= $idx === 0 ? 'true' : 'false'; ?>">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-<?= $m['warna']; ?>-100 text-lg text-<?= $m['warna']; ?>-600"><i class="fas <?= $m['ikon']; ?>"></i></span>
                 <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 1 - Visi, Misi, Tujuan dan Strategi</span>
-                    <span class="block text-xs text-slate-500">Dokumen visi misi, renstra, dan strategi pencapaian</span>
+                    <span class="block text-sm font-bold text-slate-800">Kriteria <?= $no; ?> - <?= tampil($kat['keterangan']); ?></span>
+                    <span class="block text-xs text-slate-500"><?= tampil($m['sub']); ?></span>
                 </span>
-                <span class="acc-badge" id="cnt-c1">12</span>
+                <span class="acc-badge" id="cnt-<?= $cat; ?>"><?= count($rows); ?></span>
                 <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
             </button>
             <div class="acc-body">
                 <div class="acc-inner">
                     <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2021" data-cari="dokumen visi misi jurusan dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
+                        <?php foreach($rows as $data){
+                            $url = url_file($data['lokasi'] ?? '');
+                            // kelas ikon file berdasarkan format file
+                            $fmt = strtolower(trim((string)($data['format_file'] ?? '')));
+                            if(in_array($fmt, ['doc', 'docx'])){ $kelasIkon = 'file-word'; $ikon = 'fa-file-word'; }
+                            elseif(in_array($fmt, ['xls', 'xlsx', 'csv'])){ $kelasIkon = 'file-excel'; $ikon = 'fa-file-excel'; }
+                            elseif(in_array($fmt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'])){ $kelasIkon = 'file-img'; $ikon = 'fa-file-image'; }
+                            else { $kelasIkon = 'file-pdf'; $ikon = 'fa-file-pdf'; }
+                            // kelas badge jenis dokumen
+                            $jenisVal = $data['jenis'];
+                            if($jenisVal === 'SK'){ $kelasJenis = 'jenis-sk'; }
+                            elseif($jenisVal === 'Dokumen'){ $kelasJenis = 'jenis-dokumen'; }
+                            elseif($jenisVal === 'Berita Acara'){ $kelasJenis = 'jenis-berita'; }
+                            else { $kelasJenis = 'jenis-lainnya'; }
+                            $namaUpload = trim((string)($data['nama_user'] ?? $data['pengupload'] ?? ''));
+                            $cari = strtolower($data['nama'] . ' ' . $data['jenis'] . ' ' . $kat['keterangan'] . ' ' . $namaUpload);
+                        ?>
+                        <div class="dok-row" data-id="<?= $data['id']; ?>" data-tahun="<?= $data['tahun']; ?>" data-cari="<?= tampil($cari); ?>" data-file="<?= tampil($data['lokasi'] ?? ''); ?>" data-namafile="<?= tampil($data['nama_file_server'] ?? ''); ?>" data-kategori="<?= $cat; ?>" data-jenis="<?= tampil($data['jenis']); ?>" data-pengupload="<?= tampil($namaUpload); ?>" data-ptext="<?= tampil($data['nama']); ?>">
+                            <span class="file-ico <?= $kelasIkon; ?>"><i class="fas <?= $ikon; ?>"></i></span>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Visi Misi Jurusan</p>
+                                <p class="truncate text-sm font-semibold text-slate-800"><?= tampil($data['nama']); ?></p>
                                 <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
+                                    <span class="jenis-badge <?= $kelasJenis; ?>"><?= tampil($data['jenis']); ?></span>
+                                    <?php if($namaUpload !== ''): ?>
+                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600"><?= tampil($namaUpload); ?></span>
+                                    <?php endif; ?>
+                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700"><?= $data['tahun']; ?></span>
                                 </div>
                             </div>
                             <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="rencana strategis 2021-2025 dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rencana Strategis 2021-2025</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
+                                <div class="flex shrink-0 items-center gap-1.5">
+                                    <?php if($url !== ''): ?>
+                                    <a href="<?= $url; ?>" target="_blank" rel="noopener" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a>
+                                    <?php endif; ?>
+                                    <?php $bolehKelola = $levelLogin >= 5 || (string)$data['pengupload'] === $idLogin; ?>
+                                    <?php if($bolehKelola): ?>
+                                    <a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
+                                    <a href="#" class="btnHapusAkreditasi btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600" data-id="<?= $data['id']; ?>"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a>
+                                    <?php else: ?>
+                                    <span class="btn-circle bg-slate-300 text-slate-500 opacity-50 cursor-not-allowed"><i class="fas fa-pen text-xs"></i><span class="tip">Tidak berhak</span></span>
+                                    <span class="btn-circle bg-slate-300 text-slate-500 opacity-50 cursor-not-allowed"><i class="fas fa-trash text-xs"></i><span class="tip">Tidak berhak</span></span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
                         </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="rencana operasional 2021-2025 dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rencana Operasional 2021-2025</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2020" data-cari="sk penetapan visi misi jurusan sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Penetapan Visi Misi Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2020</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara sosialisasi visi misi berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Sosialisasi Visi Misi</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="matriks analisis swot dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Matriks Analisis SWOT</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2020" data-cari="sk tim penyusun renstra sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Tim Penyusun Renstra</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2020</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan evaluasi capaian renstra 2022 lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Evaluasi Capaian Renstra 2022</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="panduan mekanisme evaluasi visi misi dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Panduan Mekanisme Evaluasi Visi Misi</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan umpan balik pemangku kepentingan lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Umpan Balik Pemangku Kepentingan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2020" data-cari="berita acara penetapan visi misi berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Penetapan Visi Misi</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2020</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="dokumen strategi pencapaian dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Strategi Pencapaian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
+                        <?php } ?>
+                        <?php if(count($rows) === 0){ ?>
+                        <p class="acc-empty"><i class="fas fa-inbox"></i>Belum ada dokumen pada kriteria ini. Klik tombol <b>+</b> di kanan atas untuk mengunggah.</p>
+                        <?php } else { ?>
+                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen yang cocok.</p>
+                        <?php } ?>
+                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3<?= count($rows) === 0 ? ' hidden' : ''; ?>">
                             <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
                             <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
                             <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
@@ -341,1715 +326,176 @@
                 </div>
             </div>
         </div>
-        <!-- KRITERIA 2 -->
-        <div class="acc-item acc-c2 reveal " data-cat="c2" style="animation-delay:.01s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-lg text-sky-600"><i class="fas fa-sitemap"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 2 - Tata Pamong, Tata Kelola dan Kerjasama</span>
-                    <span class="block text-xs text-slate-500">Organisasi, SOP, dan dokumen kerjasama</span>
-                </span>
-                <span class="acc-badge" id="cnt-c2">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2020" data-cari="sk struktur organisasi jurusan sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Struktur Organisasi Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2020</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2020" data-cari="bagan organisasi jurusan dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Bagan Organisasi Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2020</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sop tata kelola jurusan dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SOP Tata Kelola Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk pengangkatan ketua jurusan sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Pengangkatan Ketua Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan kinerja jurusan lainnya sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Kinerja Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen kerjasama dalam negeri dokumen koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Kerjasama Dalam Negeri</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen kerjasama internasional dokumen koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Kerjasama Internasional</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara rapat tinjauan manajemen berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Rapat Tinjauan Manajemen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk penjaminan mutu jurusan sk gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Penjaminan Mutu Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan audit mutu internal lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Audit Mutu Internal</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="surat keputusan kerjasama mou moa sk koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Surat Keputusan Kerjasama MoU MoA</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan pelaksanaan kerjasama lainnya koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Pelaksanaan Kerjasama</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 3 -->
-        <div class="acc-item acc-c3 reveal " data-cat="c3" style="animation-delay:.02s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-lg text-emerald-600"><i class="fas fa-user-graduate"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 3 - Mahasiswa</span>
-                    <span class="block text-xs text-slate-500">Statistik, penerimaan, beasiswa, dan layanan mahasiswa</span>
-                </span>
-                <span class="acc-badge" id="cnt-c3">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="statistik mahasiswa aktif dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Statistik Mahasiswa Aktif</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar mahasiswa baru 2022 dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Mahasiswa Baru 2022</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan daya tampung dan peminat lainnya admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Daya Tampung dan Peminat</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="pedoman penerimaan mahasiswa baru dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Pedoman Penerimaan Mahasiswa Baru</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="rekapitulasi prestasi mahasiswa dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rekapitulasi Prestasi Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara pbak mahasiswa baru berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara PBAK Mahasiswa Baru</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan beasiswa mahasiswa lainnya admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Beasiswa Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data lulusan dan masa studi dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Lulusan dan Masa Studi</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="hasil tracer study lulusan lainnya koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Hasil Tracer Study Lulusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="pedoman bimbingan konseling mahasiswa dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Pedoman Bimbingan Konseling Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="statistik kelulusan tepat waktu dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Statistik Kelulusan Tepat Waktu</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="berita acara orientasi mahasiswa berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Orientasi Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 4 -->
-        <div class="acc-item acc-c4 reveal " data-cat="c4" style="animation-delay:.03s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-lg text-violet-600"><i class="fas fa-users"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 4 - Sumber Daya Manusia</span>
-                    <span class="block text-xs text-slate-500">Dosen dan tenaga kependidikan</span>
-                </span>
-                <span class="acc-badge" id="cnt-c4">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar dosen tetap dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Dosen Tetap</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar dosen tidak tetap dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Dosen Tidak Tetap</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk dosen tetap jurusan sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Dosen Tetap Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data tenaga kependidikan dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Tenaga Kependidikan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="beban kerja dosen bkd lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Beban Kerja Dosen BKD</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk mutasi dosen sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Mutasi Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sertifikat kompetensi dosen dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Sertifikat Kompetensi Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="rencana pengembangan sdm dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rencana Pengembangan SDM</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar dosen pembimbing akademik dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Dosen Pembimbing Akademik</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data kualifikasi pendidikan dosen dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Kualifikasi Pendidikan Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="sk dosen pengampu mata kuliah sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Dosen Pengampu Mata Kuliah</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan kepuasan kinerja sdm lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Kepuasan Kinerja SDM</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 5 -->
-        <div class="acc-item acc-c5 reveal " data-cat="c5" style="animation-delay:.04s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-lg text-indigo-600"><i class="fas fa-coins"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 5 - Keuangan, Sarana dan Prasarana</span>
-                    <span class="block text-xs text-slate-500">Pengelolaan keuangan serta sarana prasarana</span>
-                </span>
-                <span class="acc-badge" id="cnt-c5">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan keuangan jurusan lainnya bendahara jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Keuangan Jurusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Bendahara Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen sumber dana dokumen bendahara jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Sumber Dana</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Bendahara Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar ruang dan fasilitas dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Ruang dan Fasilitas</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="inventaris sarana dan prasarana lainnya admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Inventaris Sarana dan Prasarana</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan pemeliharaan prasarana lainnya admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Pemeliharaan Prasarana</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk pengelolaan keuangan sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Pengelolaan Keuangan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen perawatan sarana dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Perawatan Sarana</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data ketersediaan buku perpustakaan dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Ketersediaan Buku Perpustakaan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan penggunaan anggaran lainnya bendahara jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Penggunaan Anggaran</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Bendahara Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sop pengelolaan sarana prasarana dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SOP Pengelolaan Sarana Prasarana</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar peralatan laboratorium dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Peralatan Laboratorium</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan audit keuangan lainnya bendahara jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Audit Keuangan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Bendahara Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 6 -->
-        <div class="acc-item acc-c6 reveal " data-cat="c6" style="animation-delay:.05s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg text-amber-600"><i class="fas fa-book-open"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 6 - Pendidikan</span>
-                    <span class="block text-xs text-slate-500">Kurikulum, pembelajaran, dan penilaian</span>
-                </span>
-                <span class="acc-badge" id="cnt-c6">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="kurikulum jurusan 2022 dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Kurikulum Jurusan 2022</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk pembentukan tim kurikulum sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Pembentukan Tim Kurikulum</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="pedoman akademik dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Pedoman Akademik</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="contoh rps mata kuliah dokumen koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Contoh RPS Mata Kuliah</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan pelaksanaan perkuliahan lainnya sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Pelaksanaan Perkuliahan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara rapat kurikulum berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Rapat Kurikulum</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="statistik ketersediaan rps dokumen koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Statistik Ketersediaan RPS</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="laporan penyusunan kurikulum lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Penyusunan Kurikulum</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen penilaian pembelajaran dokumen koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Penilaian Pembelajaran</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="kalender akademik dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Kalender Akademik</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="konsorsium dan jejaring kurikulum lainnya koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Konsorsium dan Jejaring Kurikulum</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara monev pembelajaran berita acara gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Monev Pembelajaran</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 7 -->
-        <div class="acc-item acc-c7 reveal " data-cat="c7" style="animation-delay:.06s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-lg text-rose-600"><i class="fas fa-flask"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 7 - Penelitian</span>
-                    <span class="block text-xs text-slate-500">Penelitian dosen dan luaran penelitian</span>
-                </span>
-                <span class="acc-badge" id="cnt-c7">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar penelitian dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Penelitian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="pedoman penelitian dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Pedoman Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="sk penelitian dosen sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Penelitian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan penelitian dosen lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Penelitian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="rekapitulasi luaran penelitian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rekapitulasi Luaran Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar publikasi jurnal dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Publikasi Jurnal Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar prosiding seminar dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Prosiding Seminar</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data perolehan hibah penelitian dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Perolehan Hibah Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan monev penelitian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Monev Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data hki dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data HKI Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="sk reviewer penelitian sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Reviewer Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="evaluasi capaian penelitian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Evaluasi Capaian Penelitian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 8 -->
-        <div class="acc-item acc-c8 reveal " data-cat="c8" style="animation-delay:.07s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-lg text-teal-600"><i class="fas fa-hands-helping"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 8 - Pengabdian kepada Masyarakat</span>
-                    <span class="block text-xs text-slate-500">Pengabdian dosen dan luaran pengabdian</span>
-                </span>
-                <span class="acc-badge" id="cnt-c8">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar pengabdian dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Pengabdian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2021" data-cari="pedoman pengabdian masyarakat dokumen admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Pedoman Pengabdian Masyarakat</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="sk pelaksanaan pengabdian sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">SK Pelaksanaan Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan pengabdian masyarakat lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Pengabdian Masyarakat</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="rekapitulasi luaran pengabdian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rekapitulasi Luaran Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data kkn mahasiswa dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data KKN Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data hibah pengabdian dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Hibah Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="publikasi hasil pengabdian dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Publikasi Hasil Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan monev pengabdian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Monev Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara kegiatan pengabdian berita acara sekretaris jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Kegiatan Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Sekretaris Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="dokumen pelatihan dan pendampingan dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Dokumen Pelatihan dan Pendampingan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="evaluasi capaian pengabdian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Evaluasi Capaian Pengabdian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- KRITERIA 9 -->
-        <div class="acc-item acc-c9 reveal " data-cat="c9" style="animation-delay:.08s">
-            <button type="button" class="acc-head" aria-expanded="false">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lg text-lime-600"><i class="fas fa-trophy"></i></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-bold text-slate-800">Kriteria 9 - Luaran dan Capaian Tridharma</span>
-                    <span class="block text-xs text-slate-500">Capaian kinerja tridharma dan mutu lulusan</span>
-                </span>
-                <span class="acc-badge" id="cnt-c9">12</span>
-                <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-            </button>
-            <div class="acc-body">
-                <div class="acc-inner">
-                    <div class="space-y-2.5 border-t border-slate-100 bg-slate-50/60 p-4">
-                        <div class="dok-row" data-tahun="2021" data-cari="sertifikat akreditasi program studi sk admin akreditasi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Sertifikat Akreditasi Program Studi</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-sk">SK</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Akreditasi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2021</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="capaian ipk mahasiswa dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Capaian IPK Mahasiswa</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data kinerja penelitian dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Kinerja Penelitian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data kinerja pengabdian dosen dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Kinerja Pengabdian Dosen</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="rekapitulasi hki dan paten dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Rekapitulasi HKI dan Paten</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="daftar publikasi internasional dokumen gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Daftar Publikasi Internasional</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="skoring dan matriks capaian lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Skoring dan Matriks Capaian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="laporan evaluasi diri lainnya gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Laporan Evaluasi Diri</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="data mutu lulusan dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Data Mutu Lulusan</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="statistik kualifikasi dosen s2 s3 dokumen admin prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Statistik Kualifikasi Dosen S2 S3</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-dokumen">Dokumen</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Admin Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="berita acara verifikasi capaian berita acara gkm jurusan">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Berita Acara Verifikasi Capaian</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-berita">Berita Acara</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">GKM Jurusan</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <div class="dok-row" data-tahun="2022" data-cari="tabel capaian sembilan kriteria lainnya koordinator prodi">
-                            <span class="file-ico file-pdf"><i class="fas fa-file-pdf"></i></span>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-semibold text-slate-800">Tabel Capaian Sembilan Kriteria</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <span class="jenis-badge jenis-lainnya">Lainnya</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Koordinator Prodi</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">2022</span>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                                <div class="flex shrink-0 items-center gap-1.5"><a href="#" class="btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-download text-xs"></i><span class="tip">Unduh</span></a><a href="#" data-edit-open class="btn-circle bg-sky-600 text-white shadow-sm hover:bg-sky-700"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a><a href="#" class="btn-circle bg-red-500 text-white shadow-sm hover:bg-red-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></a></div>
-                            </div>
-                        </div>
-                        <p class="acc-empty hidden"><i class="fas fa-inbox"></i>Tidak ada dokumen  yang cocok.</p>
-                        <div class="acc-pager flex items-center justify-between border-t border-slate-100 pt-3">
-                            <button type="button" class="pg-btn pg-prev"><i class="fas fa-chevron-left text-xs"></i></button>
-                            <p class="pg-label text-xs font-semibold text-slate-500">Halaman 1 / 1</p>
-                            <button type="button" class="pg-btn pg-next"><i class="fas fa-chevron-right text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <?php $idx++; } ?>
     </section>
 
 </main>
 
-<!-- ===== Modal Unggah Dokumen (dummy) ===== -->
+<!-- ===== Modal Unggah Dokumen ===== -->
 <div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
             <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-upload mr-1 text-[#0ea5e9]"></i>Unggah Dokumen Akreditasi</h6>
             <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-upload-close>&times;</button>
         </div>
-        <form id="formUpload" class="p-5 space-y-4">
+        <form id="formUpload" enctype="multipart/form-data" class="p-5 space-y-4">
             <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">Nama / Judul Dokumen</label>
-                <input type="text" required placeholder="mis. SK Penetapan Visi Misi Jurusan"
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Nama / Judul Dokumen <span class="text-red-500">*</span></label>
+                <input type="text" id="inpNama" name="nama" required placeholder="mis. SK Penetapan Visi Misi Jurusan"
                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Kriteria</label>
-                    <select class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option>Kriteria 1 - Visi, Misi, Tujuan dan Strategi</option>
-                        <option>Kriteria 2 - Tata Pamong, Tata Kelola dan Kerjasama</option>
-                        <option>Kriteria 3 - Mahasiswa</option>
-                        <option>Kriteria 4 - Sumber Daya Manusia</option>
-                        <option>Kriteria 5 - Keuangan, Sarana dan Prasarana</option>
-                        <option>Kriteria 6 - Pendidikan</option>
-                        <option>Kriteria 7 - Penelitian</option>
-                        <option>Kriteria 8 - Pengabdian kepada Masyarakat</option>
-                        <option>Kriteria 9 - Luaran dan Capaian Tridharma</option>
+                    <select id="inpKriteria" name="kategori" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <?php foreach($kategoriList as $k){ ?>
+                        <option value="<?= $k['no']; ?>">Kriteria <?= $k['no']; ?> - <?= tampil($k['keterangan']); ?></option>
+                        <?php } ?>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Jenis Dokumen</label>
-                    <select class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                    <select id="inpJenis" name="jenis" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
                         <option>SK</option><option>Dokumen</option><option>Berita Acara</option><option>Lainnya</option>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Tahun</label>
-                    <select class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option>2022</option><option>2021</option><option>2020</option>
+                    <select id="inpTahun" name="tahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <?php for($y = date('Y'); $y >= 2000; $y--){ ?>
+                        <option value="<?= $y; ?>"><?= $y; ?></option>
+                        <?php } ?>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Pengunggah</label>
-                    <input type="text" id="inpPengunggah" value="Admin Akreditasi" readonly disabled
+                    <input type="text" id="inpPengunggah" value="<?= tampil($_SESSION['nama'] ?? 'Sistem'); ?>" readonly disabled
                            class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 outline-none cursor-not-allowed">
                 </div>
             </div>
             <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">File Dokumen</label>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">File Dokumen <span class="text-red-500">*</span></label>
                 <div class="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3">
                     <i class="fas fa-file-pdf text-slate-400"></i>
                     <span id="namaFile" class="text-sm text-slate-500">Belum ada file dipilih</span>
                     <label class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700">
                         <i class="fas fa-folder-open text-xs"></i> Pilih File
-                        <input type="file" id="inpFile" accept="application/pdf,.pdf" class="hidden">
+                        <input type="file" id="inpFile" name="file_upload" accept="application/pdf,.pdf" class="hidden" required>
                     </label>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-1">
                 <button type="button" data-upload-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white font-medium">Simpan Dokumen</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Dokumen</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- ===== Modal Edit Dokumen (dummy) ===== -->
+<!-- ===== Modal Edit Dokumen ===== -->
 <div class="modal-overlay" id="editModal" role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
             <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-pen mr-1 text-[#0ea5e9]"></i>Edit Dokumen Akreditasi</h6>
             <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-edit-close>&times;</button>
         </div>
-        <form id="formEdit" class="p-5 space-y-4">
+        <form id="formEdit" enctype="multipart/form-data" class="p-5 space-y-4">
+            <input type="hidden" name="id" id="inpEditId" value="">
+            <input type="hidden" name="file_lama" id="inpEditFileLama" value="">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Nama / Judul Dokumen</label>
-                <input type="text" id="inpEditNama" required placeholder="mis. SK Penetapan Visi Misi Jurusan"
+                <input type="text" id="inpEditNama" name="nama" required placeholder="mis. SK Penetapan Visi Misi Jurusan"
                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:bg-white">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Kriteria</label>
-                    <select id="inpEditKriteria" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option>Kriteria 1 - Visi, Misi, Tujuan dan Strategi</option>
-                        <option>Kriteria 2 - Tata Pamong, Tata Kelola dan Kerjasama</option>
-                        <option>Kriteria 3 - Mahasiswa</option>
-                        <option>Kriteria 4 - Sumber Daya Manusia</option>
-                        <option>Kriteria 5 - Keuangan, Sarana dan Prasarana</option>
-                        <option>Kriteria 6 - Pendidikan</option>
-                        <option>Kriteria 7 - Penelitian</option>
-                        <option>Kriteria 8 - Pengabdian kepada Masyarakat</option>
-                        <option>Kriteria 9 - Luaran dan Capaian Tridharma</option>
+                    <select id="inpEditKriteria" name="kategori" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <?php foreach($kategoriList as $k){ ?>
+                        <option value="<?= $k['no']; ?>">Kriteria <?= $k['no']; ?> - <?= tampil($k['keterangan']); ?></option>
+                        <?php } ?>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Jenis Dokumen</label>
-                    <select id="inpEditJenis" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                    <select id="inpEditJenis" name="jenis" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
                         <option>SK</option><option>Dokumen</option><option>Berita Acara</option><option>Lainnya</option>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Tahun</label>
-                    <select id="inpEditTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option>2022</option><option>2021</option><option>2020</option>
+                    <select id="inpEditTahun" name="tahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <?php for($y = date('Y'); $y >= 2000; $y--){ ?>
+                        <option value="<?= $y; ?>"><?= $y; ?></option>
+                        <?php } ?>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Pengunggah</label>
-                    <input type="text" value="Admin Akreditasi" readonly disabled
+                    <input type="text" value="<?= tampil($_SESSION['nama'] ?? 'Sistem'); ?>" readonly disabled
                            class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 outline-none cursor-not-allowed">
                 </div>
             </div>
             <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">File Dokumen</label>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">File Dokumen <span class="text-red-500">*</span></label>
                 <div class="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3">
                     <i class="fas fa-file-pdf text-slate-400"></i>
                     <span id="namaFileEdit" class="text-sm text-slate-500">File lama - ganti jika perlu</span>
                     <label class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700">
                         <i class="fas fa-folder-open text-xs"></i> Pilih File
-                        <input type="file" id="inpEditFile" accept="application/pdf,.pdf" class="hidden">
+                        <input type="file" id="inpEditFile" name="file_upload" accept="application/pdf,.pdf" class="hidden">
                     </label>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-1">
                 <button type="button" data-edit-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white font-medium">Simpan Perubahan</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Perubahan</button>
             </div>
         </form>
     </div>
 </div>
 
-<div id="toastDok"><i class="fas fa-circle-check text-emerald-400"></i><span id="toastTeks"></span></div>
-
 <script>
-(function () {
-    "use strict";
-    var items = Array.prototype.slice.call(document.querySelectorAll(".acc-item"));
-    var fCari = document.getElementById("fCari");
-    var fTahun = document.getElementById("fTahun");
-    var fKategori = document.getElementById("fKategori");
-    var btnReset = document.getElementById("btnReset");
-    var btnExpandAll = document.getElementById("btnExpandAll");
-    var jmlEl = document.getElementById("jmlDitemukan");
+    var BASE_URL = '<?= base_url(); ?>';
+    var PROSES_URL = BASE_URL + '/administrator/pages/jurusan/akreditasi/proses.php';
+    var PAGE_SIZE = 5;
     var semuaTerbuka = false;
 
+    /* ===== Toast Notification ===== */
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        var container = document.getElementById('toastContainer');
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe;
+        var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span>' + pesan + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'hide\');setTimeout(function(){item.remove()},350)">&times;</button>';
+        container.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.add('show'); });
+        setTimeout(function(){ item.classList.add('hide'); setTimeout(function(){ item.remove(); }, 350); }, 4000);
+    }
+
+    /* ===== Accordion: buka/tutup ===== */
     function setOpen(it, open) {
         it.classList.toggle("open", open);
         var h = it.querySelector(".acc-head");
         if (h) h.setAttribute("aria-expanded", open ? "true" : "false");
     }
-    function openAll(open) {
-        semuaTerbuka = open;
-        items.forEach(function (it) { setOpen(it, open); });
-        if (btnExpandAll) btnExpandAll.innerHTML = open
+    function updateExpandBtn() {
+        var btnExpandAll = document.getElementById("btnExpandAll");
+        if (btnExpandAll) btnExpandAll.innerHTML = semuaTerbuka
             ? "<i class=\"fas fa-compress-alt text-[10px]\"></i> Tutup Semua"
             : "<i class=\"fas fa-expand-alt text-[10px]\"></i> Buka Semua";
     }
+    function openAll(open) {
+        semuaTerbuka = open;
+        document.querySelectorAll(".acc-item").forEach(function (it) { setOpen(it, open); });
+        updateExpandBtn();
+    }
 
-    items.forEach(function (it) {
-        var h = it.querySelector(".acc-head");
-        if (h) h.addEventListener("click", function () {
-            setOpen(it, !it.classList.contains("open"));
-            semuaTerbuka = false;
-            if (btnExpandAll) btnExpandAll.innerHTML = "<i class=\"fas fa-expand-alt text-[10px]\"></i> Buka Semua";
-        });
-    });
-    if (btnExpandAll) btnExpandAll.addEventListener("click", function () { openAll(!semuaTerbuka); });
-
+    /* ===== Filter + pagination per kriteria ===== */
     function cocok(row) {
+        var fCari = document.getElementById("fCari");
+        var fTahun = document.getElementById("fTahun");
         var kata = (fCari && fCari.value || "").toLowerCase().trim();
         var thn = fTahun ? fTahun.value : "";
         if (kata !== "" && ((row.getAttribute("data-cari") || "").toLowerCase().indexOf(kata) === -1)) return false;
@@ -2057,9 +503,8 @@
         return true;
     }
 
-    var PAGE_SIZE = 5;
-
     function renderItem(it) {
+        var fKategori = document.getElementById("fKategori");
         var kat = fKategori ? fKategori.value : "";
         var cat = it.getAttribute("data-cat");
         var catMatch = kat === "" || kat === cat;
@@ -2070,9 +515,24 @@
             r.style.display = show ? "" : "none";
             if (show) tampil.push(r);
         });
-        it.style.display = catMatch ? "" : "none";
+        // display diatur di render(); renderItem hanya atur tampil/sembunyi baris dalam
+        // pesan kosong: bedakan kriteria memang kosong vs filter tidak menemukan apa pun
+        var semua = it.querySelectorAll(".dok-row").length;
         var empty = it.querySelector(".acc-empty");
-        if (empty) empty.classList.toggle("hidden", tampil.length > 0);
+        if (empty) {
+            if (semua === 0) {
+                empty.innerHTML = '<i class="fas fa-inbox"></i>Belum ada dokumen pada kriteria ini. Klik tombol <b>+</b> di kanan atas untuk mengunggah.';
+                empty.classList.remove("hidden");
+            } else if (tampil.length === 0) {
+                empty.innerHTML = '<i class="fas fa-inbox"></i>Tidak ada dokumen yang cocok dengan pencarian/filter.';
+                empty.classList.remove("hidden");
+            } else {
+                empty.classList.add("hidden");
+            }
+        }
+        // pagination disembunyikan saat tidak ada baris yang tampil
+        var pager = it.querySelector(".acc-pager");
+        if (pager) pager.classList.toggle("hidden", tampil.length === 0);
         var totalHal = Math.max(1, Math.ceil(tampil.length / PAGE_SIZE));
         var page = parseInt(it.getAttribute("data-page") || "1", 10);
         if (page < 1) page = 1;
@@ -2093,126 +553,257 @@
     }
 
     function render() {
+        var jmlEl = document.getElementById("jmlDitemukan");
+        var fCari = document.getElementById("fCari");
+        var fTahun = document.getElementById("fTahun");
+        var fKategori = document.getElementById("fKategori");
         var total = 0;
         var adaFilter = Boolean((fCari && fCari.value) || (fTahun && fTahun.value) || (fKategori && fKategori.value));
-        items.forEach(function (it) {
+        document.querySelectorAll(".acc-item").forEach(function (it) {
             var n = renderItem(it);
             total += n;
-            if (adaFilter) setOpen(it, n > 0);
+            // saat filter aktif, kriteria tanpa hasil yang tampil disembunyikan;
+            // tanpa filter, kriteria kosong tetap tampil (agar tombol unggah terlihat)
+            if (adaFilter) {
+                setOpen(it, n > 0);
+                it.style.display = n > 0 ? "" : "none";
+            } else {
+                it.style.display = "";
+            }
         });
         if (jmlEl) jmlEl.textContent = total.toLocaleString("id-ID");
     }
 
     function resetPages() {
-        items.forEach(function (it) { it.setAttribute("data-page", "1"); });
+        document.querySelectorAll(".acc-item").forEach(function (it) { it.setAttribute("data-page", "1"); });
     }
 
-    items.forEach(function (it) {
-        var prev = it.querySelector(".pg-prev");
-        var next = it.querySelector(".pg-next");
-        if (prev) prev.addEventListener("click", function () {
-            it.setAttribute("data-page", Math.max(1, parseInt(it.getAttribute("data-page") || "1", 10) - 1));
-            renderItem(it);
-        });
-        if (next) next.addEventListener("click", function () {
-            it.setAttribute("data-page", parseInt(it.getAttribute("data-page") || "1", 10) + 1);
-            renderItem(it);
-        });
+    /* ===== Delegasi klik (tahan terhadap reload konten accordion) ===== */
+    document.addEventListener("click", function (e) {
+        // buka/tutup accordion
+        var head = e.target.closest(".acc-head");
+        if (head) {
+            var itAcc = head.closest(".acc-item");
+            setOpen(itAcc, !itAcc.classList.contains("open"));
+            semuaTerbuka = false;
+            updateExpandBtn();
+            return;
+        }
+        // pagination per kriteria
+        var prev = e.target.closest(".pg-prev");
+        if (prev) {
+            var itP = prev.closest(".acc-item");
+            itP.setAttribute("data-page", Math.max(1, parseInt(itP.getAttribute("data-page") || "1", 10) - 1));
+            renderItem(itP);
+            return;
+        }
+        var next = e.target.closest(".pg-next");
+        if (next) {
+            var itN = next.closest(".acc-item");
+            itN.setAttribute("data-page", parseInt(itN.getAttribute("data-page") || "1", 10) + 1);
+            renderItem(itN);
+            return;
+        }
+        // tombol edit di baris dokumen
+        var editBtn = e.target.closest("[data-edit-open]");
+        if (editBtn) {
+            isiFormEdit(editBtn.closest(".dok-row"));
+            return;
+        }
+        // tombol hapus di baris dokumen
+        var hapusBtn = e.target.closest(".btnHapusAkreditasi");
+        if (hapusBtn) {
+            var row = hapusBtn.closest(".dok-row");
+            var nama = row ? (row.getAttribute("data-ptext") || "dokumen ini") : "dokumen ini";
+            var id = hapusBtn.getAttribute("data-id");
+            if (typeof konfirmasiHapus === "function") {
+                konfirmasiHapus(nama, function () { hapusDokumen(id); });
+            } else {
+                toast("Fungsi konfirmasi tidak tersedia", "error");
+            }
+            return;
+        }
     });
 
-    if (fCari) fCari.addEventListener("input", function () { resetPages(); render(); });
-    if (fTahun) fTahun.addEventListener("change", function () { resetPages(); render(); });
-    if (fKategori) fKategori.addEventListener("change", function () { resetPages(); render(); });
-    if (btnReset) btnReset.addEventListener("click", function () {
-        if (fCari) fCari.value = "";
-        if (fTahun) fTahun.value = "";
-        if (fKategori) fKategori.value = "";
-        openAll(false);
+    /* ===== Toolbar: cari + filter + reset ===== */
+    (function () {
+        var fCari = document.getElementById("fCari");
+        var fTahun = document.getElementById("fTahun");
+        var fKategori = document.getElementById("fKategori");
+        var btnReset = document.getElementById("btnReset");
+        var btnExpandAll = document.getElementById("btnExpandAll");
+
+        if (fCari) fCari.addEventListener("input", function () { resetPages(); render(); });
+        if (fTahun) fTahun.addEventListener("change", function () { resetPages(); render(); });
+        if (fKategori) fKategori.addEventListener("change", function () { resetPages(); render(); });
+        if (btnExpandAll) btnExpandAll.addEventListener("click", function () { openAll(!semuaTerbuka); });
+        if (btnReset) btnReset.addEventListener("click", function () {
+            if (fCari) fCari.value = "";
+            if (fTahun) fTahun.value = "";
+            if (fKategori) fKategori.value = "";
+            openAll(false);
+            var items = document.querySelectorAll(".acc-item");
+            if (items[0]) setOpen(items[0], true);
+            resetPages();
+            render();
+        });
+    })();
+
+    /* ===== Reload konten accordion saja lewat AJAX (tanpa reload halaman) ===== */
+    function muatUlangTabel() {
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { 'ambil-tabel-akreditasi': 1 },
+            dataType: 'json',
+            success: function (respon) {
+                if (respon.status) {
+                    $('#accordionWrap').html(respon.data);
+                    resetPages();
+                    render();
+                }
+            },
+            error: function () {
+                toast('Terjadi kesalahan pada server', 'error');
+            }
+        });
+    }
+
+    /* ===== Hapus dokumen ===== */
+    function hapusDokumen(id) {
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { 'hapus-data-akreditasi': 1, id: id },
+            dataType: 'json',
+            success: function (respon) {
+                toast(respon.pesan, respon.status ? 'success' : 'error');
+                if (respon.status) muatUlangTabel();
+            },
+            error: function () {
+                toast('Terjadi kesalahan pada server', 'error');
+            }
+        });
+    }
+
+    /* ===== Modal Unggah ===== */
+    (function () {
+        var modal = document.getElementById("uploadModal");
+        var inpFile = document.getElementById("inpFile");
+        var namaFile = document.getElementById("namaFile");
+
+        if (inpFile) inpFile.addEventListener("change", function () {
+            if (namaFile) namaFile.textContent = inpFile.files && inpFile.files[0] ? inpFile.files[0].name : "Belum ada file dipilih";
+        });
+        document.querySelectorAll("[data-upload-open]").forEach(function (b) {
+            b.addEventListener("click", function () { if (modal) modal.classList.add("show"); });
+        });
+        document.querySelectorAll("[data-upload-close]").forEach(function (b) {
+            b.addEventListener("click", function () { if (modal) modal.classList.remove("show"); });
+        });
+        // tutup modal saat klik overlay
+        modal.addEventListener("click", function (e) {
+            if (e.target === modal) modal.classList.remove("show");
+        });
+
+         // kirim form tambah dokumen lewat AJAX (FormData karena ada input file)
+         $('#formUpload').on('submit', function (e) {
+             e.preventDefault();
+             var form = this;
+             var data = new FormData(form);
+             data.append('tambah-data-akreditasi', 1);
+
+             $.ajax({
+                 url: PROSES_URL,
+                 method: 'POST',
+                 data: data,
+                 contentType: false,
+                 processData: false,
+                 dataType: 'json',
+                 success: function (respon) {
+                     toast(respon.pesan, respon.status ? 'success' : 'error');
+                     if (respon.status) {
+                         if (modal) modal.classList.remove('show');
+                         form.reset();
+                         if (namaFile) namaFile.textContent = 'Belum ada file dipilih';
+                         muatUlangTabel();
+                     }
+                 },
+                 error: function (xhr, status, error) {
+                     toast('Terjadi kesalahan pada server: ' + error, 'error');
+                 }
+             });
+         });
+     })();
+
+    /* ===== Modal Edit ===== */
+    (function () {
+        var modalEdit = document.getElementById("editModal");
+        var inpEditFile = document.getElementById("inpEditFile");
+        var namaFileEdit = document.getElementById("namaFileEdit");
+
+        document.querySelectorAll("[data-edit-close]").forEach(function (b) {
+            b.addEventListener("click", function () { if (modalEdit) modalEdit.classList.remove("show"); });
+        });
+
+        // isi form edit dari atribut data-* baris dokumen yang diklik
+        window.isiFormEdit = function (row) {
+            if (!row || !modalEdit) return;
+            document.getElementById("inpEditId").value = row.getAttribute("data-id") || "";
+            document.getElementById("inpEditNama").value = row.getAttribute("data-ptext") || "";
+            var kat = (row.getAttribute("data-kategori") || "c1").replace("c", "");
+            document.getElementById("inpEditKriteria").value = kat;
+            var jenis = row.getAttribute("data-jenis") || "";
+            var selJenis = document.getElementById("inpEditJenis");
+            for (var o = 0; o < selJenis.options.length; o++) {
+                if (selJenis.options[o].text === jenis) { selJenis.selectedIndex = o; break; }
+            }
+            document.getElementById("inpEditTahun").value = row.getAttribute("data-tahun") || "";
+            document.getElementById("inpEditFileLama").value = row.getAttribute("data-file") || "";
+            var nf = row.getAttribute("data-namafile") || "";
+            if (namaFileEdit) namaFileEdit.textContent = nf !== "" ? nf : "Belum ada file - pilih jika perlu";
+            if (inpEditFile) inpEditFile.value = "";
+            modalEdit.classList.add("show");
+        };
+
+        if (inpEditFile) inpEditFile.addEventListener("change", function () {
+            if (namaFileEdit) namaFileEdit.textContent = inpEditFile.files && inpEditFile.files[0] ? inpEditFile.files[0].name : "File lama - ganti jika perlu";
+        });
+
+        // kirim form edit dokumen lewat AJAX (FormData karena ada input file)
+        $('#formEdit').on('submit', function (e) {
+            e.preventDefault();
+            var form = this;
+            var data = new FormData(form);
+            data.append('edit-data-akreditasi', 1);
+
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: data,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function (respon) {
+                    toast(respon.pesan, respon.status ? 'success' : 'error');
+                    if (respon.status) {
+                        if (modalEdit) modalEdit.classList.remove('show');
+                        form.reset();
+                        if (inpEditFile) inpEditFile.value = '';
+                        muatUlangTabel();
+                    }
+                },
+                error: function () {
+                    toast('Terjadi kesalahan pada server', 'error');
+                }
+            });
+        });
+    })();
+
+    /* ===== Inisialisasi tampilan awal ===== */
+    (function () {
+        var items = document.querySelectorAll(".acc-item");
         if (items[0]) setOpen(items[0], true);
-        resetPages();
         render();
-    });
-
-    var modal = document.getElementById("uploadModal");
-    var inpFile = document.getElementById("inpFile");
-    var namaFile = document.getElementById("namaFile");
-    if (inpFile) inpFile.addEventListener("change", function () {
-        if (namaFile) namaFile.textContent = inpFile.files && inpFile.files[0] ? inpFile.files[0].name : "Belum ada file dipilih";
-    });
-    document.querySelectorAll("[data-upload-open]").forEach(function (b) {
-        b.addEventListener("click", function () { if (modal) modal.classList.add("show"); });
-    });
-    document.querySelectorAll("[data-upload-close]").forEach(function (b) {
-        b.addEventListener("click", function () { if (modal) modal.classList.remove("show"); });
-    });
-    var form = document.getElementById("formUpload");
-    if (form) form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        if (modal) modal.classList.remove("show");
-        var toast = document.getElementById("toastDok");
-        var teks = document.getElementById("toastTeks");
-        if (teks) teks.textContent = "Dokumen disimpan (dummy) - belum terhubung ke server.";
-        if (toast) { toast.classList.add("show"); setTimeout(function () { toast.classList.remove("show"); }, 2800); }
-        form.reset();
-        if (namaFile) namaFile.textContent = "Belum ada file dipilih";
-    });
-
-    var modalEdit = document.getElementById("editModal");
-    var inpEditNama = document.getElementById("inpEditNama");
-    var inpEditFile = document.getElementById("inpEditFile");
-    var inpEditKriteria = document.getElementById("inpEditKriteria");
-    var inpEditJenis = document.getElementById("inpEditJenis");
-    var inpEditTahun = document.getElementById("inpEditTahun");
-    document.querySelectorAll("[data-edit-open]").forEach(function (b) {
-        b.addEventListener("click", function () {
-            var row = b.closest(".dok-row");
-            if (!row) return;
-            var judul = row.querySelector("p.truncate");
-            if (inpEditNama) inpEditNama.value = judul ? judul.textContent : "";
-            var acc = row.closest(".acc-item");
-            if (inpEditKriteria && acc) {
-                var num = parseInt((acc.getAttribute("data-cat") || "c1").replace("c", ""), 10) || 1;
-                if (inpEditKriteria.options[num - 1]) inpEditKriteria.selectedIndex = num - 1;
-            }
-            if (inpEditJenis) {
-                var jb = row.querySelector(".jenis-badge");
-                var jenis = jb ? jb.textContent.trim() : "";
-                for (var o = 0; o < inpEditJenis.options.length; o++) {
-                    if (inpEditJenis.options[o].text === jenis) { inpEditJenis.selectedIndex = o; break; }
-                }
-            }
-            if (inpEditTahun) {
-                var chips = row.querySelectorAll(".rounded-full");
-                var thn = "";
-                for (var c = 0; c < chips.length; c++) {
-                    var txt = chips[c].textContent.trim();
-                    if (/^\d{4}$/.test(txt)) { thn = txt; break; }
-                }
-                for (var o2 = 0; o2 < inpEditTahun.options.length; o2++) {
-                    if (inpEditTahun.options[o2].text === thn) { inpEditTahun.selectedIndex = o2; break; }
-                }
-            }
-            var nfe = document.getElementById("namaFileEdit");
-            if (nfe) nfe.textContent = "File lama (PDF) - ganti jika perlu";
-            if (modalEdit) modalEdit.classList.add("show");
-        });
-    });
-    document.querySelectorAll("[data-edit-close]").forEach(function (b) {
-        b.addEventListener("click", function () { if (modalEdit) modalEdit.classList.remove("show"); });
-    });
-    var formEdit = document.getElementById("formEdit");
-    if (formEdit) formEdit.addEventListener("submit", function (e) {
-        e.preventDefault();
-        if (modalEdit) modalEdit.classList.remove("show");
-        var toast = document.getElementById("toastDok");
-        var teks = document.getElementById("toastTeks");
-        if (teks) teks.textContent = "Perubahan disimpan (dummy) - belum terhubung ke server.";
-        if (toast) { toast.classList.add("show"); setTimeout(function () { toast.classList.remove("show"); }, 2800); }
-        formEdit.reset();
-        if (inpEditFile) inpEditFile.value = "";
-    });
-
-    if (items[0]) setOpen(items[0], true);
-    render();
-})();
+    })();
 </script>

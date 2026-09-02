@@ -345,6 +345,9 @@ $activePage = $pageKey;
             <!-- Top Navbar (statis) -->
             <?php include __DIR__ . '/components/top-navbar.php'; ?>
 
+            <!-- jQuery (WAJIB sebelum konten — script halaman pakai $) -->
+            <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
             <!-- ===== KONTEN DINAMIS (hanya bagian ini yang berubah) ===== -->
             <?php include $pageFile; ?>
 
@@ -392,8 +395,6 @@ $activePage = $pageKey;
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- jQuery (dipakai untuk AJAX di halaman konten, contoh: biodata) -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- Local JS -->
     <script src="js/dashboard.js"></script>
 

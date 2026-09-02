@@ -115,7 +115,7 @@
             <button type="button" class="tab-btn" data-tab="JUMAT"><i class="fas fa-calendar-day text-[11px]"></i>Jumat<span class="tnum">0</span></button>
             <button type="button" class="tab-btn" data-tab="SABTU"><i class="fas fa-calendar-day text-[11px]"></i>Sabtu<span class="tnum">0</span></button>
             <button type="button" class="tab-btn" data-tab="UNDEFINED"><i class="fas fa-question text-[11px]"></i>Undefined<span class="tnum">192</span></button>
-            <button type="button" id="btnTambah" class="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"><i class="fas fa-plus"></i> Tambah Jadwal</button>
+            <button type="button" id="btnTambah" class="inline-flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"><i class="fas fa-plus"></i> Tambah Jadwal</button>
             <button type="button" id="btnReset" class="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><i class="fas fa-rotate"></i> Reset</button>
         </div>
     </section>
@@ -4783,7 +4783,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" id="btnTambahRuang" class="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"><i class="fas fa-plus"></i> Tambah Ruangan</button>
+                <button type="button" id="btnTambahRuang" class="inline-flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"><i class="fas fa-plus"></i> Tambah Ruangan</button>
                 <button type="button" id="btnKembaliJadwal" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><i class="fas fa-arrow-left"></i> Kembali ke Jadwal</button>
             </div>
         </div>
