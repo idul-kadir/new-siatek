@@ -52,13 +52,13 @@ function catat_file($id_file, $nama_file, $ekstensi, $tabel_asal){
 // fungsi.php), datanya dicatat/diubah di tabel "files".
 //
 // @param string $id_file (opsional)
-//   - KOSONG  = upload BARU: id unik dibuat otomatis, baris tabel "files" di-INSERT,
-//               kolom entitas (mis. profil/foto) diisi id baru.
+//   - KOSONG  = upload BARU: id unik + nama file dibuat otomatis, baris tabel "files"
+//               di-INSERT, kolom entitas (mis. profil/foto) diisi id baru.
 //   - BERISI  = MENGANTI file yang sudah ada: id TETAP dipakai (referensi kolom
-//               entitas tidak berubah), file fisik lama dihapus, lalu baris di tabel
-//               "files" di-UPDATE hanya nama_file, format_file, waktu & lokasi.
-// Karena itu id tidak harus sama dengan nama file: id adalah referensi stabil
-// tabel entitas, nama file adalah gerbang unik tiap kali file diganti.
+//               entitas tidak berubah), tapi nama file fisik SELALU BARU
+//               (id_file + suffix timestamp + random) supaya browser tidak cache.
+//               File fisik lama dihapus, baris di tabel "files" di-UPDATE
+//               nama_file, format_file, waktu & lokasi.
 //
 // return: id file (kalau berhasil) atau false (gagal).
 function upload_file($file, $tabel_asal, $id_file = ''){
@@ -69,19 +69,22 @@ function upload_file($file, $tabel_asal, $id_file = ''){
 
   $nama_asli = $file['name'];
   $ekstensi  = strtolower(pathinfo($nama_asli, PATHINFO_EXTENSION));
+  $waktu     = time();
 
   // tentukan id file
   $id_file = trim((string)$id_file);
   $ganti   = ($id_file !== '');
   if(!$ganti){
     // id file baru: gabungan waktu unix + string acak, praktis mustahil bentrok
-    $id_file = time() . '_' . bin2hex(random_bytes(8));
+    $id_file = $waktu . '_' . bin2hex(random_bytes(8));
   }
 
-  $nama_file      = $id_file . '.' . $ekstensi;
-  $folder_tujuan  = __DIR__ . '/file/' . $nama_file;
-  $waktu          = time();
-  $lokasi         = 'file/' . $nama_file;
+  // suffix singkat supaya nama file tidak kepanjangan
+  // tapi tetap unik agar URL berbeda dari versi lama (anti-cache)
+  $suffix       = bin2hex(random_bytes(4));
+  $nama_file    = $id_file . '_' . $suffix . '.' . $ekstensi;
+  $folder_tujuan= __DIR__ . '/file/' . $nama_file;
+  $lokasi       = 'file/' . $nama_file;
 
   // mode ganti: hapus file fisik lama (nama_file lama yang tersimpan di tabel files)
   if($ganti){

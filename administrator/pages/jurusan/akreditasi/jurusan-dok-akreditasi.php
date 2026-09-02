@@ -186,6 +186,16 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
         padding: 0;
     }
     .toast-close:hover { opacity: 1; }
+
+    /* ===== Loading indicator ===== */
+    .btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-loader .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
+    .skeleton { background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; border-radius: 0.5rem; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .acc-loading { padding: 1.5rem; text-align: center; color: #64748b; font-size: .8rem; }
 </style>
 <main class="content-area content-scroll">
 
@@ -386,7 +396,7 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
             </div>
             <div class="flex justify-end gap-2 pt-1">
                 <button type="button" data-upload-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Dokumen</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium" data-text="Simpan Dokumen">Simpan Dokumen</button>
             </div>
         </form>
     </div>
@@ -449,7 +459,7 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
             </div>
             <div class="flex justify-end gap-2 pt-1">
                 <button type="button" data-edit-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Perubahan</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium" data-text="Simpan Perubahan">Simpan Perubahan</button>
             </div>
         </form>
     </div>
@@ -460,6 +470,29 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
     var PROSES_URL = BASE_URL + '/administrator/pages/jurusan/akreditasi/proses.php';
     var PAGE_SIZE = 5;
     var semuaTerbuka = false;
+
+    /* ===== Loading Helper ===== */
+    function setButtonLoading(btn, isLoading) {
+        if (isLoading) {
+            btn.classList.add('is-loading');
+            btn.setAttribute('disabled', '');
+            btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+        } else {
+            btn.classList.remove('is-loading');
+            btn.removeAttribute('disabled');
+            btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+        }
+    }
+
+    async function withLoading(btn, promise) {
+        setButtonLoading(btn, true);
+        try {
+            var result = await promise;
+            return result;
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
 
     /* ===== Toast Notification ===== */
     function toast(pesan, tipe) {
@@ -651,6 +684,9 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
 
     /* ===== Reload konten accordion saja lewat AJAX (tanpa reload halaman) ===== */
     function muatUlangTabel() {
+        var container = document.getElementById("accordionWrap");
+        container.innerHTML = '<div class="acc-loading"><div class="spinner-slate mx-auto"></div><p class="mt-3">Memuat dokumen...</p></div>';
+
         $.ajax({
             url: PROSES_URL,
             method: 'POST',
@@ -658,13 +694,15 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
             dataType: 'json',
             success: function (respon) {
                 if (respon.status) {
-                    $('#accordionWrap').html(respon.data);
+                    container.innerHTML = respon.data;
                     resetPages();
                     render();
+                } else {
+                    container.innerHTML = '<div class="acc-empty text-center"><i class="fas fa-exclamation-triangle text-rose-500"></i><p class="mt-2">' + (respon.pesan || 'Gagal memuat dokumen') + '</p></div>';
                 }
             },
             error: function () {
-                toast('Terjadi kesalahan pada server', 'error');
+                container.innerHTML = '<div class="acc-empty text-center"><i class="fas fa-exclamation-triangle text-rose-500"></i><p class="mt-2">Terjadi kesalahan pada server</p></div>';
             }
         });
     }
@@ -693,7 +731,10 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
         var namaFile = document.getElementById("namaFile");
 
         if (inpFile) inpFile.addEventListener("change", function () {
-            if (namaFile) namaFile.textContent = inpFile.files && inpFile.files[0] ? inpFile.files[0].name : "Belum ada file dipilih";
+            if (namaFile) {
+                var nm = inpFile.files && inpFile.files[0] ? inpFile.files[0].name : "Belum ada file dipilih";
+                namaFile.textContent = nm.length > 25 ? nm.substring(0, 25) + "..." : nm;
+            }
         });
         document.querySelectorAll("[data-upload-open]").forEach(function (b) {
             b.addEventListener("click", function () { if (modal) modal.classList.add("show"); });
@@ -712,6 +753,9 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
              var form = this;
              var data = new FormData(form);
              data.append('tambah-data-akreditasi', 1);
+             var btnSimpan = form.querySelector('button[type="submit"]');
+
+             setButtonLoading(btnSimpan, true);
 
              $.ajax({
                  url: PROSES_URL,
@@ -731,6 +775,9 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
                  },
                  error: function (xhr, status, error) {
                      toast('Terjadi kesalahan pada server: ' + error, 'error');
+                 },
+                 complete: function () {
+                     setButtonLoading(btnSimpan, false);
                  }
              });
          });
@@ -761,13 +808,18 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
             document.getElementById("inpEditTahun").value = row.getAttribute("data-tahun") || "";
             document.getElementById("inpEditFileLama").value = row.getAttribute("data-file") || "";
             var nf = row.getAttribute("data-namafile") || "";
-            if (namaFileEdit) namaFileEdit.textContent = nf !== "" ? nf : "Belum ada file - pilih jika perlu";
+            if (namaFileEdit) {
+                namaFileEdit.textContent = nf !== "" ? (nf.length > 25 ? nf.substring(0, 25) + "..." : nf) : "Belum ada file - pilih jika perlu";
+            }
             if (inpEditFile) inpEditFile.value = "";
             modalEdit.classList.add("show");
         };
 
         if (inpEditFile) inpEditFile.addEventListener("change", function () {
-            if (namaFileEdit) namaFileEdit.textContent = inpEditFile.files && inpEditFile.files[0] ? inpEditFile.files[0].name : "File lama - ganti jika perlu";
+            if (namaFileEdit) {
+                var nm = inpEditFile.files && inpEditFile.files[0] ? inpEditFile.files[0].name : "File lama - ganti jika perlu";
+                namaFileEdit.textContent = nm.length > 25 ? nm.substring(0, 25) + "..." : nm;
+            }
         });
 
         // kirim form edit dokumen lewat AJAX (FormData karena ada input file)
@@ -776,6 +828,9 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
             var form = this;
             var data = new FormData(form);
             data.append('edit-data-akreditasi', 1);
+            var btnSimpan = form.querySelector('button[type="submit"]');
+
+            setButtonLoading(btnSimpan, true);
 
             $.ajax({
                 url: PROSES_URL,
@@ -795,6 +850,9 @@ $idLogin    = (string)($_SESSION['id'] ?? '');
                 },
                 error: function () {
                     toast('Terjadi kesalahan pada server', 'error');
+                },
+                complete: function () {
+                    setButtonLoading(btnSimpan, false);
                 }
             });
         });

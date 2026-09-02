@@ -428,6 +428,7 @@ Sebelum menganggap kode selesai, AI harus mengecek ulang:
 - [ ] TIDAK ADA path/URL internal proyek yang di-hardcode statis (mis. `/redesain-siatek/...` atau `http://localhost/...`) — semua URL/path file proyek di-resolve dinamis via helper `base_url()` (dihitung dari `DOCUMENT_ROOT`) dan path fisik pakai `__DIR__`, supaya tidak rusak saat deploy ke server
 - [ ] Kolom foreign key (misal `pengupload`, `dosen_id`, `user_id`, dll) yang merujuk ke tabel lain **WAJIB diisi dengan ID** dari session (`$_SESSION['id']`, `$_SESSION['nip']`, `$_SESSION['nim']`), **BUKAN nama**. Nama hanya ditampilkan lewat JOIN saat rendering, tidak pernah disimpan di kolom entitas. Ini agar integritas referensial (FK constraint) tetap terjaga.
 - [ ] **DILARANG pakai `alert()` JavaScript** untuk notifikasi (sukses, error, info, konfirmasi). Gunakan sistem toast notification yang sudah ada di project (muncul di pojok kanan atas, auto-hilang, ada ikon). Kalau halaman belum punya, buat inline dengan style Tailwind. Polla: `toast(pesan, 'success'|'error'|'info')`.
+- [ ] **Semua tombol submit form punya loading indicator** dengan `setButtonLoading(btn, isLoading)`, `data-text` attribute, dan `complete:` callback di AJAX. CSS spinner dan `@keyframes spin` wajib ada di `<style>`.
 
 ## Aturan notifikasi (WAJIB)
 
@@ -443,6 +444,100 @@ Gunakan mekanisme berikut:
 2. **Modal konfirmasi** — untuk konfirmasi aksi berbahaya (hapus data). Project sudah punya `konfirmasiHapus(nama, callback)` global, pakai itu.
 3. **Jangan pernah** pakai `window.alert()`, `window.confirm()`, atau `window.prompt()`.
 4. Toast harus punya style minimal: background gradient (hijau=success, merah=error, biru=info), icon FontAwesome, animasi slide-in dari kanan, tombol close, auto-dismiss 3-5 detik.
+
+## Aturan loading indicator (WAJIB)
+
+Setiap operasi AJAX yang berinteraksi dengan user (submit form, muat ulang data, dll) **WAJIB** menampilkan indikator loading supaya user tahu proses sedang berjalan. Tanpa loading, user bisa klik berulang kali (double-submit) atau mengira aplikasi macet.
+
+### Pola yang WAJIB dipakai:
+
+**1. Tombol submit form** — saat AJAX berjalan, tombol disable + tampilkan spinner. Setelah selesai, tombol kembali normal.
+
+```html
+<!-- tombol punya atribut data-text untuk menyimpan teks asli -->
+<button type="submit" class="btn-orange" data-text="Simpan Dokumen">Simpan Dokumen</button>
+```
+
+```js
+$('#formX').on('submit', function(e) {
+    e.preventDefault();
+    var btnSimpan = this.querySelector('button[type="submit"]');
+    setButtonLoading(btnSimpan, true);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: new FormData(this),
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status) { /* ... */ }
+        },
+        complete: function() {
+            setButtonLoading(btnSimpan, false);
+        }
+    });
+});
+```
+
+Fungsi `setButtonLoading`:
+```js
+function setButtonLoading(btn, isLoading) {
+    if (isLoading) {
+        btn.classList.add('is-loading');
+        btn.setAttribute('disabled', '');
+        btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+    } else {
+        btn.classList.remove('is-loading');
+        btn.removeAttribute('disabled');
+        btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+    }
+}
+```
+
+**2. Konten tabel/list** — saat reload konten lewat AJAX, tampilkan skeleton/loading di container, bukan langsung `.html()` ke hasil akhir.
+
+```js
+function muatUlangTabel() {
+    var container = document.getElementById('tabelWrap');
+    container.innerHTML = '<div class="acc-loading"><div class="spinner-slate mx-auto"></div><p class="mt-3">Memuat data...</p></div>';
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: { 'ambil-tabel-X': 1 },
+        dataType: 'json',
+        success: function(respon) {
+            if (respon.status) {
+                container.innerHTML = respon.data;
+                render();
+            } else {
+                container.innerHTML = '<div class="acc-empty text-center">Gagal memuat data</div>';
+            }
+        },
+        error: function() {
+            container.innerHTML = '<div class="acc-empty text-center">Terjadi kesalahan pada server</div>';
+        }
+    });
+}
+```
+
+### CSS spinner (WAJIB ada di setiap halaman yang pakai loading):
+```css
+.btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-loader .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
+```
+
+### Checklist loading indicator:
+- [ ] Tombol submit form punya atribut `data-text` dan loading state via `setButtonLoading()` + `complete:`
+- [ ] Konten tabel/list punya skeleton/loading saat `muatUlangTabel()` atau AJAX pertama kali
+- [ ] Tombol tidak bisa diklik berulang kali saat proses berjalan (disabled + pointer-events: none)
+- [ ] CSS spinner termasuk di halaman (`.spinner-slate`, `.is-loading`, `@keyframes spin`)
 
 ## Aturan perilaku AI sendiri saat mengerjakan tugas ini (WAJIB — sering dilanggar)
 
