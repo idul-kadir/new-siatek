@@ -1,7 +1,6 @@
 <!--
   Halaman: Tulis Berita (editor dengan pratinjau live).
-  DUMMY HTML MURNI — murni frontend (HTML/CSS/JS), TANPA logika simpan ke server.
-  Tombol "Simpan Berita" hanya kembali ke daftar berita.
+  Simpan berita ke tabel `berita` via AJAX (proses.php).
   Preview meniru halaman detail-berita publik:
     cover → kategori + judul → penulis + tanggal + estimasi baca → share → isi.
 -->
@@ -46,7 +45,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Tulis Berita</h1>
-                    <p class="text-xs text-slate-500">Tulis berita langsung dengan pratinjau — dummy (belum tersimpan ke database).</p>
+                    <p class="text-xs text-slate-500">Tulis berita langsung dengan pratinjau.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -65,20 +64,23 @@
 
         <!-- ============ FORM ============ -->
         <div id="paneTulis">
-            <form id="beritaForm" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" onsubmit="return false;">
+            <form id="beritaForm" enctype="multipart/form-data" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                <input type="hidden" name="id" id="fId" value="">
+                <input type="hidden" name="gambar_lama" id="fGambarLama" value="">
 
                 <div class="grid gap-4">
                     <div>
                         <label for="fJudul" class="mb-1 block text-xs font-semibold text-slate-600">Judul Berita <span class="text-rose-500">*</span></label>
-                        <input type="text" id="fJudul" required
-                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
-                               placeholder="Contoh: Mahasiswa Raih Juara 1 Kontes Robot Nasional 2026">
+                        <textarea id="fJudul" name="judul" rows="3" required
+                                  class="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
+                                  placeholder="Contoh: Mahasiswa Raih Juara 1 Kontes Robot Nasional 2026"></textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="fKategori" class="mb-1 block text-xs font-semibold text-slate-600">Kategori</label>
-                            <select id="fKategori"
+                            <select id="fKategori" name="kategori"
                                     class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
                                 <option>Berita Jurusan</option>
                                 <option>Akademik</option>
@@ -90,7 +92,7 @@
                         </div>
                         <div>
                             <label for="fTanggal" class="mb-1 block text-xs font-semibold text-slate-600">Tanggal</label>
-                            <input type="date" id="fTanggal"
+                            <input type="date" id="fTanggal" name="tanggal" required
                                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
                         </div>
                     </div>
@@ -98,12 +100,12 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="fPenulis" class="mb-1 block text-xs font-semibold text-slate-600">Penulis</label>
-                            <input type="text" id="fPenulis" value="Humas JTEK"
+                            <input type="text" id="fPenulis" name="penulis" value="Humas JTEK" required
                                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
                         </div>
                         <div>
                             <label for="fSumber" class="mb-1 block text-xs font-semibold text-slate-600">Sumber</label>
-                            <input type="text" id="fSumber"
+                            <input type="text" id="fSumber" name="sumber"
                                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
                                    placeholder="opsional">
                         </div>
@@ -111,23 +113,27 @@
 
                     <div>
                         <label for="fDeskripsi" class="mb-1 block text-xs font-semibold text-slate-600">Deskripsi Ringkas</label>
-                        <input type="text" id="fDeskripsi"
-                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
-                               placeholder="Ringkasan singkat untuk daftar berita">
+                        <textarea id="fDeskripsi" name="deskripsi" rows="2"
+                                  class="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
+                                  placeholder="Ringkasan singkat untuk daftar berita"></textarea>
                     </div>
 
                     <div>
-                        <label for="fGambarUrl" class="mb-1 block text-xs font-semibold text-slate-600">URL Gambar</label>
-                        <input type="url" id="fGambarUrl"
-                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"
-                               placeholder="https://…">
-                    </div>
-
-                    <div>
-                        <label for="fGambarFile" class="mb-1 block text-xs font-semibold text-slate-600">Atau Unggah Gambar</label>
-                        <input type="file" id="fGambarFile" accept="image/*"
+                        <label for="fGambarFile" class="mb-1 block text-xs font-semibold text-slate-600">Gambar Berita <span class="text-rose-500">*</span></label>
+                        <input type="file" id="fGambarFile" name="gambar_upload" accept="image/*" required
                                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white file:mr-3 file:rounded-md file:border-0 file:bg-orange-500 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600">
-                        <p class="mt-1 text-[11px] text-slate-400">Dummy: hanya untuk pratinjau, tidak benar-benar diunggah.</p>
+                    </div>
+
+                    <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <div>
+                            <label for="fTampilBeranda" class="block text-xs font-semibold text-slate-600">Tampilkan di Beranda</label>
+                            <p class="text-[10px] text-slate-400">Gambar akan ditampilkan sebagai gambar beranda</p>
+                        </div>
+                        <label class="relative inline-flex cursor-pointer items-center">
+                            <input type="checkbox" id="fTampilBeranda" name="tampil_beranda" value="1"
+                                   class="peer sr-only">
+                            <div class="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-orange-500 peer-checked:after:translate-x-5"></div>
+                        </label>
                     </div>
 
                     <div>
@@ -135,7 +141,7 @@
                             <label for="fIsi" class="block text-xs font-semibold text-slate-600">Isi Berita <span class="text-rose-500">*</span></label>
                             <span class="text-[10px] text-slate-400">Paragraf baru: gunakan <b>||</b></span>
                         </div>
-                        <textarea id="fIsi" rows="16" required
+                        <textarea id="fIsi" name="isi" rows="16" required
                                   class="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-orange-400 focus:bg-white"
                                   placeholder="Tulis isi berita di sini…"></textarea>
                     </div>
@@ -199,10 +205,27 @@
 
     </section>
 
-    <!-- Toast kecil (dummy simpan) -->
-    <div id="savedToast" class="pointer-events-none fixed bottom-6 left-1/2 z-[2000] -translate-x-1/2 translate-y-16 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-all duration-300"></div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="pointer-events-none fixed bottom-6 right-6 z-[2000] flex flex-col gap-2"></div>
 
     <script>
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        var container = document.getElementById('toastContainer');
+        if(!container) return;
+        var item = document.createElement('div');
+        // warna background sesuai tipe: hijau=success, merah=error, biru=info
+        var warna = tipe === 'success' ? 'bg-emerald-600' : (tipe === 'error' ? 'bg-rose-600' : 'bg-sky-600');
+        item.className = warna + ' pointer-events-auto rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-lg transform translate-y-16 opacity-0 transition-all duration-300';
+        var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        item.innerHTML = '<i class="fas ' + ikon + ' mr-2"></i>' + pesan;
+        container.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.remove('translate-y-16', 'opacity-0'); });
+        setTimeout(function(){ item.classList.add('translate-y-16'); setTimeout(function(){ item.remove(); }, 300); }, 3000);
+    }
+    var BASE_URL = '<?= base_url() ?>';
+    var PROSES_URL = BASE_URL + '/administrator/pages/jurusan/berita/proses.php';
+
     (function () {
         'use strict';
 
@@ -259,18 +282,24 @@
             }
         }
 
+        // url gambar lama (mode edit) — diisi setelah data berita dimuat dari server
+        var coverLama = '';
+
         /* ===== Render semua ===== */
         function render() {
             var judul = formVal('fJudul'), kategori = formVal('fKategori') || 'Berita Jurusan';
             var tgl = formVal('fTanggal') || '2026-08-10';
             var penulis = formVal('fPenulis') || 'Humas JTEK';
             var isi = $id('fIsi') ? $id('fIsi').value : '';
-            var coverUrl = formVal('fGambarUrl');
+            var coverUrl = '';
 
-            // file terpilih lewat input file → preview nama (tidak bisa dibuka utk file lokal)
+            // file terpilih lewat input file → preview
             var f = $id('fGambarFile');
-            if (!coverUrl && f && f.files && f.files[0]) {
+            if (f && f.files && f.files[0]) {
                 coverUrl = URL.createObjectURL(f.files[0]);
+            } else if (coverLama) {
+                // mode edit: pakai gambar lama dari server
+                coverUrl = coverLama;
             }
 
             if ($id('pvJudul'))      $id('pvJudul').textContent = judul || 'Judul berita akan tampil di sini…';
@@ -285,7 +314,7 @@
         }
 
         /* ===== Bind event ===== */
-        ['fJudul','fKategori','fTanggal','fPenulis','fSumber','fDeskripsi','fGambarUrl'].forEach(function (id) {
+        ['fJudul','fKategori','fTanggal','fPenulis','fSumber','fDeskripsi'].forEach(function (id) {
             var el = $id(id);
             if (el) el.addEventListener('input', render);
         });
@@ -294,13 +323,61 @@
         var file = $id('fGambarFile');
         if (file) file.addEventListener('change', render);
 
-        /* ===== Dummy simpan: toast lalu kembali ke daftar ===== */
-        var toast = $id('savedToast');
+        /* ===== Simpan Berita via AJAX (sesuai aturan php-native-crud-instruction) ===== */
         $id('btnSimpan').addEventListener('click', function () {
-            toast.textContent = 'Berita disimpan (dummy) ✓';
-            toast.classList.remove('translate-y-16', 'opacity-0');
-            setTimeout(function () { toast.classList.add('translate-y-16', 'opacity-0'); }, 1200);
-            setTimeout(function () { location.href = 'jurusan-berita'; }, 1500);
+            var form = $id('beritaForm');
+
+            // mode edit (fId terisi): gambar baru tidak wajib, buang required sebelum validasi
+            var sedangEdit = $id('fId').value !== '';
+            var fileInput = $id('fGambarFile');
+            if (sedangEdit && fileInput) fileInput.removeAttribute('required');
+
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            // loading: disable tombol, tampilkan spinner
+            var btn = $id('btnSimpan');
+            var teksAsli = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Menyimpan...';
+
+            var data = new FormData(form);
+
+            // aksi edit atau tambah tergantung ada tidaknya id di hidden input
+            var aksi = sedangEdit ? 'edit-data-berita' : 'tambah-data-berita';
+            data.append(aksi, 1);
+
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: data,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(respon){
+                    toast(respon.pesan, respon.status ? 'success' : 'error');
+                    if(respon.status){
+                        // sesuai aturan reload konten: tidak ada location.href/reload.
+                        // toast tampil, form direset kembali ke mode tambah.
+                        btn.disabled = false;
+                        btn.innerHTML = teksAsli;
+                        form.reset();
+                        $id('fId').value = '';
+                        $id('fGambarLama').value = '';
+                        coverLama = '';
+                        var sw = $id('fTampilBeranda');
+                        if (sw) sw.checked = false;
+                        render();
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = teksAsli;
+                    }
+                },
+                error: function(){
+                    toast('Terjadi kesalahan pada server', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = teksAsli;
+                }
+            });
         });
 
         /* ===== Toggle mobile: tulis <-> preview ===== */
@@ -314,6 +391,54 @@
                 ? '<i class="fas fa-pen mr-1"></i>Kembali Menulis'
                 : '<i class="fas fa-eye mr-1"></i>Lihat Preview';
         });
+
+        /* ===== Mode edit: isi form dengan data berita dari server ===== */
+        function jalankanEditMode() {
+            var editId = new URLSearchParams(location.search).get('edit');
+            if (editId) {
+                document.querySelector('h1').textContent = 'Edit Berita';
+                // saat edit, gambar tidak wajib diunggah ulang (pakai yang lama)
+                var fileInput = $id('fGambarFile');
+                if (fileInput) fileInput.removeAttribute('required');
+
+                $.ajax({
+                    url: PROSES_URL,
+                    method: 'POST',
+                    data: { 'ambil-berita': 1, id: editId },
+                    dataType: 'json',
+                success: function(respon){
+                        if(respon.status){
+                            var d = respon.data;
+                            $id('fId').value = d.id;
+                            $id('fGambarLama').value = d.gambar || '';
+                            $id('fJudul').value = d.judul;
+                            $id('fKategori').value = d.kategori;
+                            $id('fTanggal').value = d.tanggal;
+                            $id('fPenulis').value = d.penulis;
+                            $id('fSumber').value = d.sumber || '';
+                            $id('fDeskripsi').value = d.deskripsi;
+                            $id('fIsi').value = d.isi;
+                            // gambar lama untuk preview saat edit
+                            coverLama = d.url_gambar || '';
+                            // status switch "Tampilkan di Beranda" dari database
+                            var sw = $id('fTampilBeranda');
+                            if (sw) sw.checked = respon.data.tampil_beranda == 1;
+                            render();
+                        } else {
+                            toast(respon.pesan, 'error');
+                        }
+                    },
+                    error: function(){ toast('Terjadi kesalahan pada server', 'error'); }
+                });
+            }
+        }
+
+        // jQuery mungkin belum di-load saat ini jalan, pastikan sudah ada
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', jalankanEditMode);
+        } else {
+            jalankanEditMode();
+        }
 
         render(); // render awal
     })();

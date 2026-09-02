@@ -164,3 +164,42 @@ function url_file($id_file){
   }
   return base_url() . '/file/' . $nama_file;
 }
+
+// ================= FUNCTION VALIDASI FILE =================
+// Memvalidasi format dan ukuran file sebelum diupload.
+// Format yang diizinkan: gambar (jpg,jpeg,png,gif,webp,bmp,svg), dokumen (doc,docx,xls,xlsx,ppt,pptx,csv,txt), pdf.
+// Ukuran: 8MB default, 50MB untuk level 9.
+// return: ['valid' => true/false, 'pesan' => '...'].
+function validasi_file($file, $level = 1){
+  // cek apakah ada file yang diupload
+  if(!isset($file['tmp_name']) || $file['error'] != 0){
+    return ['valid' => false, 'pesan' => 'Gagal membuka file yang diunggah'];
+  }
+
+  // daftar ekstensi yang diizinkan
+  $diperbolehkan = [
+    // gambar
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+    // dokumen
+    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'txt',
+    // pdf
+    'pdf'
+  ];
+
+  $ekstensi = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+  if(!in_array($ekstensi, $diperbolehkan, true)){
+    return ['valid' => false, 'pesan' => 'Format file tidak diizinkan. Format yang boleh: JPG, JPEG, PNG, GIF, WEBP, BMP, SVG, DOC, DOCX, XLS, XLSX, PPT, PPTX, CSV, TXT, PDF'];
+  }
+
+  // tentukan batas ukuran berdasarkan level user
+  $level = (int)$level;
+  $batasMB = ($level === 9) ? 50 : 8;
+  $batasByte = $batasMB * 1024 * 1024;
+
+  if($file['size'] > $batasByte){
+    return ['valid' => false, 'pesan' => 'Ukuran file maksimal ' . $batasMB . ' MB'];
+  }
+
+  return ['valid' => true, 'pesan' => ''];
+}

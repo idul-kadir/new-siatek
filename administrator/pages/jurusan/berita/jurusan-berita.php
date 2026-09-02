@@ -1,15 +1,17 @@
 <!--
   Halaman: Berita Jurusan (daftar + detail cepat).
-  DUMMY HTML MURNI — SEMUA data berita ditulis langsung di HTML (kartu <article>),
-  termasuk isi artikel (di <template data-isi> tiap kartu). Belum terhubung DB.
-  JavaScript HANYA untuk: pagination (12/halaman), cari/filter, modal detail, hapus.
+  Data berita diambil dari tabel `berita` via AJAX (proses.php).
+  JavaScript: pagination (12/halaman), cari/filter, modal detail, hapus via AJAX.
 -->
 <?php
 require __DIR__ . '/../../../fungsi.php';
-$data_berita = [];
-$list_berita = query("SELECT * FROM `berita` ORDER BY tanggal DESC");
-foreach($list_berita as $berita){
-  $data_berita[] = $berita;
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// pastikan user sudah login
+$sudahLogin = !empty($_SESSION['user_id']) || !empty($_SESSION['nip']) || !empty($_SESSION['username']);
+if (!$sudahLogin) {
+    header('Location: ' . base_url() . '/');
+    exit;
 }
 
 ?>
@@ -17,7 +19,7 @@ foreach($list_berita as $berita){
     .content-scroll { overflow-y: auto; min-height: 0; }
     .btn-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; transition: all .15s ease; }
     .btn-circle-lg { width: 2.5rem; height: 2.5rem; }
-    .btn-circle .tip { position: absolute; top: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
+    .btn-circle .tip { position: absolute; bottom: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
     .btn-circle:hover .tip { opacity: 1; visibility: visible; }
 
     .news-cover { position: relative; overflow: hidden; background: linear-gradient(150deg, #1e3a5f 0%, #2b4a73 55%, #3b5f8f 100%); }
@@ -55,7 +57,7 @@ foreach($list_berita as $berita){
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Berita Jurusan</h1>
-                    <p class="text-xs text-slate-500">Kabar dan pengumuman jurusan — dummy HTML (struktur tabel berita).</p>
+                    <p class="text-xs text-slate-500">Kabar dan pengumuman jurusan.</p>
                 </div>
             </div>
             <a href="tulis-berita" class="btn-circle btn-circle-lg bg-orange-500 text-white shadow-md shadow-orange-500/25 hover:bg-orange-600">
@@ -75,10 +77,12 @@ foreach($list_berita as $berita){
             </div>
             <select id="fKategori" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
                 <option value="">Semua Kategori</option>
-                <option>Prestasi</option>
-                <option>Kegiatan</option>
+                <option>Berita Jurusan</option>
                 <option>Akademik</option>
+                <option>Prestasi</option>
                 <option>Kemahasiswaan</option>
+                <option>Kegiatan</option>
+                <option>Pengumuman</option>
             </select>
             <a href="jurusan-berita" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200">
                 <i class="fas fa-times mr-1"></i>Reset
@@ -86,42 +90,12 @@ foreach($list_berita as $berita){
         </div>
     </section>
 
-    <!-- ===== Berita Unggulan (terbaru) ===== -->
-    <section class="mb-6">
-        <article class="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-2" data-lead>
-            <div class="news-cover min-h-[220px] md:min-h-[300px]">
-                <img src="https://picsum.photos/seed/jtekrobokri/900/520" alt="Mahasiswa Teknik Menangkan Kontes Robot Indonesia 2026" loading="lazy">
-            </div>
-            <div class="flex flex-col p-6 md:p-8">
-                <div class="mb-3 flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-700">
-                        <i class="fas fa-fire"></i> Terbaru
-                    </span>
-                    <span class="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">Prestasi</span>
-                    <span class="ml-auto text-xs font-medium text-slate-400">Rabu, 29 Juli 2026</span>
-                </div>
-                <h2 class="text-lg font-bold leading-snug tracking-tight text-slate-800 md:text-2xl">Mahasiswa Teknik Menangkan Kontes Robot Indonesia 2026</h2>
-                <p class="mt-3 text-sm leading-relaxed text-slate-500">Tim Robotik Jurusan Teknik Elektro kembali menorehkan prestasi di tingkat nasional. Berikut rangkuman perjalanan mereka hingga meraih juara pertama.</p>
-                <div class="mt-auto flex items-center justify-between pt-6">
-                    <span class="text-xs text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                data-judul="Mahasiswa Teknik Menangkan Kontes Robot Indonesia 2026" data-kategori="Prestasi"
-                                data-penulis="Humas JTEK" data-tanggal="2026-07-29" data-gambar="https://picsum.photos/seed/jtekrobokri/900/520"><i class="fas fa-eye text-xs"></i><span class="tip">Baca</span></button>
-                        <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                    </div>
-                </div>
-            </div>
-            <template data-isi>
-                <p>Tim Robotik Jurusan Teknik Elektro berhasil meraih juara pertama pada Kontes Robot Indonesia 2026 yang digelar di Yogyakarta.</p>
-                <p>Final yang berlangsung ketat menempatkan mereka di atas dua tim unggulan lainnya dari perguruan tinggi negeri terkemuka.</p>
-                <p>Dosen pembimbing menyampaikan bahwa kemenangan ini berkat latihan intensif selama enam bulan serta dukungan penuh dari jurusan dan kampus.</p>
-                <p>Kontingen akan melanjutkan persiapan untuk mewakili Indonesia di ajang internasional pada akhir tahun ini.</p>
-            </template>
-        </article>
+    <!-- ===== Berita Unggulan (terbaru, AJAX-loaded) ===== -->
+    <section class="mb-6" id="leadSection">
+        <div id="leadContainer"></div>
     </section>
 
-    <!-- ===== Grid Berita (DATA DI HTML — tiap kartu ditulis manual) ===== -->
+    <!-- ===== Grid Berita (AJAX-loaded dari database) ===== -->
     <section>
         <div class="mb-4 flex items-center justify-between">
             <div>
@@ -138,360 +112,7 @@ foreach($list_berita as $berita){
             <p class="text-xs text-slate-400">Coba ubah kata kunci atau filter.</p>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" id="newsGrid">
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="2">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekworkshop/600/375" alt="Workshop IoT dan Machine Learning" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kegiatan</span>
-                        <span class="font-medium text-slate-400">27 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Workshop IoT dan Machine Learning Digelar di Lab Komputer</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Workshop dua hari membekali peserta dengan dasar Internet of Things dan machine learning di Lab Komputer jurusan.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Workshop IoT dan Machine Learning Digelar di Lab Komputer" data-kategori="Kegiatan"
-                                    data-penulis="Humas JTEK" data-tanggal="2026-07-27" data-gambar="https://picsum.photos/seed/jtekworkshop/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="2"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Workshop Internet of Things dan Machine Learning diadakan selama dua hari di Laboratorium Komputer jurusan.</p>
-                    <p>Peserta dikenalkan pada mikrokontroler, sensor, hingga tahapan membangun model prediksi sederhana dengan Python.</p>
-                    <p>Materi disampaikan oleh dosen dan praktisi industri, diikuti antusias oleh lebih dari enam puluh mahasiswa.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="3">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekpkl/600/375" alt="Praktik Kerja Lapangan Batch 11" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Akademik</span>
-                        <span class="font-medium text-slate-400">24 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Praktik Kerja Lapangan (PKL) Batch 11 Resmi Dibuka</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Pendaftaran PKL Batch 11 dibuka hingga 14 Agustus 2026. Simak syarat dan alur pendaftarannya.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Bagian Akademik</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Praktik Kerja Lapangan (PKL) Batch 11 Resmi Dibuka" data-kategori="Akademik"
-                                    data-penulis="Bagian Akademik" data-tanggal="2026-07-24" data-gambar="https://picsum.photos/seed/jtekpkl/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="3"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Pendaftaran Praktik Kerja Lapangan Batch 11 resmi dibuka mulai 24 Juli hingga 14 Agustus 2026.</p>
-                    <p>Calon peserta wajib melengkapi transkrip nilai, surat pengantar, dan proposal rencana kegiatan yang disetujui dosen wali.</p>
-                    <p>Informasi lengkap dan formulir dapat diunduh melalui laman akademik jurusan.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="4">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekbanjir/600/375" alt="Alat Deteksi Banjir Berbasis IoT" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Prestasi</span>
-                        <span class="font-medium text-slate-400">21 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Inovasi Mahasiswa: Alat Deteksi Banjir Berbasis IoT</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Prototipe sensor ketinggian air dengan notifikasi real-time ini lolos seleksi pendanaan hibah desa cerdas.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Inovasi Mahasiswa: Alat Deteksi Banjir Berbasis IoT" data-kategori="Prestasi"
-                                    data-penulis="Humas JTEK" data-tanggal="2026-07-21" data-gambar="https://picsum.photos/seed/jtekbanjir/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="4"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Sebuah tim mahasiswa mengembangkan alat deteksi dini banjir yang mengirimkan notifikasi otomatis ke gawai warga.</p>
-                    <p>Prototipe menggunakan sensor ultrasonik dan modul IoT yang terhubung ke platform data cloud.</p>
-                    <p>Karya ini lolos seleksi pendanaan hibah program desa cerdas dan akan diuji coba di beberapa kelurahan.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="5">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekalumni/600/375" alt="Seminar Karier Alumni Teknik Elektro" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kemahasiswaan</span>
-                        <span class="font-medium text-slate-400">18 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Seminar Karier bersama Alumni Teknik Elektro</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">BMFT mengundang alumnus yang berkarier di industri energi dan teknologi untuk berbagi pengalaman.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>BMFT JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Seminar Karier bersama Alumni Teknik Elektro" data-kategori="Kemahasiswaan"
-                                    data-penulis="BMFT JTEK" data-tanggal="2026-07-18" data-gambar="https://picsum.photos/seed/jtekalumni/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="5"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Badan Mahasiswa Fakultas Teknik menggelar seminar karier dengan menghadirkan alumni yang berkarier di industri energi dan teknologi.</p>
-                    <p>Para narasumber membagikan strategi membangun portofolio, tips menghadapi rekrutmen, serta peluang bekerja di luar negeri.</p>
-                    <p>Kegiatan ditutup dengan sesi tanya jawab yang dimoderasi oleh ketua program studi.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="6">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekweb/600/375" alt="Pelatihan Pemrograman Web" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kegiatan</span>
-                        <span class="font-medium text-slate-400">15 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Pelatihan Pemrograman Web untuk Mahasiswa Angkatan 2025</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Pengenalan HTML, CSS, dan JavaScript dasar bagi mahasiswa baru dalam dua sesi pekanan.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>UKM IT JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Pelatihan Pemrograman Web untuk Mahasiswa Angkatan 2025" data-kategori="Kegiatan"
-                                    data-penulis="UKM IT JTEK" data-tanggal="2026-07-15" data-gambar="https://picsum.photos/seed/jtekweb/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="6"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Unit Kegiatan Mahasiswa IT menggelar pelatihan pemrograman web bagi mahasiswa baru angkatan 2025.</p>
-                    <p>Materi mencakup dasar HTML, CSS, dan JavaScript yang disampaikan dalam dua sesi pekanan.</p>
-                    <p>Peserta yang lolos sertifikasi akhir akan mendapatkan e-sertifikat dan kesempatan bergabung ke tim pengembangan.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="7">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekintl/600/375" alt="Kompetisi Robotik Internasional" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Prestasi</span>
-                        <span class="font-medium text-slate-400">11 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Tim Robotik JTEK Wakili Kampus di Kompetisi Internasional</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Kontingen robotik berangkat bulan depan mewakili kampus pada ajang bergengsi di Asia Tenggara.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Tim Robotik JTEK Wakili Kampus di Kompetisi Internasional" data-kategori="Prestasi"
-                                    data-penulis="Humas JTEK" data-tanggal="2026-07-11" data-gambar="https://picsum.photos/seed/jtekintl/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="7"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Setelah menjuarai kontes nasional, tim robotik jurusan kembali mendapat kepercayaan mewakili kampus di kompetisi internasional.</p>
-                    <p>Ajang bergengsi di Asia Tenggara tersebut akan diikuti tim dari lebih dari dua puluh negara.</p>
-                    <p>Persiapan ditingkatkan termasuk penyempurnaan mekanik, algoritma navigasi, dan uji coba lintasan sematik.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="8">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekpmb/600/375" alt="Penerimaan Mahasiswa Baru Jalur Prestasi" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Akademik</span>
-                        <span class="font-medium text-slate-400">8 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Penerimaan Mahasiswa Baru Jalur Prestasi 2026 Dibuka</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Penerimaan mahasiswa baru jalur prestasi tahun akademik 2026/2027 resmi dibuka untuk pendaftaran daring.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Panitia PMB</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Penerimaan Mahasiswa Baru Jalur Prestasi 2026 Dibuka" data-kategori="Akademik"
-                                    data-penulis="Panitia PMB" data-tanggal="2026-07-08" data-gambar="https://picsum.photos/seed/jtekpmb/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="8"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Penerimaan mahasiswa baru jalur prestasi tahun akademik 2026/2027 resmi dibuka.</p>
-                    <p>Pendaftar diseleksi berdasarkan nilai rapor dan portofolio prestasi dengan jadwal daring.</p>
-                    <p>Pengumuman awal akan disampaikan melalui laman resmi dan media sosial jurusan.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="9">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekwira/600/375" alt="Pelatihan Kewirausahaan" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kegiatan</span>
-                        <span class="font-medium text-slate-400">5 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Pelatihan Kewirausahaan untuk Mahasiswa Tingkat Akhir</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Pelatihan kewirausahaan diselenggarakan khusus untuk mahasiswa tingkat akhir yang ingin merintis usaha.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>UKM Wirausaha</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Pelatihan Kewirausahaan untuk Mahasiswa Tingkat Akhir" data-kategori="Kegiatan"
-                                    data-penulis="UKM Wirausaha" data-tanggal="2026-07-05" data-gambar="https://picsum.photos/seed/jtekwira/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="9"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Pelatihan kewirausahaan diselenggarakan khusus untuk mahasiswa tingkat akhir yang ingin merintis usaha.</p>
-                    <p>Materi mencakup validasi ide, pemasaran digital, dan simulasi penyusunan rencana bisnis.</p>
-                    <p>Peserta terbaik mendapat pendampingan dan akses permodalan dari mitra inkubator.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="10">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jteksolar/600/375" alt="Kuliah Umum Energi Terbarukan" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kegiatan</span>
-                        <span class="font-medium text-slate-400">1 Juli 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Kuliah Umum bersama Praktisi Energi Terbarukan</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Jurusan mengundang praktisi energi terbarukan untuk membahas transisi energi nasional dan peran lulusan teknik.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Kuliah Umum bersama Praktisi Energi Terbarukan" data-kategori="Kegiatan"
-                                    data-penulis="Humas JTEK" data-tanggal="2026-07-01" data-gambar="https://picsum.photos/seed/jteksolar/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="10"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Jurusan mengundang praktisi energi terbarukan untuk menyampaikan kuliah umum bertema transisi energi nasional.</p>
-                    <p>Pembahasan menyoroti peran lulusan teknik dalam proyek pembangkit dan efisiensi energi.</p>
-                    <p>Kegiatan berlangsung terbuka dan dihadiri mahasiswa dari berbagai angkatan.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="11">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekbangkit/600/375" alt="Program Bangkit 2026" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Prestasi</span>
-                        <span class="font-medium text-slate-400">27 Juni 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Mahasiswa JTEK Lolos Program Bangkit 2026</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Sejumlah mahasiswa jurusan dinyatakan lolos Program Bangkit yang diselenggarakan Kampus Merdeka.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Humas JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Mahasiswa JTEK Lolos Program Bangkit 2026" data-kategori="Prestasi"
-                                    data-penulis="Humas JTEK" data-tanggal="2026-06-27" data-gambar="https://picsum.photos/seed/jtekbangkit/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="11"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Sejumlah mahasiswa jurusan dinyatakan lolos Program Bangkit yang diselenggarakan Kampus Merdeka.</p>
-                    <p>Program tersebut mencakup pembelajaran cloud computing, machine learning, dan pengembangan karir.</p>
-                    <p>Mereka akan mengikuti program intensif selama beberapa bulan bersama mahasiswa dari seluruh Indonesia.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="12">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekkalender/600/375" alt="Kalender Akademik" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Akademik</span>
-                        <span class="font-medium text-slate-400">22 Juni 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Kalender Akademik Semester Ganjil 2026/2027 Terbit</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Kalender akademik semester ganjil 2026/2027 telah terbit, termasuk perubahan jadwal UTS dan pendaftaran ulang.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Bagian Akademik</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Kalender Akademik Semester Ganjil 2026/2027 Terbit" data-kategori="Akademik"
-                                    data-penulis="Bagian Akademik" data-tanggal="2026-06-22" data-gambar="https://picsum.photos/seed/jtekkalender/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="12"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Kalender akademik semester ganjil tahun akademik 2026/2027 telah terbit dan dapat diunduh.</p>
-                    <p>Terdapat perubahan jadwal pendaftaran ulang serta pelaksanaan UTS yang lebih awal.</p>
-                    <p>Mahasiswa diimbau mencermati setiap tanggal penting sehingga tidak tertinggal informasi.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="13">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekbaksos/600/375" alt="Bakti Sosial Teknik Elektro" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kemahasiswaan</span>
-                        <span class="font-medium text-slate-400">18 Juni 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Kegiatan Bakti Sosial Teknik Elektro di Desa Sekitar</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Bakti sosial perbaikan instalasi listrik dan pelatihan hemat energi di desa sekitar kampus melibatkan puluhan relawan.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>BMFT JTEK</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Kegiatan Bakti Sosial Teknik Elektro di Desa Sekitar" data-kategori="Kemahasiswaan"
-                                    data-penulis="BMFT JTEK" data-tanggal="2026-06-18" data-gambar="https://picsum.photos/seed/jtekbaksos/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="13"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Badan Mahasiswa mengadakan bakti sosial berupa perbaikan instalasi listrik dan pelatihan hemat energi di desa sekitar kampus.</p>
-                    <p>Kegiatan melibatkan dosen pendamping dan puluhan relawan mahasiswa.</p>
-                    <p>Program berjalan lancar dan mendapat apresiasi dari warga serta pemerintah desa.</p>
-                </template>
-            </article>
-
-            <article class="news-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-id="14">
-                <div class="news-cover aspect-[16/10]"><img src="https://picsum.photos/seed/jtekbeasiswa/600/375" alt="Beasiswa Unggulan Kemendikbud" loading="lazy"></div>
-                <div class="flex flex-col p-4">
-                    <div class="mb-2 flex items-center gap-2 text-[11px]">
-                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-600">Kemahasiswaan</span>
-                        <span class="font-medium text-slate-400">12 Juni 2026</span>
-                    </div>
-                    <h3 class="text-sm font-semibold leading-snug text-slate-800">Pendaftaran Beasiswa Unggulan Kemendikbud Dibuka</h3>
-                    <p class="mt-2 text-xs leading-relaxed text-slate-500">Pendaftaran beasiswa memerlukan IPK minimal, surat rekomendasi, dan esai rencana studi melalui portal resmi.</p>
-                    <div class="mt-auto flex items-center justify-between pt-4">
-                        <span class="text-[11px] text-slate-400"><i class="fas fa-user-pen mr-1"></i>Bagian Akademik</span>
-                        <div class="news-actions flex items-center gap-1.5">
-                            <button type="button" class="btnBaca btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"
-                                    data-judul="Pendaftaran Beasiswa Unggulan Kemendikbud Dibuka" data-kategori="Kemahasiswaan"
-                                    data-penulis="Bagian Akademik" data-tanggal="2026-06-12" data-gambar="https://picsum.photos/seed/jtekbeasiswa/600/375"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat</span></button>
-                            <a href="tulis-berita" class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></a>
-                            <button type="button" class="btnHapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="14"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                        </div>
-                    </div>
-                </div>
-                <template data-isi>
-                    <p>Pendaftaran Beasiswa Unggulan Kemendikbud untuk tahun berjalan resmi dibuka.</p>
-                    <p>Persyaratan meliputi IPK minimal, surat rekomendasi, dan esai rencana studi.</p>
-                    <p>Mahasiswa yang berminat diminta mendaftar melalui portal resmi sebelum batas waktu.</p>
-                </template>
-            </article>
-
-        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" id="newsGrid"></div>
 
         <!-- Pagination (1 halaman = 12 berita) -->
         <nav class="mt-6 flex items-center justify-center gap-3" id="pager">
@@ -572,6 +193,29 @@ foreach($list_berita as $berita){
     </div>
 
     <script>
+    var BASE_URL = '<?= base_url() ?>';
+    var PROSES_URL = BASE_URL + '/administrator/pages/jurusan/berita/proses.php';
+
+    /* ===== Toast Notification (sesuai aturan php-native-crud-instruction) ===== */
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        var container = document.getElementById('toastContainer');
+        if(!container){
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'pointer-events-none fixed bottom-6 right-6 z-[2000] flex flex-col gap-2';
+            document.body.appendChild(container);
+        }
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe + ' pointer-events-auto rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-lg';
+        var warna = tipe === 'success' ? 'bg-emerald-600' : (tipe === 'error' ? 'bg-rose-600' : 'bg-sky-600');
+        item.classList.add(warna);
+        var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        item.innerHTML = '<i class="fas ' + ikon + ' mr-2"></i>' + pesan;
+        container.appendChild(item);
+        setTimeout(function(){ item.remove(); }, 3000);
+    }
+
     (function () {
         'use strict';
 
@@ -591,20 +235,39 @@ foreach($list_berita as $berita){
         var modal = document.getElementById('lihatModal');
 
         var halaman = 1;
-        var kartu = Array.prototype.slice.call(document.querySelectorAll('#newsGrid .news-card'));
+        // kartu dibaca ulang setiap kali dibutuhkan (grid diisi ulang via AJAX)
+        function ambilKartu() {
+            return Array.prototype.slice.call(document.querySelectorAll('#newsGrid .news-card'));
+        }
 
-        /* ===== Ambil data kartu DARI HTML (data-* pada tombol + <template data-isi>) ===== */
-        function infoKartu(el) {
-            var b = el.querySelector('.btnBaca');
-            var t = el.querySelector('[data-isi]');
-            return {
-                judul: b ? (b.getAttribute('data-judul') || '') : '',
-                kategori: b ? (b.getAttribute('data-kategori') || '') : '',
-                penulis: b ? (b.getAttribute('data-penulis') || '') : '',
-                tanggal: b ? (b.getAttribute('data-tanggal') || '') : '',
-                gambar: b ? (b.getAttribute('data-gambar') || '') : '',
-                isi: t ? (t.textContent || '') : ''
-            };
+        /* ===== Muat ulang berita dari database via AJAX ===== */
+        function muatBerita() {
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: { 'ambil-tabel-berita': 1 },
+                dataType: 'json',
+                success: function(respon){
+                    if(respon.status){
+                        // kartu unggulan (berita terbaru)
+                        var leadSection = document.getElementById('leadSection');
+                        var leadContainer = document.getElementById('leadContainer');
+                        if(leadContainer && leadSection){
+                            leadContainer.innerHTML = respon.lead || '';
+                            leadSection.style.display = respon.lead ? '' : 'none';
+                        }
+                        // grid kartu (sisanya)
+                        grid.innerHTML = respon.data;
+                        // update jumlah
+                        if(jml) jml.textContent = respon.total;
+                        if(badge) badge.textContent = respon.total;
+                        render();
+                    }
+                },
+                error: function(xhr){
+                    toast('Terjadi kesalahan pada server', 'error');
+                }
+            });
         }
 
         /* ===== Pendukung teks ===== */
@@ -639,14 +302,15 @@ foreach($list_berita as $berita){
 
         /* ===== Pagination & render ===== */
         function jumlahHalaman() {
-            return Math.max(1, Math.ceil(kartu.filter(cocok).length / ITEM_PER_PAGE));
+            return Math.max(1, Math.ceil(ambilKartu().filter(cocok).length / ITEM_PER_PAGE));
         }
 
         function render() {
+            var kartu = ambilKartu();
             var leadShown = !leadCard || cocok(leadCard);
             var cocokBaris = kartu.filter(cocok);
 
-            // Kartu unggulan
+            // Kartu unggulan ditangani oleh muatBerita (di luar grid, tidak ikut paginasi)
             if (leadCard) leadCard.style.display = leadShown ? '' : 'none';
 
             // Grid dipaginasi
@@ -660,13 +324,14 @@ foreach($list_berita as $berita){
             if (leadShown && leadCard) leadCard.style.display = '';
             tampilSet.forEach(function (c) { c.style.display = ''; });
 
-            // Counter
-            var total = cocokBaris.length + (leadShown ? 1 : 0);
-            if (jml) jml.textContent = cocokBaris.length + (leadShown ? 1 : 0);
-            if (badge) badge.textContent = total;
-            if (kosong) kosong.classList.toggle('hidden', total > 0);
+            // Counter (hanya kartu grid; lead ditampilkan terpisah dan sudah dihitung respon.total)
+            if (jml) jml.textContent = cocokBaris.length;
+            if (badge) badge.textContent = cocokBaris.length;
+            if (kosong) kosong.classList.toggle('hidden', cocokBaris.length > 0);
 
-            // Pagination
+            // Pagination: sembunyikan kalau grid kosong
+            var pager = document.getElementById('pager');
+            if (pager) pager.classList.toggle('hidden', cocokBaris.length === 0);
             pagerLabel.textContent = 'Halaman ' + halaman + ' / ' + jmlHal;
             btnPrev.disabled = halaman <= 1;
             btnNext.disabled = halaman >= jmlHal;
@@ -687,6 +352,20 @@ foreach($list_berita as $berita){
         btnNext.addEventListener('click', function () { if (halaman < jumlahHalaman()) { halaman++; render(); } });
 
         /* ===== Bind: aksi kartu (delegasi) & modal ===== */
+        // ambil data kartu dari atribut data-* pada tombol .btnBaca + isi dari <template data-isi>
+        function infoKartu(el) {
+            var b = el.querySelector('.btnBaca');
+            var t = el.querySelector('[data-isi]');
+            return {
+                judul: b ? (b.getAttribute('data-judul') || '') : '',
+                kategori: b ? (b.getAttribute('data-kategori') || '') : '',
+                penulis: b ? (b.getAttribute('data-penulis') || '') : '',
+                tanggal: b ? (b.getAttribute('data-tanggal') || '') : '',
+                gambar: b ? (b.getAttribute('data-gambar') || '') : '',
+                isi: t ? (t.innerHTML || '') : ''
+            };
+        }
+
         function openView(el) {
             var info = infoKartu(el);
             var penulis = info.penulis || 'Humas JTEK';
@@ -705,7 +384,7 @@ foreach($list_berita as $berita){
 
             var img = document.getElementById('viewImg');
             var imgEmpty = document.getElementById('viewImgEmpty');
-            if (info.gambar && /^https?:\/\//i.test(info.gambar)) {
+            if (info.gambar) {
                 img.src = info.gambar;
                 img.classList.remove('hidden');
                 imgEmpty.classList.add('hidden');
@@ -718,29 +397,87 @@ foreach($list_berita as $berita){
             modal.classList.add('show');
         }
 
-        grid.addEventListener('click', function (e) {
+        // Event delegation di DOCUMENT (bukan cuma #newsGrid) supaya lead card di luar grid juga kena
+        document.addEventListener('click', function (e) {
             var baca = e.target.closest('.btnBaca');
-            if (baca) { openView(baca.closest('.news-card')); return; }
+            if (baca) {
+                // cari parent news-card (bisa dari .news-card atau [data-lead])
+                var cardBaca = baca.closest('.news-card, [data-lead]');
+                if (cardBaca) openView(cardBaca);
+                return;
+            }
+
+            var edit = e.target.closest('.btnCircleEdit');
+            if (edit) {
+                e.preventDefault();
+                var idEdit = edit.getAttribute('data-id');
+                // ambil data detail dari server lalu redirect ke tulis-berita dengan id
+                $.ajax({
+                    url: PROSES_URL,
+                    method: 'POST',
+                    data: { 'ambil-berita': 1, id: idEdit },
+                    dataType: 'json',
+                    success: function(respon){
+                        if(respon.status){
+                            // arahkan ke tulis-berita?edit=<id> — ditangani oleh halaman tulis-berita
+                            location.href = 'tulis-berita?edit=' + idEdit;
+                        } else {
+                            toast(respon.pesan, 'error');
+                        }
+                    },
+                    error: function(){ toast('Terjadi kesalahan pada server', 'error'); }
+                });
+                return;
+            }
+
             var hapus = e.target.closest('.btnHapus');
             if (hapus) {
-                if (!confirm('Hapus berita ini?')) return;
-                var card = hapus.closest('.news-card');
-                card.parentNode.removeChild(card);
-                kartu = kartu.filter(function (c) { return c !== card; });
-                render();
+                var id = hapus.getAttribute('data-id');
+                var card = hapus.closest('.news-card, [data-lead]');
+                // judul bisa di <h3> (kartu) atau <h2> (lead) atau dari data-judul di tombol baca
+                var judul = '';
+                if (card) {
+                    judul = (card.querySelector('h3') || card.querySelector('h2') || {}).textContent || '';
+                }
+                if (!judul) {
+                    var btnB = hapus.parentElement && hapus.parentElement.querySelector('.btnBaca');
+                    if (btnB) judul = btnB.getAttribute('data-judul') || '';
+                }
+                judul = judul || 'berita ini';
+                if (typeof konfirmasiHapus === 'function') {
+                    konfirmasiHapus(judul, function(){
+                        $.ajax({
+                            url: PROSES_URL,
+                            method: 'POST',
+                            data: { 'hapus-data-berita': 1, id: id },
+                            dataType: 'json',
+                            success: function(respon){
+                                toast(respon.pesan, respon.status ? 'success' : 'error');
+                                if(respon.status){ muatBerita(); }
+                            },
+                            error: function(){ toast('Terjadi kesalahan pada server', 'error'); }
+                        });
+                    });
+                } else {
+                    toast('Fungsi konfirmasi tidak tersedia', 'error');
+                }
+                return;
             }
         });
 
-        if (leadCard) {
-            leadCard.querySelector('.btnBaca').addEventListener('click', function () { openView(leadCard); });
-        }
+        // leadCard sudah dihapus - data dari AJAX
 
         modal.querySelectorAll('[data-modal-close]').forEach(function (c) {
             c.addEventListener('click', function () { modal.classList.remove('show'); });
         });
         modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
 
-        render(); // render awal
+        // Load data berita dari database saat DOM siap (jQuery sudah ter-load saat ini)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', muatBerita);
+        } else {
+            muatBerita();
+        }
     })();
     </script>
 

@@ -10,6 +10,14 @@
 
 Skill ini mendefinisikan gaya coding PHP native (tanpa framework) yang harus selalu diikuti AI saat membuat atau mengedit halaman backend di proyek user. Gaya ini sudah dipahami dan dipakai user, jadi JANGAN diganti dengan gaya lain (PDO, OOP, MVC, dsb) kecuali user secara eksplisit memintanya.
 
+## Prinsip kerja (WAJIB — berlaku otomatis, tidak perlu diminta ulang tiap prompt)
+
+- **Langsung fokus ke inti persoalan yang diminta/dilaporkan user, dan bereskan.** Jangan melebar ke bagian lain di luar apa yang diminta.
+- Kalau user melaporkan bug/error kecil di satu bagian, perbaiki HANYA bagian itu. Jangan ikut merapikan, refactor, atau "sekalian benerin" bagian lain yang tidak diminta, walau terlihat kurang rapi — kecuali user eksplisit minta review menyeluruh.
+- Jangan menjelajah/membaca banyak file lain di luar yang relevan dengan persoalan yang diminta, kecuali memang dibutuhkan untuk memahami konteks bug tersebut (misal: perlu cek `function.php` karena error terkait fungsi yang di-require).
+- Kalau ada beberapa kemungkinan penyebab masalah, langsung pilih yang paling masuk akal berdasarkan konteks yang ada dan kerjakan — jangan menghabiskan waktu bertanya balik hal-hal kecil yang bisa diasumsikan wajar.
+- Ringkas di respons: langsung ke perbaikan/kode, tidak perlu muter-muter menjelaskan hal yang sudah jelas dari kode yang ada.
+
 ## Struktur file per halaman
 
 Setiap halaman/fitur (misalnya halaman "arsip", "pegawai", dst) minimal punya:
@@ -418,6 +426,23 @@ Sebelum menganggap kode selesai, AI harus mengecek ulang:
 - [ ] Upload file selalu lewat function `upload_file()` di `function.php` (induk), tidak ditulis ulang di tiap `proses.php`
 - [ ] Form yang ada input file pakai `enctype`/`FormData` + `contentType: false, processData: false` di AJAX-nya
 - [ ] TIDAK ADA path/URL internal proyek yang di-hardcode statis (mis. `/redesain-siatek/...` atau `http://localhost/...`) — semua URL/path file proyek di-resolve dinamis via helper `base_url()` (dihitung dari `DOCUMENT_ROOT`) dan path fisik pakai `__DIR__`, supaya tidak rusak saat deploy ke server
+- [ ] Kolom foreign key (misal `pengupload`, `dosen_id`, `user_id`, dll) yang merujuk ke tabel lain **WAJIB diisi dengan ID** dari session (`$_SESSION['id']`, `$_SESSION['nip']`, `$_SESSION['nim']`), **BUKAN nama**. Nama hanya ditampilkan lewat JOIN saat rendering, tidak pernah disimpan di kolom entitas. Ini agar integritas referensial (FK constraint) tetap terjaga.
+- [ ] **DILARANG pakai `alert()` JavaScript** untuk notifikasi (sukses, error, info, konfirmasi). Gunakan sistem toast notification yang sudah ada di project (muncul di pojok kanan atas, auto-hilang, ada ikon). Kalau halaman belum punya, buat inline dengan style Tailwind. Polla: `toast(pesan, 'success'|'error'|'info')`.
+
+## Aturan notifikasi (WAJIB)
+
+**Semua notifikasi ke user** (berhasil disimpan, gagal, error server, konfirmasi hapus, dsb) **TIDAK BOLEH pakai `alert()` atau `confirm()` bawaan browser** — itu tampilan tahun 90-an dan tidak konsisten dengan desain Tailwind project ini.
+
+Gunakan mekanisme berikut:
+1. **Toast notification** — untuk pesan sukses, error, info. Muncul di pojok kanan atas, otomatis hilang setelah beberapa detik. Pola JS:
+   ```js
+   toast('Data berhasil ditambahkan', 'success');
+   toast('Upload file gagal', 'error');
+   toast('Peringatan: ukuran file melebihi batas', 'info');
+   ```
+2. **Modal konfirmasi** — untuk konfirmasi aksi berbahaya (hapus data). Project sudah punya `konfirmasiHapus(nama, callback)` global, pakai itu.
+3. **Jangan pernah** pakai `window.alert()`, `window.confirm()`, atau `window.prompt()`.
+4. Toast harus punya style minimal: background gradient (hijau=success, merah=error, biru=info), icon FontAwesome, animasi slide-in dari kanan, tombol close, auto-dismiss 3-5 detik.
 
 ## Aturan perilaku AI sendiri saat mengerjakan tugas ini (WAJIB — sering dilanggar)
 
@@ -435,6 +460,38 @@ Tiga masalah ini bukan soal gaya PHP, tapi soal cara AI bekerja, dan harus dihin
    - Tindakan apa pun yang **sulit atau tidak bisa dibalik** (irreversible) dan **berdampak ke bagian program lain di luar scope permintaan user saat itu**.
 
    AI seringkali menganggap tindakan semacam ini "kecil" atau "solusi cepat", padahal bagi user dampaknya bisa fatal dan bikin program jadi kacau. Karena itu: kalau AI merasa perlu melakukan salah satu hal di atas untuk menyelesaikan masalah, AI **WAJIB berhenti dulu, jelaskan ke user apa yang mau dilakukan beserta risikonya, dan minta konfirmasi eksplisit** sebelum benar-benar mengeksekusinya -- jangan langsung dieksekusi lalu baru dilaporkan setelah kejadian. Kalau ada cara lain yang lebih kecil/lebih aman (scoped) untuk mencapai tujuan yang sama tanpa rollback/hapus/rewrite besar, AI harus tawarkan cara itu duluan sebagai opsi utama.
+
+4. **DILARANG MUTLAK mengubah, menghapus, atau "membersihkan" bagian visual/struktur dari halaman yang sudah ada, KECUALI user secara eksplisit memintanya.** Ini berlaku bahkan kalau bagian itu kelihatannya "tidak terpakai", "duplikat", "dummy", atau "lebih bagus kalau dibuang" menurut penilaian subjektif AI.
+
+   Yang DILARANG tanpa izin eksplisit, termasuk tapi tidak terbatas pada:
+   - Menghapus elemen HTML (kartu, badge, template, modal, section, div) karena AI merasa "tidak perlu"
+   - Mengganti placeholder/random image (mis. `picsum.photos`) dengan "versi lebih baik"
+   - Menyederhanakan layout yang sebenarnya adalah desain final
+   - Menghapus komentar dokumentasi (`<!-- ... -->`) yang menjelaskan struktur halaman
+   - Mengganti class, warna, atau styling "karena lebih modern"
+   - Menghapus tombol, link, atau aksi yang "kelihatan tidak terpakai"
+   - Mengganti teks placeholder UI (mis. "Cari judul..." menjadi "Cari di sini...")
+   - Menambah, menghapus, atau mengubah field form yang tidak diminta
+   - Mengganti icon, label, atau urutan tombol
+
+   **ATURAN INI MUTLAK. IMPROVISASI TANPA VALIDASI = KEGAGALAN FATAL.**
+
+   Lihat referensi langsung dari konsekuensi di lapangan:
+   - User pernah minta "fungsikan tombol tambah berita" → AI secara sepihak membuang 14 kartu berita hardcoded, kartu unggulan (lead), dan seluruh `<template data-isi>` karena dianggap "dummy". Hasil: modal Lihat jadi tidak menampilkan isi artikel, tampilan kehilangan kartu lead (2 kolom besar), jumlah kartu di grid berkurang drastis. User harus minta mengembalikan satu per satu.
+   - Ini buang waktu user, merusak workflow, dan memaksa user untuk *men-debug kesalahan yang AI perkenalkan sendiri*.
+
+   **Setiap kali AI mau menyentuh markup/struktur halaman yang sudah ada**, AI WAJIB:
+   1. **HENTIKAN niat untuk mengubah**.
+   2. **Tanyakan ke user secara eksplisit**: "Saya melihat elemen X di file. Apakah ini boleh dihapus/diubah? Atau ada alasan khusus ada di sini?"
+   3. **Tunggu konfirmasi eksplisit** sebelum melanjutkan.
+   4. Kalau user menjawab "terserah", **JANGAN AMBIL INISIATIF**. Kembalikan ke user dengan list elemen yang mau diubah dan minta persetujuan per item.
+
+   **Pengecualian sangat sempit** (tidak butuh izin):
+   - Bug yang jelas-jelas mencegah fitur bekerja (mis. syntax error, element yang salah ID sehingga JS tidak bisa menemukan target)
+   - Keamanan (XSS, SQL injection) yang kritis
+   - Performa fatal (loop tak terhingga, memory leak)
+
+   Untuk hal lain → TANYA DULU. Tidak ada alasan "demi kerapihan", "lebih clean", "best practice", atau "standar industri" yang membenarkan perubahan tanpa izin. User yang lebih tahu konteks proyeknya. **AI tidak berhak memutuskan sendiri.**
 
 ## Template lengkap
 

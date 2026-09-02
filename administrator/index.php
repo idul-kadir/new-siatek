@@ -409,13 +409,17 @@ $activePage = $pageKey;
         modal.classList.add('show');
     }
     function closeGlobalHapus() {
-        document.getElementById('globalHapusModal').classList.remove('show');
+        var m = document.getElementById('globalHapusModal');
+        if (m && m.classList) m.classList.remove('show');
         _globalHapusCb = null;
     }
     document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('globalHapusBtn').addEventListener('click', function () {
+        var btn = document.getElementById('globalHapusBtn');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var cb = _globalHapusCb;
             closeGlobalHapus();
-            if (_globalHapusCb) _globalHapusCb();
+            if (typeof cb === 'function') cb();
         });
     });
     </script>
