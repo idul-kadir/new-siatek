@@ -38,6 +38,68 @@ if ($action === 'list_ruangan') {
     exit;
 }
 
+// ================= LIST TAHUN AJARAN =================
+if ($action === 'ambil_tahun') {
+    $ambil = query("SELECT DISTINCT tahun_ajaran FROM jadwal_kuliah ORDER BY tahun_ajaran DESC");
+    $data = [];
+    while ($row = mysqli_fetch_assoc($ambil)) {
+        $data[] = $row['tahun_ajaran'];
+    }
+    echo json_encode(['status' => true, 'data' => $data]);
+    exit;
+}
+
+// ================= AMBIL JADWAL PER TAHUN AJARAN =================
+if ($action === 'ambil_jadwal') {
+    $ta = bersihkan($_GET['ta'] ?? $_POST['ta'] ?? '');
+    if ($ta === '') {
+        echo json_encode(['status' => false, 'pesan' => 'Tahun ajaran tidak valid']);
+        exit;
+    }
+
+    $ambil = query("SELECT j.id, j.hari, j.jam, j.kelas, j.ruangan, j.tahun_ajaran,
+               rk.nama AS ruangan_nama,
+               m.id AS matkul_id, m.kode, m.nama, m.sks, m.semester, m.konsentrasi,
+               k.prodi AS prodi_kode, p.nama AS prodi_nama,
+               j.pengajar1, j.pengajar2,
+               d1.nama AS dosen1_nama,
+               d2.nama AS dosen2_nama
+        FROM jadwal_kuliah j
+        LEFT JOIN matakuliah m ON j.id_matakuliah = m.id
+        LEFT JOIN dosen d1 ON j.pengajar1 = d1.id
+        LEFT JOIN dosen d2 ON j.pengajar2 = d2.id
+        LEFT JOIN ruang_kuliah rk ON j.ruangan = rk.id
+        LEFT JOIN kurikulum k ON m.kurikulum = k.kode
+        LEFT JOIN prodi p ON k.prodi = p.kode
+        WHERE j.tahun_ajaran = '$ta'
+        ORDER BY j.hari, rk.nama, j.jam");
+
+    $data = [];
+    while ($row = mysqli_fetch_assoc($ambil)) {
+        $data[] = [
+            'id'          => $row['id'],
+            'hari'        => $row['hari'],
+            'jam'         => $row['jam'],
+            'kelas'       => $row['kelas'],
+            'matkul_id'   => $row['matkul_id'],
+            'kode'        => $row['kode'],
+            'nama'        => $row['nama'],
+            'sks'         => $row['sks'],
+            'semester'    => $row['semester'],
+            'prodi_kode'  => $row['prodi_kode'] ?: '',
+            'prodi_nama'  => $row['prodi_nama'] ?: '',
+            'pengajar1_id'=> $row['pengajar1'] ?: '',
+            'pengajar2_id'=> $row['pengajar2'] ?: '',
+            'dosen1'      => $row['dosen1_nama'] ?: '',
+            'dosen2'      => $row['dosen2_nama'] ?: '',
+            'ruangan_id'  => $row['ruangan'] ?: '',
+            'ruangan'     => strtoupper($row['ruangan_nama'] ?: $row['ruangan'])
+        ];
+    }
+    echo json_encode(['status' => true, 'data' => $data, 'tahun_ajaran' => $ta]);
+    exit;
+}
+
 // ================= TAMBAH RUANGAN =================
 if ($action === 'tambah_ruangan' && $method === 'POST') {
     $nama      = bersihkan($_POST['nama'] ?? '');

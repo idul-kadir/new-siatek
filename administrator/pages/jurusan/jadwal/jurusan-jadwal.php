@@ -17,6 +17,11 @@ if ($qta && mysqli_num_rows($qta) > 0) {
     $tahun_ajaran = $rowta['tahun_ajaran'];
 }
 
+// semua tahun ajaran yang tersedia di DB (untuk dropdown)
+$daftar_tahun = [];
+$q2 = query("SELECT DISTINCT tahun_ajaran FROM jadwal_kuliah ORDER BY tahun_ajaran DESC");
+while ($t = mysqli_fetch_assoc($q2)) $daftar_tahun[] = $t['tahun_ajaran'];
+
 $ambil_jadwal = query("
     SELECT j.id, j.hari, j.jam, j.kelas, j.ruangan, j.tahun_ajaran,
            rk.nama AS ruangan_nama,
@@ -193,7 +198,11 @@ function toast(pesan, tipe) {
             </div>
             <div class="flex items-center gap-2">
                 <button type="button" id="btnRuangan" class="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-blue-600 to-blue-700 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-blue-600/30 ring-1 ring-blue-800/50 transition hover:from-blue-500 hover:to-blue-600 hover:shadow-blue-500/40 active:scale-95"><span class="flex h-6 w-6 items-center justify-center rounded-md bg-white/20 text-[11px]"><i class="fas fa-door-open"></i></span> Kelola Ruangan</button>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-bold text-white"><i class="fas fa-calendar-days"></i> <?= tampil($tahun_ajaran) ?></span>
+                <select id="fTahun" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500">
+                    <?php foreach ($daftar_tahun as $t): ?>
+                    <option value="<?= tampil($t) ?>" <?= $t === $tahun_ajaran ? 'selected' : '' ?>><?= tampil($t) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
     </section>
@@ -845,7 +854,80 @@ foreach ($jadwal as $hari => $rooms):
         return grid;
     }
 
-    // ================= BUAT SAAT KARTU JADWAL (data-attrs + tombol) =================
+    /* ============ GANTI TAHUN AJARAN (re-render via AJAX) ============ */
+    var RUANG_COLORS = <?= json_encode($ruang_colors) ?>;
+    var HARI_KEYS = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'UNDEFINED'];
+    var HARI_LABELS = { SENIN: 'Senin', SELASA: 'Selasa', RABU: 'Rabu', KAMIS: 'Kamis', JUMAT: 'Jumat', SABTU: 'Sabtu', UNDEFINED: 'Undefined' };
+    var TA_AKTIF = TAHUN_AJARAN;
+
+    function getWarnaRuang(nama) {
+        var key = (nama || '').toUpperCase();
+        if (RUANG_COLORS[key]) return RUANG_COLORS[key];
+        return '#334155';
+    }
+
+    function renderSemuaPanel(list, ta) {
+        TA_AKTIF_LBL.textContent = ta;
+
+        var html = '';
+        var mkSet = {}, dosenSet = {};
+        list.forEach(function (o) {
+            if (o.kode) mkSet[o.kode] = true;
+            if (o.dosen1) dosenSet[o.dosen1] = true;
+            if (o.dosen2) dosenSet[o.dosen2] = true;
+        });
+
+        HARI_KEYS.forEach(function (hp) {
+            var items = list.filter(function (o) { return (o.hari || 'UNDEFINED').toUpperCase() === hp; });
+            if (!items.length) return;
+
+            var grouped = {};
+            items.forEach(function (o) {
+                var g = o.ruangan || '';
+                if (!grouped[g]) grouped[g] = [];
+                grouped[g].push(o);
+            });
+
+            var panelHTML = '<section class="tab-panel' + (hp === tabAktif ? ' active' : '') + '" id="panel-' + hp + '" data-tabbody>';
+            panelHTML += '<div class="mb-3 flex items-center justify-between"><h2 class="text-base font-semibold text-slate-800">' + HARI_LABELS[hp] + ' <span class="text-sm font-normal text-slate-400"> ' + (Object.keys(grouped).filter(function (r) { return r !== ''; }).length) + ' ruangan</span></h2></div>';
+            Object.keys(grouped).forEach(function (ruang) {
+                var warna = getWarnaRuang(ruang);
+                if (!ruang) {
+                    panelHTML += '<div class="rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3" data-room=""></div></div>';
+                    grouped[ruang].forEach(function (o) { panelHTML = panelHTML.replace('</div>', buatKartuArticle(o).outerHTML + '</div>'); });
+                } else {
+                    panelHTML += '<div class="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">' +
+                        '<div style="background:linear-gradient(90deg,' + warna + ' 0%,#64748b 100%);height:6px;"></div>' +
+                        '<div class="px-4 pb-4 pt-2 text-center" style="background:linear-gradient(180deg,#f1f5f9 0%,#ffffff 100%);">' +
+                        '<div class="mb-1 flex items-center justify-center gap-2" style="color:' + warna + '"><i class="fas fa-door-open text-xs"></i><span class="text-[10px] font-semibold uppercase tracking-[.15em]">Laboratorium</span></div>' +
+                        '<h3 class="text-base font-bold text-slate-800"><span style="color:' + warna + '">' + ruang + '</span></h3>' +
+                        '<p class="mt-0.5 text-[11px] text-slate-500">' + grouped[ruang].length + ' sesi</p></div>' +
+                        '<div class="p-4"><div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-room="' + ruang + '">' +
+                        grouped[ruang].map(function (o) { return buatKartuArticle(o).outerHTML; }).join('') +
+                        '</div></div></div>';
+                }
+            });
+            panelHTML += '</section>';
+            containerJadwal.insertAdjacentHTML('beforeend', panelHTML);
+        });
+    }
+
+    document.getElementById('fTahun').addEventListener('change', function () {
+        var ta = this.value;
+        if (!ta || ta === TA_AKTIF_LBL_Sel) return;
+        fetch(PROSES_URL + '?action=ambil_jadwal&ta=' + encodeURIComponent(ta))
+            .then(function (res) { return res.json(); })
+            .then(function (json) {
+                if (!json.status) { toast(json.pesan || 'Gagal memuat jadwal', 'error'); return; }
+                TA_AKTIF_LBL_S = ta;
+                TEWAJAR = json.data;
+                containerJadwal.innerHTML = '';
+                renderSemuaPanel(json.data, ta);
+                syncBadges();
+            })
+            .catch(function () { toast('Terjadi kesalahan pada server', 'error'); });
+    });
+})();
     function buatKartuArticle(o) {
         var dataCari = ((o.kode || '') + ' ' + (o.nama || '') + ' ' + (o.dosen1 || '') + ' ' + (o.dosen2 || '') + ' ' + (o.prodi || '') + ' ' + (o.kelas || '')).toLowerCase();
         var badge = (o.dosen1 && o.dosen2)
