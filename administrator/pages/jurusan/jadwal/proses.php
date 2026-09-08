@@ -90,6 +90,113 @@ if ($action === 'update_ruangan' && $method === 'POST') {
     exit;
 }
 
+// ================= TAMBAH JADWAL =================
+if ($action === 'tambah_jadwal' && $method === 'POST') {
+    $id_matakuliah = bersihkan($_POST['id_matakuliah'] ?? '');
+    $hari          = bersihkan($_POST['hari'] ?? '');
+    $kelas         = bersihkan($_POST['kelas'] ?? '');
+    $prodi         = bersihkan($_POST['prodi'] ?? '');
+    $pengajar1     = bersihkan($_POST['pengajar1'] ?? '');
+    $pengajar2     = bersihkan($_POST['pengajar2'] ?? '');
+    $ruangan       = bersihkan($_POST['ruangan'] ?? '');
+    $jam           = bersihkan($_POST['jam'] ?? '');
+    $tahun_ajaran  = bersihkan($_POST['tahun_ajaran'] ?? '');
+
+    if (empty($id_matakuliah) || empty($hari) || empty($ruangan) || empty($jam) || empty($tahun_ajaran)) {
+        echo json_encode(['status' => false, 'pesan' => 'Data tidak lengkap']);
+        exit;
+    }
+
+    // cek matakuliah+kelas sudah dibuka di tahun ajaran ini
+    $cekKelas = query("SELECT id FROM jadwal_kuliah WHERE id_matakuliah = '$id_matakuliah' AND kelas = '$kelas' AND tahun_ajaran = '$tahun_ajaran'");
+    if (mysqli_num_rows($cekKelas) > 0) {
+        echo json_encode(['status' => false, 'pesan' => 'Kelas ' . $kelas . ' untuk mata kuliah ini sudah dibuka di tahun ajaran ini']);
+        exit;
+    }
+
+    // cek tumpang tindih: hari + jam + ruangan sama di tahun ajaran sama
+    $cek = query("SELECT id FROM jadwal_kuliah WHERE hari = '$hari' AND jam = '$jam' AND ruangan = '$ruangan' AND tahun_ajaran = '$tahun_ajaran'");
+    if (mysqli_num_rows($cek) > 0) {
+        echo json_encode(['status' => false, 'pesan' => 'Jadwal bentrok: hari, jam, dan ruangan sudah dipakai']);
+        exit;
+    }
+
+    // kolom pengajar FK ke dosen, nilai kosong harus NULL (bukan string kosong)
+    $p1Sql = ($pengajar1 !== '') ? "'$pengajar1'" : "NULL";
+    $p2Sql = ($pengajar2 !== '') ? "'$pengajar2'" : "NULL";
+
+    $simpan = query("INSERT INTO jadwal_kuliah (id_matakuliah, hari, jam, kelas, prodi, pengajar1, pengajar2, ruangan, tahun_ajaran) VALUES ('$id_matakuliah', '$hari', '$jam', '$kelas', '$prodi', $p1Sql, $p2Sql, '$ruangan', '$tahun_ajaran')");
+
+    if ($simpan) {
+        echo json_encode(['status' => true, 'pesan' => 'Jadwal berhasil ditambahkan', 'id' => mysqli_insert_id($koneksi)]);
+    } else {
+        echo json_encode(['status' => false, 'pesan' => 'Jadwal gagal ditambahkan']);
+    }
+    exit;
+}
+
+// ================= UPDATE JADWAL =================
+if ($action === 'update_jadwal' && $method === 'POST') {
+    $id = bersihkan($_POST['id'] ?? '');
+    $id_matakuliah = bersihkan($_POST['id_matakuliah'] ?? '');
+    $hari          = bersihkan($_POST['hari'] ?? '');
+    $kelas         = bersihkan($_POST['kelas'] ?? '');
+    $prodi         = bersihkan($_POST['prodi'] ?? '');
+    $pengajar1     = bersihkan($_POST['pengajar1'] ?? '');
+    $pengajar2     = bersihkan($_POST['pengajar2'] ?? '');
+    $ruangan       = bersihkan($_POST['ruangan'] ?? '');
+    $jam           = bersihkan($_POST['jam'] ?? '');
+    $tahun_ajaran  = bersihkan($_POST['tahun_ajaran'] ?? '');
+
+    if (empty($id) || empty($id_matakuliah) || empty($hari) || empty($ruangan) || empty($jam) || empty($tahun_ajaran)) {
+        echo json_encode(['status' => false, 'pesan' => 'Data tidak lengkap']);
+        exit;
+    }
+
+    // kolom pengajar FK ke dosen, nilai kosong harus NULL (bukan string kosong)
+    $p1Sql = ($pengajar1 !== '') ? "'$pengajar1'" : "NULL";
+    $p2Sql = ($pengajar2 !== '') ? "'$pengajar2'" : "NULL";
+
+    // cek matakuliah+kelas sudah dibuka di tahun ajaran ini (kecuali baris ini sendiri)
+    $cekKelas = query("SELECT id FROM jadwal_kuliah WHERE id_matakuliah = '$id_matakuliah' AND kelas = '$kelas' AND tahun_ajaran = '$tahun_ajaran' AND id != '$id'");
+    if (mysqli_num_rows($cekKelas) > 0) {
+        echo json_encode(['status' => false, 'pesan' => 'Kelas ' . $kelas . ' untuk mata kuliah ini sudah dibuka di tahun ajaran ini']);
+        exit;
+    }
+
+    // cek tumpang tindih hari + jam + ruangan (kecuali baris ini)
+    $cek = query("SELECT id FROM jadwal_kuliah WHERE hari = '$hari' AND jam = '$jam' AND ruangan = '$ruangan' AND tahun_ajaran = '$tahun_ajaran' AND id != '$id'");
+    if (mysqli_num_rows($cek) > 0) {
+        echo json_encode(['status' => false, 'pesan' => 'Jadwal bentrok: hari, jam, dan ruangan sudah dipakai']);
+        exit;
+    }
+
+    $update = query("UPDATE jadwal_kuliah SET id_matakuliah = '$id_matakuliah', hari = '$hari', jam = '$jam', kelas = '$kelas', prodi = '$prodi', pengajar1 = $p1Sql, pengajar2 = $p2Sql, ruangan = '$ruangan', tahun_ajaran = '$tahun_ajaran' WHERE id = '$id'");
+
+    if ($update) {
+        echo json_encode(['status' => true, 'pesan' => 'Jadwal berhasil diperbarui']);
+    } else {
+        echo json_encode(['status' => false, 'pesan' => 'Jadwal gagal diperbarui']);
+    }
+    exit;
+}
+
+// ================= HAPUS JADWAL =================
+if ($action === 'hapus_jadwal' && $method === 'POST') {
+    $id = bersihkan($_POST['id'] ?? '');
+    if (empty($id)) {
+        echo json_encode(['status' => false, 'pesan' => 'ID jadwal tidak valid']);
+        exit;
+    }
+    $hapus = query("DELETE FROM jadwal_kuliah WHERE id = '$id'");
+    if ($hapus) {
+        echo json_encode(['status' => true, 'pesan' => 'Jadwal berhasil dihapus']);
+    } else {
+        echo json_encode(['status' => false, 'pesan' => 'Jadwal gagal dihapus']);
+    }
+    exit;
+}
+
 // ================= HAPUS RUANGAN =================
 if ($action === 'hapus_ruangan' && $method === 'POST') {
     $id = bersihkan($_POST['id'] ?? '');

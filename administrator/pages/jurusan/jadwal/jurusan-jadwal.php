@@ -20,8 +20,9 @@ if ($qta && mysqli_num_rows($qta) > 0) {
 $ambil_jadwal = query("
     SELECT j.id, j.hari, j.jam, j.kelas, j.ruangan, j.tahun_ajaran,
            rk.nama AS ruangan_nama,
-           m.kode, m.nama, m.sks, m.semester, m.konsentrasi,
+           m.kode, m.nama, m.sks, m.semester, m.konsentrasi, m.id AS matkul_id,
            k.prodi AS prodi_kode, p.nama AS prodi_nama,
+           j.pengajar1, j.pengajar2,
            d1.nama AS dosen1_nama,
            d2.nama AS dosen2_nama
     FROM jadwal_kuliah j
@@ -42,6 +43,7 @@ $jadwal = [
 $all_ruangan = [];
 $all_prodi = [];
 $all_dosen = [];
+$all_matkul = [];
 
 // prodi dropdown langsung dari tabel prodi (semua yang aktif)
 $ambil_prodi = query("SELECT kode, nama FROM prodi WHERE status = 'Aktif' ORDER BY nama");
@@ -60,6 +62,7 @@ while ($row = mysqli_fetch_assoc($ambil_jadwal)) {
 
     $jadwal[$hari][] = [
         'id'         => $row['id'],
+        'matkul_id'  => $row['matkul_id'],
         'kode'       => $row['kode'],
         'nama'       => $row['nama'],
         'sks'        => $row['sks'],
@@ -70,11 +73,14 @@ while ($row = mysqli_fetch_assoc($ambil_jadwal)) {
         'jam'        => $row['jam'],
         'dosen1'     => $row['dosen1_nama'],
         'dosen2'     => $row['dosen2_nama'],
+        'pengajar1_id' => $row['pengajar1'] ?? '',
+        'pengajar2_id' => $row['pengajar2'] ?? '',
         'prodi'      => $prodi,
         'prodi_id'   => $prodi_id
     ];
 
     if ($ruangan_nama) $all_ruangan[$ruangan_nama] = true;
+    if ($row['kode']) $all_matkul[$row['kode']] = true;
     if ($row['dosen1_nama']) $all_dosen[$row['dosen1_nama']] = true;
     if ($row['dosen2_nama']) $all_dosen[$row['dosen2_nama']] = true;
 }
@@ -92,6 +98,26 @@ foreach ($jadwal as $hari => $items) {
 
 $total_sesi = 0;
 foreach ($jadwal as $rooms) foreach ($rooms as $items) $total_sesi += count($items);
+
+// ================= DATA MASTER UNTUK FORM BUKA KELAS BARU =================
+// daftar matakuliah diambil dari jadwal_kuliah tahun ajaran aktif saja
+$matkul_list = [];
+$ambil_matkul = query("SELECT DISTINCT m.id, m.kode, m.nama, m.sks, m.semester, k.prodi AS prodi_kode, p.nama AS prodi_nama
+    FROM jadwal_kuliah j
+    JOIN matakuliah m ON j.id_matakuliah = m.id
+    LEFT JOIN kurikulum k ON m.kurikulum = k.kode
+    LEFT JOIN prodi p ON k.prodi = p.kode
+    WHERE j.tahun_ajaran = '" . bersihkan($tahun_ajaran) . "' AND TRIM(m.kode) != ''
+    ORDER BY p.nama, m.nama");
+while ($row = mysqli_fetch_assoc($ambil_matkul)) $matkul_list[] = $row;
+
+$dosen_list = [];
+$ambil_dosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama");
+while ($row = mysqli_fetch_assoc($ambil_dosen)) $dosen_list[] = $row;
+
+$ruangan_list = [];
+$ambil_ruang = query("SELECT id, nama FROM ruang_kuliah WHERE status = 'aktif' ORDER BY nama");
+while ($row = mysqli_fetch_assoc($ambil_ruang)) $ruangan_list[] = $row;
 ?>
 
 <style>
@@ -119,7 +145,37 @@ foreach ($jadwal as $rooms) foreach ($rooms as $items) $total_sesi += count($ite
     .form-field label { display: block; margin-bottom: .3rem; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .03em; }
     .form-field input, .form-field select { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: .5rem; padding: .55rem .7rem; font-size: .85rem; color: #1e293b; outline: none; transition: all .15s ease; }
     .form-field input:focus, .form-field select:focus { border-color: #60a5fa; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+    .card-flash { animation: cardFlash 1.2s ease; }
+    @keyframes cardFlash { 0% { box-shadow: 0 0 0 3px rgba(16,185,129,.55); } 100% { box-shadow: none; } }
+
+    #toastContainer { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-item { pointer-events: auto; display: flex; align-items: center; gap: 8px; min-width: 260px; max-width: 380px; padding: 12px 16px; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.18); opacity: 0; transform: translateX(100%); transition: all .3s ease; }
+    .toast-item.show { opacity: 1; transform: translateX(0); }
+    .toast-item.hide { opacity: 0; transform: translateX(100%); }
+    .toast-success { background: linear-gradient(135deg, #059669, #10b981); }
+    .toast-error { background: linear-gradient(135deg, #dc2626, #f87171); }
+    .toast-info { background: linear-gradient(135deg, #2563eb, #60a5fa); }
+    .toast-icon { font-size: 16px; }
+    .toast-close { margin-left: auto; background: none; border: none; color: rgba(255,255,255,.8); font-size: 18px; cursor: pointer; line-height: 1; }
 </style>
+<div id="toastContainer"></div>
+
+<script>
+/* ============ TOAST (global, dipakai semua blok) ============ */
+function toast(pesan, tipe) {
+    tipe = tipe || 'info';
+    var container = document.getElementById('toastContainer');
+    if (!container) return;
+    var item = document.createElement('div');
+    item.className = 'toast-item toast-' + tipe;
+    var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+    item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span>' + pesan + '</span><button class="toast-close">&times;</button>';
+    container.appendChild(item);
+    setTimeout(function () { item.classList.add('show'); }, 10);
+    setTimeout(function () { item.classList.remove('show'); item.classList.add('hide'); setTimeout(function () { item.remove(); }, 300); }, 3500);
+    item.querySelector('.toast-close').addEventListener('click', function () { item.classList.remove('show'); item.classList.add('hide'); setTimeout(function () { item.remove(); }, 300); });
+}
+</script>
 
 <main class="content-area content-scroll">
 
@@ -145,26 +201,26 @@ foreach ($jadwal as $rooms) foreach ($rooms as $items) $total_sesi += count($ite
     <section class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div class="tile-corak tile-orange rounded-xl p-4 text-white shadow-md">
             <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Total Sesi</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= $total_sesi ?></p></div>
+                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Sesi</p><p class="mt-1 text-2xl font-bold tracking-tight" id="statTotal"><?= $total_sesi ?></p></div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-calendar-check"></i></span>
             </div>
         </div>
         <div class="tile-corak tile-emerald rounded-xl p-4 text-white shadow-md">
             <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Laboratorium</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count($all_ruangan) ?></p></div>
+                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Ruangan</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count($all_ruangan) ?></p></div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-door-open"></i></span>
             </div>
         </div>
         <div class="tile-corak tile-sky rounded-xl p-4 text-white shadow-md">
             <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Mata Kuliah</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count(array_unique(array_column(array_merge(...array_values($jadwal)), 'kode'))) ?></p></div>
+                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Mata Kuliah</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count($all_matkul) ?></p></div>
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-book-open"></i></span>
             </div>
         </div>
         <div class="tile-corak tile-violet rounded-xl p-4 text-white shadow-md">
             <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Belum Terjadwal</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count($jadwal['UNDEFINED'][''] ?? []) ?></p></div>
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-hourglass-half"></i></span>
+                <div class="min-w-0"><p class="text-[11px] font-medium uppercase tracking-wide text-white/85">Dosen Pengajar</p><p class="mt-1 text-2xl font-bold tracking-tight"><?= count($all_dosen) ?></p></div>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-chalkboard-teacher"></i></span>
             </div>
         </div>
     </section>
@@ -182,6 +238,7 @@ foreach ($jadwal as $rooms) foreach ($rooms as $items) $total_sesi += count($ite
             ?>
             <button type="button" class="tab-btn" data-tab="<?= $key ?>"><i class="fas fa-calendar-day text-[11px]"></i><?= $label ?><span class="tnum"><?= $count ?></span></button>
             <?php endforeach; ?>
+            <button type="button" id="btnTambah" class="inline-flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"><i class="fas fa-plus"></i> Buka Kelas Baru</button>
             <button type="button" id="btnReset" class="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><i class="fas fa-rotate"></i> Reset</button>
         </div>
     </section>
@@ -222,9 +279,18 @@ function renderCard($item) {
     $dosen2  = tampil($item['dosen2'] ?? '');
     $prodi   = tampil($item['prodi'] ?? '');
     $prodi_id= tampil($item['prodi_id'] ?? '');
+    $matkul_id = tampil($item['matkul_id'] ?? '');
+    $jadwal_id = tampil($item['id'] ?? '');
+    $kelas_raw = tampil($item['kelas'] ?? '');
+    $jam_raw   = tampil($item['jam'] ?? '');
+    $pengajar1_id = tampil($item['pengajar1_id'] ?? '');
+    $pengajar2_id = tampil($item['pengajar2_id'] ?? '');
+    $ruangan_id = tampil($item['ruangan_id'] ?? '');
 
     $data_cari = strtolower($kode . ' ' . $nama . ' ' . $dosen1 . ' ' . $dosen2 . ' ' . $prodi . ' ' . $kelas);
     $data_dosen = strtolower($dosen1 . '|' . $dosen2);
+    $jam_esc = htmlspecialchars($jam_raw, ENT_QUOTES, 'UTF-8');
+    $jam_val = preg_replace('/\s*-\s*.*/', '', $jam_raw); // ambil jam masuk saja (bagian sebelum "-")
 
     $badge = ($dosen1 && $dosen2)
         ? '<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">Bagi 2</span>'
@@ -234,10 +300,19 @@ function renderCard($item) {
     if ($dosen1) $pengajar_li .= '<li class="flex items-start gap-1.5"><i class="fas fa-user-tie mt-0.5 text-[10px] text-slate-300"></i><span>' . $dosen1 . '</span></li>';
     if ($dosen2) $pengajar_li .= '<li class="flex items-start gap-1.5"><i class="fas fa-user-tie mt-0.5 text-[10px] text-slate-300"></i><span>' . $dosen2 . '</span></li>';
 
+    $data_id = $jadwal_id;
+    $data_matkul = $matkul_id;
+    $data_kelas = $kelas_raw;
+    $data_jam = $jam_val;
+    $data_d1 = $pengajar1_id;
+    $data_d2 = $pengajar2_id;
+    $data_ruangan = $ruangan_id;
+
     return <<<HTML
-    <article class="mk-card flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow" data-cari="{$data_cari}" data-prodi="{$prodi_id}" data-dosen="{$data_dosen}">
+    <article class="mk-card flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow" data-cari="{$data_cari}" data-prodi="{$prodi_id}" data-dosen="{$data_dosen}" data-id="{$data_id}" data-matkul="{$data_matkul}" data-kelas="{$data_kelas}" data-jam="{$data_jam}" data-d1="{$data_d1}" data-d2="{$data_d2}" data-ruangan="{$data_ruangan}">
         <div class="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <h4 class="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-800">{$nama}</h4>
+            <div class="flex shrink-0 gap-1"><button type="button" class="jadwal-edit rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 transition hover:bg-blue-100">Edit</button><button type="button" class="jadwal-hapus rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 transition hover:bg-red-100">Hapus</button></div>
         </div>
         <div class="flex-1 px-4 py-3">
             <dl class="space-y-1.5 text-[13px]">
@@ -367,6 +442,58 @@ foreach ($jadwal as $hari => $rooms):
     </div>
 </div>
 
+<!-- Modal Buka Kelas Baru -->
+<div class="modal-overlay" id="jadwalModal">
+    <div class="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+            <h6 class="text-sm font-semibold text-slate-900"><i class="fas fa-plus mr-1 text-orange-600"></i><span id="modalTitleJadwal">Buka Kelas Baru</span></h6>
+            <button type="button" data-jadwal-close class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="overflow-y-auto p-5">
+            <div class="space-y-4">
+                <div class="form-field"><label>Mata Kuliah</label><select id="fMatkul" class="w-full"></select>
+                    <input type="hidden" id="fProdiKode">
+                    <p class="mt-1 text-[11px] text-slate-500">Prodi: <span id="lblProdi" class="font-semibold text-slate-600">-</span></p>
+                    <p class="mt-0.5 text-[11px] text-slate-500">Selesai: <strong id="lblSelesai">-</strong></p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="form-field"><label>Hari</label>
+                        <select id="fHari" class="w-full">
+                            <option value="SENIN">Senin</option>
+                            <option value="SELASA">Selasa</option>
+                            <option value="RABU">Rabu</option>
+                            <option value="KAMIS">Kamis</option>
+                            <option value="JUMAT">Jumat</option>
+                            <option value="SABTU">Sabtu</option>
+                        </select>
+                    </div>
+                    <div class="form-field"><label>Kelas</label>
+                        <select id="fKelas" class="w-full">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="form-field"><label>Ruangan</label><select id="fRuang" class="w-full"></select></div>
+                    <div class="form-field"><label>Jam Masuk</label><input type="time" id="fMasuk" class="w-full"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="form-field"><label>Pengajar 1</label><select id="fDosen1" class="w-full"></select></div>
+                    <div class="form-field"><label>Pengajar 2</label><select id="fDosen2" class="w-full"></select></div>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+            <button type="button" data-jadwal-close class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">Batal</button>
+            <button type="button" id="btnSaveJadwal" class="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600">Simpan</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     var PROSES_URL = '<?= base_url() ?>/administrator/pages/jurusan/jadwal/proses.php';
@@ -434,6 +561,329 @@ foreach ($jadwal as $hari => $rooms):
     });
     syncBadges();
     setTab('SENIN');
+
+    /* ============ TAMBAH JADWAL ============ */
+    var PROSES_URL = '<?= base_url() ?>/administrator/pages/jurusan/jadwal/proses.php';
+    var TAHUN_AJARAN = '<?= addslashes($tahun_ajaran) ?>';
+
+    var matkulList = <?= json_encode($matkul_list) ?>;
+    var dosenList  = <?= json_encode($dosen_list) ?>;
+    var ruanganList = <?= json_encode($ruangan_list) ?>;
+
+    function isiSelect(el, list, placeholder) {
+        el.innerHTML = '';
+        if (placeholder) {
+            var ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = placeholder;
+            el.appendChild(ph);
+        }
+        list.forEach(function (item) {
+            var o = document.createElement('option');
+            o.value = item.v;
+            o.textContent = item.t;
+            el.appendChild(o);
+        });
+    }
+
+    // isi select matakuliah pakai optgroup per prodi
+    function isiMatkul(el) {
+        el.innerHTML = '';
+        var ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = 'Pilih Mata Kuliah';
+        el.appendChild(ph);
+
+        var groups = {};
+        matkulList.forEach(function (m) {
+            var key = m.prodi_nama || 'Lainnya';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(m);
+        });
+        Object.keys(groups).sort().forEach(function (gName) {
+            var og = document.createElement('optgroup');
+            og.label = gName;
+            groups[gName].forEach(function (m) {
+                var o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = m.nama + ' (' + m.kode + ') - Semester ' + m.semester;
+                o.dataset.sks = m.sks;
+                o.dataset.prodiKode = m.prodi_kode || '';
+                o.dataset.prodiNama = m.prodi_nama || '';
+                og.appendChild(o);
+            });
+            el.appendChild(og);
+        });
+    }
+
+    function fmtWaktu(totalMenit) {
+        totalMenit = Math.max(0, totalMenit) % 1440;
+        var h = Math.floor(totalMenit / 60), m = totalMenit % 60;
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+    }
+
+    function hitungSelesai() {
+        var t = document.getElementById('fMasuk').value;
+        var sks = parseInt(document.getElementById('fMatkul').selectedOptions[0]?.dataset.sks, 10) || 0;
+        if (!t || !sks) { document.getElementById('lblSelesai').textContent = '-'; return ''; }
+        var p = t.split(':');
+        document.getElementById('lblSelesai').textContent = fmtWaktu((+p[0] * 60 + +p[1]) + sks * 50);
+        return fmtWaktu((+p[0] * 60 + +p[1]) + sks * 50);
+    }
+
+    // isi dropdown saat halaman dibuka
+    var eMatkul = document.getElementById('fMatkul');
+    isiMatkul(eMatkul);
+    isiSelect(document.getElementById('fDosen1'), dosenList.map(function (d) { return { v: d.id, t: d.nama }; }), 'Pilih Pengajar');
+    (function () {
+        var el = document.getElementById('fDosen2');
+        el.innerHTML = '';
+        var ph0 = document.createElement('option');
+        ph0.value = '';
+        ph0.textContent = 'Pilih Pengajar';
+        el.appendChild(ph0);
+        dosenList.forEach(function (d) {
+            var o = document.createElement('option');
+            o.value = d.id;
+            o.textContent = d.nama;
+            el.appendChild(o);
+        });
+    })();
+    isiSelect(document.getElementById('fRuang'), ruanganList.map(function (r) { return { v: r.id, t: r.nama }; }), 'Pilih Ruangan');
+
+    eMatkul.addEventListener('change', function () {
+        var o = eMatkul.selectedOptions[0];
+        document.getElementById('lblProdi').textContent = o?.dataset.prodiNama || '-';
+        document.getElementById('fProdiKode').value = o?.dataset.prodiKode || '';
+        hitungSelesai();
+    });
+    document.getElementById('fMasuk').addEventListener('change', hitungSelesai);
+
+    var jadwalModal = document.getElementById('jadwalModal');
+    document.getElementById('btnTambah').addEventListener('click', function () {
+        // reset form
+        eMatkul.value = '';
+        document.getElementById('fHari').value = tabAktif;
+        document.getElementById('fKelas').value = 'A';
+        document.getElementById('fRuang').value = '';
+        document.getElementById('fMasuk').value = '';
+        document.getElementById('fDosen1').value = '';
+        document.getElementById('fDosen2').value = '';
+        document.getElementById('lblProdi').textContent = '-';
+        document.getElementById('lblSelesai').textContent = '-';
+        jadwalModal.classList.add('show');
+    });
+    jadwalModal.querySelectorAll('[data-jadwal-close]').forEach(function (b) {
+        b.addEventListener('click', function () { jadwalModal.classList.remove('show'); });
+    });
+    jadwalModal.addEventListener('click', function (e) { if (e.target === jadwalModal) jadwalModal.classList.remove('show'); });
+
+    // mode form: null = tambah, id jadwal = edit
+    var editingId = null;
+    var editCardEl = null;
+
+    // simpan lewat AJAX (tambah kelas baru atau edit jadwal)
+    document.getElementById('btnSaveJadwal').addEventListener('click', function () {
+        var id_matakuliah = eMatkul.value;
+        var hari = document.getElementById('fHari').value;
+        var kelas = document.getElementById('fKelas').value;
+        var ruangan = document.getElementById('fRuang').value;
+        var masuk = document.getElementById('fMasuk').value;
+        var d1 = document.getElementById('fDosen1').value;
+        var d2 = document.getElementById('fDosen2').value || '';
+        var prodi = document.getElementById('fProdiKode').value || '';
+        var selesai = hitungSelesai();
+
+        if (!id_matakuliah || !hari || !ruangan || !masuk) {
+            toast('Mata kuliah, hari, ruangan, dan jam wajib diisi', 'error');
+            return;
+        }
+        var jam = masuk + ' - ' + (selesai || '-');
+
+        var isEdit = !!editingId;
+        var body = 'action=' + (isEdit ? 'update_jadwal' : 'tambah_jadwal') +
+            (isEdit ? '&id=' + encodeURIComponent(editingId) : '') +
+            '&id_matakuliah=' + encodeURIComponent(id_matakuliah) +
+            '&hari=' + encodeURIComponent(hari) +
+            '&kelas=' + encodeURIComponent(kelas) +
+            '&prodi=' + encodeURIComponent(prodi) +
+            '&pengajar1=' + encodeURIComponent(d1) +
+            '&pengajar2=' + encodeURIComponent(d2) +
+            '&ruangan=' + encodeURIComponent(ruangan) +
+            '&jam=' + encodeURIComponent(jam) +
+            '&tahun_ajaran=' + encodeURIComponent(TAHUN_AJARAN);
+
+        fetch(PROSES_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+            .then(function (res) { return res.json(); })
+            .then(function (json) {
+                if (!json.status) { toast(json.pesan || 'Gagal menyimpan jadwal', 'error'); return; }
+                toast(json.pesan, 'success');
+                jadwalModal.classList.remove('show');
+
+                var mk = matkulList.find(function (m) { return String(m.id) === String(id_matakuliah); }) || {};
+                var rg = ruanganList.find(function (r) { return String(r.id) === String(ruangan); }) || {};
+                var ds1 = dosenList.find(function (d) { return String(d.id) === String(d1); });
+                var ds2 = dosenList.find(function (d) { return String(d.id) === String(d2); });
+                if (isEdit) {
+                    gantiKartu(editingId, { id: editingId, matkulId: id_matakuliah, hari: hari, kelas: kelas, ruanganId: ruangan, ruangan: (rg.nama || ruangan).toUpperCase(), jam: jam, dosen1: ds1 ? ds1.nama : '', dosen2: ds2 ? ds2.nama : '', d1: d1, d2: d2, prodi: prodi, prodiNama: mk.prodi_nama || '', kode: mk.kode, nama: mk.nama, sks: mk.sks, semester: mk.semester }, hari, ruangan);
+                } else {
+                    sisipKartu({ id: json.id || '', matkulId: id_matakuliah, hari: hari, kelas: kelas, ruanganId: ruangan, ruangan: (rg.nama || ruangan).toUpperCase(), jam: jam, dosen1: ds1 ? ds1.nama : '', dosen2: ds2 ? ds2.nama : '', d1: d1, d2: d2, prodi: prodi, prodiNama: mk.prodi_nama || '', kode: mk.kode, nama: mk.nama, sks: mk.sks, semester: mk.semester });
+                }
+                editingId = null; editCardEl = null;
+            })
+            .catch(function () { toast('Terjadi kesalahan pada server', 'error'); });
+    });
+
+    // ================= EVENT DELEGATION: EDIT & HAPUS KARTU JADWAL =================
+    document.addEventListener('click', function (e) {
+        var btnEdit = e.target.closest('.jadwal-edit');
+        if (btnEdit) { bukaFormEdit(btnEdit.closest('.mk-card')); return; }
+
+        var btnHapus = e.target.closest('.jadwal-hapus');
+        if (!btnHapus) return;
+        var card = btnHapus.closest('.mk-card');
+        var nama = card.querySelector('h4').textContent.trim();
+        konfirmasiHapus(nama, function () {
+            fetch(PROSES_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=hapus_jadwal&id=' + encodeURIComponent(card.getAttribute('data-id'))
+            }).then(function (res) { return res.json(); }).then(function (json) {
+                if (!json.status) { toast(json.pesan || 'Gagal menghapus', 'error'); return; }
+                var panelForBadges = card.closest('.tab-panel');
+                var st = document.getElementById('statTotal');
+                if (st) st.textContent = Math.max(0, (parseInt(st.textContent, 10) || 0) - 1);
+                card.remove();
+                toast(json.pesan, 'success');
+                syncBadges();
+                terapkanCari();
+            }).catch(function () { toast('Kesalahan jaringan', 'error'); });
+        });
+    });
+
+    // buka modal edit, prefill dari atribut kartu
+    function bukaFormEdit(card) {
+        editingId = card.getAttribute('data-id');
+        editCardEl = card;
+        document.getElementById('modalTitleJadwal').textContent = 'Edit Jadwal';
+        eMatkul.value = card.getAttribute('data-matkul') || '';
+        eMatkul.dispatchEvent(new Event('change'));
+        document.getElementById('fHari').value = card.closest('.tab-panel').id.replace('panel-', '');
+        document.getElementById('fKelas').value = card.getAttribute('data-kelas') || 'A';
+        document.getElementById('fRuang').value = card.getAttribute('data-ruangan') || '';
+        document.getElementById('fMasuk').value = card.getAttribute('data-jam') || '';
+        document.getElementById('fDosen1').value = card.getAttribute('data-d1') || '';
+        document.getElementById('fDosen2').value = card.getAttribute('data-d2') || '';
+        jadwalModal.classList.add('show');
+    }
+
+    // ================= SISIP KARTU JADWAL BARU KE PANEL =================
+    function sisipKartu(o) {
+        var panel = document.getElementById('panel-' + o.hari) || document.getElementById('panel-UNDEFINED');
+        if (!panel) return;
+        var grid = cariGridAtauBuat(panel, o.ruangan);
+        if (!grid) return;
+        var art = buatKartuArticle(o);
+        grid.appendChild(art);
+
+        art.classList.add('card-flash');
+        setTimeout(function () { art.classList.remove('card-flash'); }, 1300);
+        syncBadges();
+        terapkanCari();
+
+        // update statistik total sesi
+        var st = document.getElementById('statTotal');
+        if (st) st.textContent = (parseInt(st.textContent, 10) || 0) + 1;
+    }
+
+    // ================= GANTI KARTU LAMA (MODE EDIT) =================
+    function gantiKartu(id, o, hari, ruanganId) {
+        var kartuLama = document.querySelector('.mk-card[data-id="' + id + '"]');
+        if (!kartuLama) return;
+        var artBaru = buatKartuArticle(o);
+        artBaru.setAttribute('data-id', id);
+
+        // pindah ke panel/grid baru bila hari atau ruangan berubah
+        var gridBaru = null;
+        var panelLama = kartuLama.closest('.tab-panel');
+        var panelTujuan = document.getElementById('panel-' + hari) || panelLama;
+        panelTujuan.querySelectorAll('.grid[data-room]').forEach(function (g) {
+            if ((g.getAttribute('data-room') || '').toUpperCase() === o.ruangan) gridBaru = g;
+        });
+        if (!gridBaru) gridBaru = cariGridAtauBuat(panelTujuan, o.ruangan);
+        if (gridBaru) gridBaru.appendChild(artBaru); else panelTujuan.appendChild(artBaru);
+
+        kartuLama.replaceWith(artBaru);
+        artBaru.classList.add('card-flash');
+        setTimeout(function () { artBaru.classList.remove('card-flash'); }, 1300);
+        syncBadges();
+        terapkanCari();
+    }
+
+    // pastikan grid data-room ada pada panel, buat blok ruangan baru bila belum
+    function cariGridAtauBuat(panel, oRuang) {
+        if (!panel) return null;
+        var grid = null;
+        panel.querySelectorAll('.grid[data-room]').forEach(function (g) {
+            if ((g.getAttribute('data-room') || '').toUpperCase() === oRuang) grid = g;
+        });
+        if (!grid) {
+            var blok = document.createElement('div');
+            blok.className = 'mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm';
+            blok.innerHTML =
+                '<div style="background:linear-gradient(90deg,#334155 0%,#64748b 100%);height:6px;"></div>' +
+                '<div class="px-4 pb-4 pt-2 text-center" style="background:linear-gradient(180deg,#f1f5f9 0%,#ffffff 100%);">' +
+                '<div class="mb-1 flex items-center justify-center gap-2" style="color:#334155"><i class="fas fa-door-open text-xs"></i><span class="text-[10px] font-semibold uppercase tracking-[.15em]">Laboratorium</span></div>' +
+                '<h3 class="text-base font-bold text-slate-800"><span style="color:#334155">' + oRuang + '</span></h3>' +
+                '<p class="mt-0.5 text-[11px] text-slate-500">1 sesi</p>' +
+                '</div>' +
+                '<div class="p-4"><div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-room="' + oRuang + '"></div></div>';
+            panel.appendChild(blok);
+            var g2 = blok.querySelector('.grid[data-room]');
+            if (g2) grid = g2;
+        }
+        return grid;
+    }
+
+    // ================= BUAT SAAT KARTU JADWAL (data-attrs + tombol) =================
+    function buatKartuArticle(o) {
+        var dataCari = ((o.kode || '') + ' ' + (o.nama || '') + ' ' + (o.dosen1 || '') + ' ' + (o.dosen2 || '') + ' ' + (o.prodi || '') + ' ' + (o.kelas || '')).toLowerCase();
+        var badge = (o.dosen1 && o.dosen2)
+            ? '<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">Bagi 2</span>'
+            : '<span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-500 px-2 py-0.5 text-[10px] font-bold">Belum Ditentukan</span>';
+        var li = '';
+        if (o.dosen1) li += '<li class="flex items-start gap-1.5"><i class="fas fa-user-tie mt-0.5 text-[10px] text-slate-300"></i><span>' + o.dosen1 + '</span></li>';
+        if (o.dosen2) li += '<li class="flex items-start gap-1.5"><i class="fas fa-user-tie mt-0.5 text-[10px] text-slate-300"></i><span>' + o.dosen2 + '</span></li>';
+
+        var art = document.createElement('article');
+        art.className = 'mk-card flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow';
+        art.setAttribute('data-cari', dataCari);
+        art.setAttribute('data-prodi', o.prodi || '');
+        art.setAttribute('data-id', o.id || '');
+        art.setAttribute('data-matkul', o.matkulId || '');
+        art.setAttribute('data-kelas', o.kelas || '');
+        art.setAttribute('data-jam', (o.jam || '').split(' - ')[0]);
+        art.setAttribute('data-d1', o.d1 || '');
+        art.setAttribute('data-d2', o.d2 || '');
+        art.setAttribute('data-ruangan', o.ruanganId || '');
+        art.innerHTML =
+            '<div class="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">' +
+            '<h4 class="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-800">' + (o.nama || '') + '</h4>' +
+            '<div class="flex shrink-0 gap-1"><button type="button" class="jadwal-edit rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 transition hover:bg-blue-100">Edit</button><button type="button" class="jadwal-hapus rounded-md border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 transition hover:bg-red-100">Hapus</button></div></div>' +
+            '<div class="flex-1 px-4 py-3"><dl class="space-y-1.5 text-[13px]">' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">Kode</dt><dd class="font-medium text-slate-700">' + (o.kode || '') + '</dd></div>' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">Kelas</dt><dd class="font-medium text-slate-700">' + (o.kelas || '-') + '</dd></div>' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">Semester</dt><dd class="font-medium text-slate-700">Semester ' + (o.semester || '-') + '</dd></div>' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">SKS</dt><dd class="font-medium text-slate-700">' + (o.sks || '-') + '</dd></div>' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">Prodi</dt><dd class="font-medium text-slate-700">' + (o.prodiNama || o.prodi || "-") + '</dd></div>' +
+            '<div class="flex justify-between gap-2"><dt class="text-slate-400">Waktu</dt><dd class="font-medium text-slate-700">' + (o.jam || '') + '</dd></div>' +
+            '</dl>' +
+            '<div class="mt-3 border-t border-slate-100 pt-2.5">' +
+            '<div class="mb-1 flex items-center justify-between gap-2"><p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pengajar</p>' + badge + '</div>' +
+            '<ul class="space-y-1 text-[12px] text-slate-600">' + li + '</ul>' +
+            '</div></div>';
+        return art;
+    }
 })();
 
 /* ============ CRUD Ruangan ============ */
