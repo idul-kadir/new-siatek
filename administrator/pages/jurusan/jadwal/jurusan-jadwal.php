@@ -21,17 +21,16 @@ $ambil_jadwal = query("
     SELECT j.id, j.hari, j.jam, j.kelas, j.ruangan, j.tahun_ajaran,
            rk.nama AS ruangan_nama,
            m.kode, m.nama, m.sks, m.semester, m.konsentrasi,
-           d1.nama AS dosen1_nama, d1.prodi AS dosen1_prodi_id,
-           d2.nama AS dosen2_nama, d2.prodi AS dosen2_prodi_id,
-           p1.nama AS prodi1_nama,
-           p2.nama AS prodi2_nama
+           k.prodi AS prodi_kode, p.nama AS prodi_nama,
+           d1.nama AS dosen1_nama,
+           d2.nama AS dosen2_nama
     FROM jadwal_kuliah j
     LEFT JOIN matakuliah m ON j.id_matakuliah = m.id
     LEFT JOIN dosen d1 ON j.pengajar1 = d1.id
     LEFT JOIN dosen d2 ON j.pengajar2 = d2.id
     LEFT JOIN ruang_kuliah rk ON j.ruangan = rk.id
-    LEFT JOIN prodi p1 ON d1.prodi = p1.kode
-    LEFT JOIN prodi p2 ON d2.prodi = p2.kode
+    LEFT JOIN kurikulum k ON m.kurikulum = k.kode
+    LEFT JOIN prodi p ON k.prodi = p.kode
     WHERE j.tahun_ajaran = '" . bersihkan($tahun_ajaran) . "'
     ORDER BY j.hari, j.ruangan, j.jam
 ");
@@ -53,7 +52,10 @@ while ($p = mysqli_fetch_assoc($ambil_prodi)) {
 while ($row = mysqli_fetch_assoc($ambil_jadwal)) {
     $hari = strtoupper($row['hari']);
     if (!isset($jadwal[$hari])) $hari = 'UNDEFINED';
-    $prodi = $row['prodi1_nama'] ?: ($row['prodi2_nama'] ?: '');
+    // prodi_id = kode prodi (via kurikulum matakuliah) untuk matching filter
+    // prodi    = nama prodi untuk display
+    $prodi_id = $row['prodi_kode'] ?: '';
+    $prodi    = $row['prodi_nama'] ?: '';
     $ruangan_nama = strtoupper($row['ruangan_nama'] ?: $row['ruangan']);
 
     $jadwal[$hari][] = [
@@ -68,7 +70,8 @@ while ($row = mysqli_fetch_assoc($ambil_jadwal)) {
         'jam'        => $row['jam'],
         'dosen1'     => $row['dosen1_nama'],
         'dosen2'     => $row['dosen2_nama'],
-        'prodi'      => $prodi
+        'prodi'      => $prodi,
+        'prodi_id'   => $prodi_id
     ];
 
     if ($ruangan_nama) $all_ruangan[$ruangan_nama] = true;
@@ -192,7 +195,7 @@ foreach ($jadwal as $rooms) foreach ($rooms as $items) $total_sesi += count($ite
             <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400">
                 <option value="">Semua Prodi</option>
                 <?php foreach ($all_prodi as $pKode => $pNama): ?>
-                <option value="<?= tampil($pNama) ?>"><?= tampil($pNama) ?></option>
+                <option value="<?= tampil($pKode) ?>"><?= tampil($pNama) ?></option>
                 <?php endforeach; ?>
             </select>
             <select id="fDosen" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400">
@@ -218,6 +221,7 @@ function renderCard($item) {
     $dosen1  = tampil($item['dosen1'] ?? '');
     $dosen2  = tampil($item['dosen2'] ?? '');
     $prodi   = tampil($item['prodi'] ?? '');
+    $prodi_id= tampil($item['prodi_id'] ?? '');
 
     $data_cari = strtolower($kode . ' ' . $nama . ' ' . $dosen1 . ' ' . $dosen2 . ' ' . $prodi . ' ' . $kelas);
     $data_dosen = strtolower($dosen1 . '|' . $dosen2);
@@ -231,7 +235,7 @@ function renderCard($item) {
     if ($dosen2) $pengajar_li .= '<li class="flex items-start gap-1.5"><i class="fas fa-user-tie mt-0.5 text-[10px] text-slate-300"></i><span>' . $dosen2 . '</span></li>';
 
     return <<<HTML
-    <article class="mk-card flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow" data-cari="{$data_cari}" data-prodi="{$prodi}" data-dosen="{$data_dosen}">
+    <article class="mk-card flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow" data-cari="{$data_cari}" data-prodi="{$prodi_id}" data-dosen="{$data_dosen}">
         <div class="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <h4 class="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-800">{$nama}</h4>
         </div>
