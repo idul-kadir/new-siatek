@@ -17,10 +17,15 @@ if ($qta && mysqli_num_rows($qta) > 0) {
     $tahun_ajaran = $rowta['tahun_ajaran'];
 }
 
-// semua tahun ajaran yang tersedia di DB (untuk dropdown)
-$daftar_tahun = [];
+// semua tahun ajaran: dua TA generate dari tahun sekarang + TA yang ada di DB (untuk dropdown)
+$daftar_tahun = [
+    ((int)date('Y') - 1) . '/' . (int)date('Y') . ' - Genap',
+    (int)date('Y') . '/' . ((int)date('Y') + 1) . ' - Ganjil'
+];
 $q2 = query("SELECT DISTINCT tahun_ajaran FROM jadwal_kuliah ORDER BY tahun_ajaran DESC");
-while ($t = mysqli_fetch_assoc($q2)) $daftar_tahun[] = $t['tahun_ajaran'];
+while ($t = mysqli_fetch_assoc($q2)) {
+    if (!in_array($t['tahun_ajaran'], $daftar_tahun)) $daftar_tahun[] = $t['tahun_ajaran'];
+}
 
 $ambil_jadwal = query("
     SELECT j.id, j.hari, j.jam, j.kelas, j.ruangan, j.tahun_ajaran,
@@ -342,8 +347,7 @@ HTML;
 }
 
 // ================= RENDER PER HARI =================
-$ruang_colors = [
-    'LAB. UNPROTECT' => '#334155',
+$ruang_colors = [    'LAB. UNPROTECT' => '#334155',
     'R.K 2.11' => '#334155',
     'R.K 3.16' => '#334155',
     'LAB INSTALASI' => '#334155',
@@ -353,11 +357,10 @@ $ruang_colors = [
     'LAB. TEKNIK KENDALI' => '#6d28d9',
     'LAB. ELEKTRONIKA DAN KOMUNIKASI' => '#f97316'
 ];
-
-foreach ($jadwal as $hari => $rooms):
-    $label = $hari_labels[$hari];
-    $ruang_count = count(array_filter(array_keys($rooms), function($r) { return $r !== ''; }));
 ?>
+<div id="containerJadwal">
+<?php foreach ($jadwal as $hari => $rooms): ?>
+<?php $label = $hari_labels[$hari]; $ruang_count = count(array_filter(array_keys($rooms), function($r) { return $r !== ''; })); ?>
 <section class="tab-panel" id="panel-<?= $hari ?>" data-tabbody>
     <div class="mb-3 flex items-center justify-between"><h2 class="text-base font-semibold text-slate-800"><?= $label ?> <span class="text-sm font-normal text-slate-400"> <?= $ruang_count ?> ruangan</span></h2></div>
 <?php foreach ($rooms as $ruangan => $items): ?>
@@ -390,7 +393,6 @@ foreach ($jadwal as $hari => $rooms):
 <?php endforeach; ?>
 </section>
 <?php endforeach; ?>
-
 </div>
 
 <!-- ================= VIEW RUANGAN ================= -->
@@ -709,6 +711,7 @@ foreach ($jadwal as $hari => $rooms):
         }
         var jam = masuk + ' - ' + (selesai || '-');
 
+        var tahun_ajaran = document.getElementById('fTahun').value || TAHUN_AJARAN;
         var isEdit = !!editingId;
         var body = 'action=' + (isEdit ? 'update_jadwal' : 'tambah_jadwal') +
             (isEdit ? '&id=' + encodeURIComponent(editingId) : '') +
@@ -720,7 +723,7 @@ foreach ($jadwal as $hari => $rooms):
             '&pengajar2=' + encodeURIComponent(d2) +
             '&ruangan=' + encodeURIComponent(ruangan) +
             '&jam=' + encodeURIComponent(jam) +
-            '&tahun_ajaran=' + encodeURIComponent(TAHUN_AJARAN);
+            '&tahun_ajaran=' + encodeURIComponent(tahun_ajaran);
 
         fetch(PROSES_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
             .then(function (res) { return res.json(); })
@@ -858,7 +861,8 @@ foreach ($jadwal as $hari => $rooms):
     var RUANG_COLORS = <?= json_encode($ruang_colors) ?>;
     var HARI_KEYS = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'UNDEFINED'];
     var HARI_LABELS = { SENIN: 'Senin', SELASA: 'Selasa', RABU: 'Rabu', KAMIS: 'Kamis', JUMAT: 'Jumat', SABTU: 'Sabtu', UNDEFINED: 'Undefined' };
-    var TA_AKTIF = TAHUN_AJARAN;
+
+    var containerJadwal = document.getElementById('containerJadwal');
 
     function getWarnaRuang(nama) {
         var key = (nama || '').toUpperCase();
@@ -866,10 +870,24 @@ foreach ($jadwal as $hari => $rooms):
         return '#334155';
     }
 
-    function renderSemuaPanel(list, ta) {
-        TA_AKTIF_LBL.textContent = ta;
+    // ================= BLOK RUANGAN (header + grid) =================
+    function buatBlokRuangan(ruang, warna) {
+        var blok = document.createElement('div');
+        blok.className = 'mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm';
+        blok.innerHTML =
+            '<div style="background:linear-gradient(90deg,' + warna + ' 0%,#64748b 100%);height:6px;"></div>' +
+            '<div class="px-4 pb-4 pt-2 text-center" style="background:linear-gradient(180deg,#f1f5f9 0%,#ffffff 100%);">' +
+            '<div class="mb-1 flex items-center justify-center gap-2" style="color:' + warna + '"><i class="fas fa-door-open text-xs"></i><span class="text-[10px] font-semibold uppercase tracking-[.15em]">Laboratorium</span></div>' +
+            '<h3 class="text-base font-bold text-slate-800"><span style="color:' + warna + '">' + ruang + '</span></h3>' +
+            '<p class="mt-0.5 text-[11px] text-slate-500">0 sesi</p>' +
+            '</div>' +
+            '<div class="p-4"><div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-room="' + ruang + '"></div></div>';
+        var grid = blok.querySelector('.grid[data-room]');
+        return { blok: blok, grid: grid };
+    }
 
-        var html = '';
+    // ================= RE-RENDER SELURUH PANEL DARI DATA AJAK =================
+    function renderSemuaPanel(list, ta) {
         var mkSet = {}, dosenSet = {};
         list.forEach(function (o) {
             if (o.kode) mkSet[o.kode] = true;
@@ -877,9 +895,14 @@ foreach ($jadwal as $hari => $rooms):
             if (o.dosen2) dosenSet[o.dosen2] = true;
         });
 
+        containerJadwal.innerHTML = '';
+        var totalSesi = 0;
+
         HARI_KEYS.forEach(function (hp) {
             var items = list.filter(function (o) { return (o.hari || 'UNDEFINED').toUpperCase() === hp; });
             if (!items.length) return;
+            totalSesi += items.length;
+            tabAktif = tabAktif || 'SENIN';
 
             var grouped = {};
             items.forEach(function (o) {
@@ -888,46 +911,82 @@ foreach ($jadwal as $hari => $rooms):
                 grouped[g].push(o);
             });
 
-            var panelHTML = '<section class="tab-panel' + (hp === tabAktif ? ' active' : '') + '" id="panel-' + hp + '" data-tabbody>';
-            panelHTML += '<div class="mb-3 flex items-center justify-between"><h2 class="text-base font-semibold text-slate-800">' + HARI_LABELS[hp] + ' <span class="text-sm font-normal text-slate-400"> ' + (Object.keys(grouped).filter(function (r) { return r !== ''; }).length) + ' ruangan</span></h2></div>';
+            var panel = document.createElement('section');
+            panel.className = 'tab-panel' + (hp === tabAktif ? ' active' : '');
+            panel.id = 'panel-' + hp;
+            panel.setAttribute('data-tabbody', '');
+            panel.innerHTML = '<div class="mb-3 flex items-center justify-between"><h2 class="text-base font-semibold text-slate-800">' + HARI_LABELS[hp] + ' <span class="text-sm font-normal text-slate-400"> ' + (Object.keys(grouped).filter(function (r) { return r !== ''; }).length) + ' ruangan</span></h2></div>';
+
             Object.keys(grouped).forEach(function (ruang) {
                 var warna = getWarnaRuang(ruang);
                 if (!ruang) {
-                    panelHTML += '<div class="rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3" data-room=""></div></div>';
-                    grouped[ruang].forEach(function (o) { panelHTML = panelHTML.replace('</div>', buatKartuArticle(o).outerHTML + '</div>'); });
+                    var gridKosong = document.createElement('div');
+                    gridKosong.className = 'grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3';
+                    gridKosong.setAttribute('data-room', '');
+                    grouped[ruang].forEach(function (o) { gridKosong.appendChild(buatKartuArticle(o)); });
+                    var bKosong = document.createElement('div');
+                    bKosong.className = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
+                    bKosong.appendChild(gridKosong);
+                    panel.appendChild(bKosong);
                 } else {
-                    panelHTML += '<div class="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">' +
-                        '<div style="background:linear-gradient(90deg,' + warna + ' 0%,#64748b 100%);height:6px;"></div>' +
-                        '<div class="px-4 pb-4 pt-2 text-center" style="background:linear-gradient(180deg,#f1f5f9 0%,#ffffff 100%);">' +
-                        '<div class="mb-1 flex items-center justify-center gap-2" style="color:' + warna + '"><i class="fas fa-door-open text-xs"></i><span class="text-[10px] font-semibold uppercase tracking-[.15em]">Laboratorium</span></div>' +
-                        '<h3 class="text-base font-bold text-slate-800"><span style="color:' + warna + '">' + ruang + '</span></h3>' +
-                        '<p class="mt-0.5 text-[11px] text-slate-500">' + grouped[ruang].length + ' sesi</p></div>' +
-                        '<div class="p-4"><div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-room="' + ruang + '">' +
-                        grouped[ruang].map(function (o) { return buatKartuArticle(o).outerHTML; }).join('') +
-                        '</div></div></div>';
+                    var ruangObj = buatBlokRuangan(ruang, warna);
+                    grouped[ruang].forEach(function (o) { ruangObj.grid.appendChild(buatKartuArticle(o)); });
+                    var pSesi = ruangObj.blok.querySelector('p.mt-0\\.5');
+                    if (pSesi) pSesi.textContent = grouped[ruang].length + ' sesi';
+                    panel.appendChild(ruangObj.blok);
                 }
             });
-            panelHTML += '</section>';
-            containerJadwal.insertAdjacentHTML('beforeend', panelHTML);
+            containerJadwal.appendChild(panel);
         });
+
+        // statistik live
+        var stT = document.getElementById('statTotal');
+        if (stT) stT.textContent = totalSesi;
+        var stMK = document.getElementById('statMK');
+        if (stMK) stMK.textContent = Object.keys(mkSet).length;
+        var stDosen = document.getElementById('statDosen');
+        if (stDosen) stDosen.textContent = Object.keys(dosenSet).length;
+        var stRuang = document.getElementById('statRuang');
+        if (stRuang) {
+            var semuaRuanganSet = {};
+            list.forEach(function (o) { if (o.ruangan) semuaRuanganSet[o.ruangan] = true; });
+            stRuang.textContent = Object.keys(semuaRuanganSet).length;
+        }
     }
 
     document.getElementById('fTahun').addEventListener('change', function () {
         var ta = this.value;
-        if (!ta || ta === TA_AKTIF_LBL_Sel) return;
+        if (!ta) return;
         fetch(PROSES_URL + '?action=ambil_jadwal&ta=' + encodeURIComponent(ta))
             .then(function (res) { return res.json(); })
             .then(function (json) {
                 if (!json.status) { toast(json.pesan || 'Gagal memuat jadwal', 'error'); return; }
-                TA_AKTIF_LBL_S = ta;
-                TEWAJAR = json.data;
-                containerJadwal.innerHTML = '';
                 renderSemuaPanel(json.data, ta);
                 syncBadges();
             })
             .catch(function () { toast('Terjadi kesalahan pada server', 'error'); });
     });
-})();
+
+    // daftar matakuliah form mengikuti TA aktif (fallback master bila TA kosong)
+    function muatMatkulUntukTa(ta) {
+        fetch(PROSES_URL + '?action=ambil_matkul&ta=' + encodeURIComponent(ta))
+            .then(function (res) { return res.json(); })
+            .then(function (json) {
+                if (!json.status) return;
+                matkulList = json.data;
+                isiMatkul(document.getElementById('fMatkul'));
+            })
+            .catch(function () {});
+    }
+
+    // TA ganti juga menyegarkan daftar matakuliah
+    var fTahunEl = document.getElementById('fTahun');
+    fTahunEl.addEventListener('change', function () {
+        muatMatkulUntukTa(this.value);
+    });
+    muatMatkulUntukTa(fTahunEl.value);
+
+    // ================= BUAT SAAT KARTU JADWAL (data-attrs + tombol) =================
     function buatKartuArticle(o) {
         var dataCari = ((o.kode || '') + ' ' + (o.nama || '') + ' ' + (o.dosen1 || '') + ' ' + (o.dosen2 || '') + ' ' + (o.prodi || '') + ' ' + (o.kelas || '')).toLowerCase();
         var badge = (o.dosen1 && o.dosen2)

@@ -38,12 +38,46 @@ if ($action === 'list_ruangan') {
     exit;
 }
 
-// ================= LIST TAHUN AJARAN =================
-if ($action === 'ambil_tahun') {
-    $ambil = query("SELECT DISTINCT tahun_ajaran FROM jadwal_kuliah ORDER BY tahun_ajaran DESC");
+// ================= LIST MATAKULIAH UNTUK FORM BUKA KELAS =================
+// utama: matakuliah pada TA terpilih; jika TA itu belum punya jadwal, pakai master matakuliah
+if ($action === 'ambil_matkul') {
+    $ta = bersihkan($_GET['ta'] ?? $_POST['ta'] ?? date('Y') . '/' . (date('Y') + 1) . ' - Ganjil');
+
+    $ambil = query("SELECT DISTINCT m.id, m.kode, m.nama, m.sks, m.semester, k.prodi AS prodi_kode, p.nama AS prodi_nama
+        FROM jadwal_kuliah j
+        JOIN matakuliah m ON j.id_matakuliah = m.id
+        LEFT JOIN kurikulum k ON m.kurikulum = k.kode
+        LEFT JOIN prodi p ON k.prodi = p.kode
+        WHERE j.tahun_ajaran = '$ta' AND TRIM(m.kode) != ''
+        ORDER BY p.nama, m.nama");
     $data = [];
+    while ($row = mysqli_fetch_assoc($ambil)) $data[] = $row;
+
+    if (count($data) === 0) {
+        $ambil = query("SELECT m.id, m.kode, m.nama, m.sks, m.semester, k.prodi AS prodi_kode, p.nama AS prodi_nama
+            FROM matakuliah m
+            LEFT JOIN kurikulum k ON m.kurikulum = k.kode
+            LEFT JOIN prodi p ON k.prodi = p.kode
+            WHERE TRIM(m.kode) != ''
+            ORDER BY p.nama, m.nama");
+        while ($row = mysqli_fetch_assoc($ambil)) $data[] = $row;
+    }
+    echo json_encode(['status' => true, 'data' => $data]);
+    exit;
+}
+
+// ================= LIST TAHUN AJARAN =================
+// gabungan: dua TA generate dari tahun sekarang (mis. 2026 -> 2025/2026 - Genap + 2026/2027 - Ganjil)
+// + semua TA yang sudah ada di jadwal_kuliah
+if ($action === 'ambil_tahun') {
+    $y = (int)date('Y');
+    $data = [
+        ($y - 1) . '/' . $y . ' - Genap',
+        $y . '/' . ($y + 1) . ' - Ganjil'
+    ];
+    $ambil = query("SELECT DISTINCT tahun_ajaran FROM jadwal_kuliah ORDER BY tahun_ajaran DESC");
     while ($row = mysqli_fetch_assoc($ambil)) {
-        $data[] = $row['tahun_ajaran'];
+        if (!in_array($row['tahun_ajaran'], $data)) $data[] = $row['tahun_ajaran'];
     }
     echo json_encode(['status' => true, 'data' => $data]);
     exit;
