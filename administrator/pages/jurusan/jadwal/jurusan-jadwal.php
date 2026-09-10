@@ -551,7 +551,8 @@ $ruang_colors = [    'LAB. UNPROTECT' => '#334155',
         tabBtn.forEach(function (b) {
             var t = b.getAttribute('data-tab');
             var panel = document.getElementById('panel-' + t);
-            if (panel) b.querySelector('.tnum').textContent = panel.querySelectorAll('.mk-card:not(.hide)').length;
+            var n = panel ? panel.querySelectorAll('.mk-card:not(.hide)').length : 0;
+            b.querySelector('.tnum').textContent = n;
         });
     }
 

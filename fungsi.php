@@ -41,9 +41,10 @@ function catat_file($id_file, $nama_file, $ekstensi, $tabel_asal){
   $ekstensi_b     = bersihkan($ekstensi);
   $tabel_asal_b   = bersihkan($tabel_asal);
   $waktu          = time();
+  $pengunggah     = bersihkan($_SESSION['id'] ?? '');
   // lokasi = path relatif file (mis. file/1787809027_d9cb8a4f0d18388e.jpg)
   $lokasi_b       = bersihkan('file/' . $nama_file);
-  return query("INSERT INTO files (id, nama_file, format_file, waktu_unggah, tabel_asal, lokasi) VALUES ('$id_file_b', '$nama_file_b', '$ekstensi_b', $waktu, '$tabel_asal_b', '$lokasi_b')");
+  return query("INSERT INTO files (id, nama_file, format_file, waktu_unggah, tabel_asal, lokasi, pengunggah) VALUES ('$id_file_b', '$nama_file_b', '$ekstensi_b', $waktu, '$tabel_asal_b', '$lokasi_b', '$pengunggah')");
 }
 
 // ================= FUNCTION UPLOAD FILE =================
