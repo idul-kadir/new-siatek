@@ -240,14 +240,14 @@ if(isset($_POST['edit-data-kerjasama'])){
 // ================= UPDATE JENIS BUKTI (AJAX) =================
 if(isset($_POST['update-jenis-bukti'])){
     $id_bukti = (int)($_POST['id_bukti'] ?? 0);
-    $jenis_baru = mysqli_real_escape_string($koneksi, $_POST['jenis_bukti'] ?? 'IA');
+    $jenis_bukti = mysqli_real_escape_string($koneksi, $_POST['jenis_bukti'] ?? 'Dokumen');
     
     if($id_bukti <= 0){
         echo json_encode(['status' => false, 'pesan' => 'ID bukti tidak valid']);
         exit;
     }
     
-    $update = query("UPDATE bukti_kerjasama SET nama_bukti='$jenis_baru' WHERE id='$id_bukti'");
+    $update = query("UPDATE bukti_kerjasama SET nama_bukti='$jenis_bukti' WHERE id='$id_bukti'");
     
     if($update){
         echo json_encode(['status' => true, 'pesan' => 'Jenis bukti berhasil diubah']);

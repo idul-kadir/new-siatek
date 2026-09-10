@@ -516,11 +516,7 @@
             : '<span class="ml-1 inline-flex items-center gap-1 rounded bg-amber-100 text-amber-700 px-1.5 py-px text-[9px] font-bold">baru</span>';
         d.className = 'doc-row ' + (isExisting ? 'is-existing' : 'is-new');
         d.innerHTML =
-            '<select class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-sm outline-none focus:border-orange-400">' +
-                '<option value="IA"' + (type === 'IA' ? ' selected' : '') + '>IA</option>' +
-                '<option value="MoU"' + (type === 'MoU' ? ' selected' : '') + '>MoU</option>' +
-                '<option value="PKS"' + (type === 'PKS' ? ' selected' : '') + '>PKS</option>' +
-            '</select>' +
+            '<input type="text" class="doc-label rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Label custom (mis. Berita Acara)" value="' + (type || 'Dokumen') + '">' +
             '<div class="doc-file flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">' +
                 '<i class="fas fa-file-pdf text-slate-400 text-xs shrink-0"></i>' +
                 '<span class="doc-name">' + displayName + '</span>' + badge +
@@ -533,17 +529,14 @@
         var fileInp = d.querySelector('input[type="file"]');
         var nameEl = d.querySelector('.doc-name');
         var badgeEl = d.querySelector('.ml-1.inline-flex');
-        var typeSelect = d.querySelector('select');
+        var labelInput = d.querySelector('.doc-label');
         var badgeText = isExisting ? 'tersimpan' : 'baru';
-        if(fileInp) badgeText += ' (dirubah)';
         d.setAttribute('data-id-bukti', idBukti);
         d.setAttribute('data-existing', isExisting ? '1' : '0');
-        typeSelect.addEventListener('change', function() {
-            var newType = this.value;
-            nameEl.textContent = fname ? fname : (newType ? newType : 'Belum ada file');
-            badgeEl.textContent = badgeText;
+        labelInput.addEventListener('change', function() {
+            nameEl.textContent = fname ? fname : (this.value ? this.value : 'Dokumen');
             if (isExisting && idBukti > 0) {
-                updateJenisBukti(idBukti, newType, d);
+                updateJenisBukti(idBukti, this.value, d);
             }
         });
         fileInp.addEventListener('change', function () {
@@ -618,15 +611,12 @@
         var rows = list.querySelectorAll('.doc-row');
         for (var i = 0; i < rows.length; i++) {
             var row = rows[i];
-            var t = row.querySelector('select').value;
+            var t = row.querySelector('.doc-label').value || 'Dokumen';
             var n = row.querySelector('.doc-name').textContent;
             var f = row.querySelector('input[type="file"]');
             var punyaFile = f && f.files && f.files.length > 0;
             var idBukti = parseInt(row.getAttribute('data-id-bukti') || '0', 10) || 0;
             var isExisting = row.getAttribute('data-existing') === '1';
-            // Hanya masukkan baris yang:
-            // - baru ditambah (ada file baru dipilih), atau
-            // - existing yang filenya diganti (punyaFile true)
             if (punyaFile) {
                 docs.push({ type: t, name: n, file: f, id_bukti: idBukti, existing: isExisting });
             }
@@ -816,7 +806,7 @@
         var j = 0;
         var allDocRows = docList.querySelectorAll('.doc-row');
         allDocRows.forEach(function(row) {
-            var t = row.querySelector('select').value || 'IA';
+            var t = row.querySelector('.doc-label').value || 'Dokumen';
             var f = row.querySelector('input[type="file"]');
             var file = f && f.files && f.files.length > 0 ? f.files[0] : null;
             var idBukti = parseInt(row.getAttribute('data-id-bukti') || '0', 10) || 0;
