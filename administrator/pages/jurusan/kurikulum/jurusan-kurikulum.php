@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/../../../../fungsi.php';
 /**
  * Halaman: Kurikulum
  * Data mengikuti tabel `kurikulum`: kode, nama, tahun, prodi, status.
- * JS hanya untuk: cari, filter prodi/status, tab tahun, modal tambah/edit, hapus.
+ * JS: AJAX CRUD, filter, tab, toast, loading indicator, modal konfirmasi.
  */
 ?>
 <style>
@@ -19,6 +20,36 @@
     .btn-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; transition: all .15s ease; }
     .btn-circle .tip { position: absolute; top: 115%; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .15s ease; z-index: 40; pointer-events: none; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
     .btn-circle:hover .tip { opacity: 1; visibility: visible; }
+
+    /* Spinner CSS */
+    .spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-loader .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
+
+    /* Toast container */
+    #toastContainer {
+        position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; pointer-events: none;
+    }
+    .toast-item {
+        display: flex; align-items: center; gap: .6rem; min-width: 240px; background: #0f172a; color: #fff; padding: .6rem 1rem; border-radius: .6rem; font-size: .8rem;
+        box-shadow: 0 6px 18px rgba(15,23,42,.35); transition: transform .3s ease, opacity .3s ease, height .3s ease; pointer-events: auto;
+        max-height: 120px; overflow: hidden; position: relative; animation: slideIn .3s ease forwards;
+    }
+    .toast-item.toast-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .toast-item.toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .toast-item.toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .toast-item.toast-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .toast-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .toast-close {
+        position: absolute; top: .4rem; right: .4rem; background: rgba(255,255,255,0.2); border: none; color: #fff; width: 20px; height: 20px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; line-height: 1;
+    }
+    .toast-close:hover { background: rgba(255,255,255,0.3); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast-item.hide { animation: slideOut .3s ease forwards; }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 </style>
 <main class="content-area content-scroll">
 
@@ -40,18 +71,6 @@
         </div>
     </section>
 
-
-
-    <!-- ===== Tabs Tahun ===== -->
-    <section class="mb-4">
-        <div class="flex flex-wrap gap-2">
-            <button type="button" class="tab-btn" data-tab="" aria-selected="true"><span class="tdot bg-slate-500"></span>Semua<span class="tnum" id="cnt-all">6</span></button>
-            <button type="button" class="tab-btn" data-tab="2017" aria-selected="false"><span class="tdot bg-amber-500"></span>2017<span class="tnum" id="cnt-2017">1</span></button>
-            <button type="button" class="tab-btn" data-tab="2025" aria-selected="false"><span class="tdot bg-sky-500"></span>2025<span class="tnum" id="cnt-2025">2</span></button>
-            <button type="button" class="tab-btn" data-tab="2026" aria-selected="false"><span class="tdot bg-emerald-500"></span>2026<span class="tnum" id="cnt-2026">3</span></button>
-        </div>
-    </section>
-
     <!-- ===== Toolbar ===== -->
     <section class="mb-4">
         <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -60,18 +79,18 @@
                 <input type="search" id="fCari" placeholder="Cari kode, nama kurikulum…"
                        class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white">
             </div>
-            <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                <option value="">Semua Prodi</option>
-                <option>S1 Teknik Elektro</option>
-                <option>S1 Teknik Komputer</option>
-                <option>S1 Pendidikan Vokasi Rekayasa Elektro</option>
+            <select id="fTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" disabled>
+                <option value="">Memuat tahun...</option>
+            </select>
+            <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" disabled>
+                <option value="">Memuat prodi...</option>
             </select>
             <select id="fStatus" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
                 <option value="">Semua Status</option>
-                <option>Aktif</option>
-                <option>Tidak Aktif</option>
+                <option value="aktif">Aktif</option>
+                <option value="tidak aktif">Tidak Aktif</option>
             </select>
-            <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200">
+            <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200" disabled>
                 <i class="fas fa-times mr-1"></i>Reset
             </button>
         </div>
@@ -83,10 +102,10 @@
             <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
                     <h2 class="text-base font-semibold text-slate-800">Daftar Kurikulum</h2>
-                    <p class="mt-0.5 text-xs text-slate-500"><span id="jmlData">6</span> kurikulum ditemukan</p>
+                    <p class="mt-0.5 text-xs text-slate-500"><span id="jmlData">0</span> kurikulum ditemukan</p>
                 </div>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
-                    <i class="fas fa-database"></i> <span id="badgeData">6</span> total
+                    <i class="fas fa-database"></i> <span id="badgeData">0</span> total
                 </span>
             </div>
 
@@ -110,123 +129,9 @@
                         </tr>
                     </thead>
                     <tbody id="tBody" class="divide-y divide-slate-100">
-                        <!-- 1 -->
-                        <tr class="bg-white transition hover:bg-orange-50" data-tahun="2017" data-prodi="S1 Teknik Elektro" data-status="Tidak Aktif" data-cari="1753425335 kurikulum kkni mbkm s1 teknik elektro tidak aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1753425335</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum KKNI - MBKM</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2017</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2.5 py-1 text-xs font-bold">S1 Teknik Elektro</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-bold">Tidak Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- 2 -->
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50" data-tahun="2025" data-prodi="S1 Teknik Elektro" data-status="Aktif" data-cari="1753425420 kurikulum 2025 s1 teknik elektro aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1753425420</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum 2025</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2025</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2.5 py-1 text-xs font-bold">S1 Teknik Elektro</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- 3 -->
-                        <tr class="bg-white transition hover:bg-orange-50" data-tahun="2025" data-prodi="S1 Teknik Komputer" data-status="Aktif" data-cari="1753425426 kurikulum 2025 s1 teknik komputer aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1753425426</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum 2025</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2025</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">S1 Teknik Komputer</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- 4 -->
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50" data-tahun="2026" data-prodi="S1 Pendidikan Vokasi Rekayasa Elektro" data-status="Aktif" data-cari="1784211306 kurikulum obe s1 pendidikan vokasi rekayasa elektro aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1784211306</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum OBE</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2026</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2.5 py-1 text-xs font-bold">S1 Pendidikan Vokasi Rekayasa Elektro</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- 5 -->
-                        <tr class="bg-white transition hover:bg-orange-50" data-tahun="2026" data-prodi="S1 Teknik Elektro" data-status="Aktif" data-cari="1785722041 kurikulum obe s1 teknik elektro aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1785722041</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum OBE</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2026</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-sky-100 text-sky-700 px-2.5 py-1 text-xs font-bold">S1 Teknik Elektro</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- 6 -->
-                        <tr class="bg-slate-50/60 transition hover:bg-orange-50" data-tahun="2026" data-prodi="S1 Teknik Komputer" data-status="Aktif" data-cari="1785725609 kurikulum obe s1 teknik komputer aktif">
-                            <td class="py-4 pl-5 pr-4">
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">1785725609</span>
-                            </td>
-                            <td class="px-4 py-4">
-                                <p class="font-semibold text-slate-800 leading-snug">Kurikulum OBE</p>
-                            </td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">2026</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">S1 Teknik Komputer</span></td>
-                            <td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold">Aktif</span></td>
-                            <td class="py-4 pr-5">
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                                    <button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                                    <button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                                </div>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
-            </div>
+                </div>
             </div>
         </div>
     </section>
@@ -241,11 +146,7 @@
             <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
         </div>
         <form id="kkForm" class="p-5 space-y-4">
-            <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">Kode Kurikulum</label>
-                <input type="text" id="inpKode" required placeholder="mis. 1785722041"
-                       class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white font-mono">
-            </div>
+            <input type="hidden" id="inpKode" value="">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Nama Kurikulum</label>
                 <input type="text" id="inpNama" required placeholder="mis. Kurikulum OBE"
@@ -254,26 +155,27 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Tahun</label>
-                    <select id="inpTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option><option>2021</option><option>2020</option><option>2017</option>
+                    <select id="inpTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" disabled>
+                        <option>Memuat...</option>
                     </select>
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Status</label>
                     <select id="inpStatus" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option>Aktif</option><option>Tidak Aktif</option>
+                        <option value="aktif">Aktif</option>
+                        <option value="tidak aktif">Tidak Aktif</option>
                     </select>
                 </div>
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Program Studi</label>
-                <select id="inpProdi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                    <option>S1 Teknik Elektro</option><option>S1 Teknik Komputer</option><option>S1 Pendidikan Vokasi Rekayasa Elektro</option>
+                <select id="inpProdi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" disabled>
+                    <option>Memuat...</option>
                 </select>
             </div>
             <div class="flex justify-end gap-2 pt-1">
                 <button type="button" data-modal-close class="px-3 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white font-medium">Simpan</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white font-medium" data-text="Simpan">Simpan</button>
             </div>
         </form>
     </div>
@@ -333,105 +235,148 @@
 
 <script>
 (function () {
-    var tab = '';
+    var BASE_URL = '<?= base_url(); ?>';
+    var PROSES_URL = BASE_URL + '/administrator/pages/jurusan/kurikulum/proses.php';
 
     var body = document.getElementById('tBody');
-    var rows = Array.prototype.slice.call(body ? body.querySelectorAll('tr') : []);
+    var fTahun = document.getElementById('fTahun');
     var fCari = document.getElementById('fCari');
     var fProdi = document.getElementById('fProdi');
     var fStatus = document.getElementById('fStatus');
-    var jmlEl = document.getElementById('jmlData');
-    var badgeEl = document.getElementById('badgeData');
-    var kosongEl = document.getElementById('noHasil');
+    var btnReset = document.getElementById('btnReset');
     var wrapTabel = document.getElementById('wrapTabel');
+    var noHasil = document.getElementById('noHasil');
 
-    function cocok(tr, ta) {
-        var kata = (fCari && fCari.value || '').toLowerCase().trim();
-        if (kata !== '' && (tr.getAttribute('data-cari') || '').indexOf(kata) === -1) return false;
-        if (ta !== '' && tr.getAttribute('data-tahun') !== ta) return false;
-        if (fProdi && fProdi.value !== '' && tr.getAttribute('data-prodi') !== fProdi.value) return false;
-        if (fStatus && fStatus.value !== '' && tr.getAttribute('data-status') !== fStatus.value) return false;
-        return true;
+    /* ===== Loading Helper ===== */
+    function setButtonLoading(btn, isLoading) {
+        if (isLoading) {
+            btn.classList.add('is-loading');
+            btn.setAttribute('disabled', '');
+            btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+        } else {
+            btn.classList.remove('is-loading');
+            btn.removeAttribute('disabled');
+            btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+        }
     }
 
-    function updateCounts() {
-        var cnt = { '': 0, '2017': 0, '2025': 0, '2026': 0 };
-        for (var i = 0; i < rows.length; i++) {
-            var ta = rows[i].getAttribute('data-tahun');
-            if (cocok(rows[i], '')) { cnt['']++; cnt[ta] = (cnt[ta] || 0) + 1; }
+    /* ===== Toast Notification ===== */
+    var toastContainer = null;
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            document.body.appendChild(toastContainer);
         }
-        var c = document.getElementById('cnt-all');
-        if (c) c.textContent = cnt[''];
-        ['2017', '2025', '2026'].forEach(function (t) {
-            var el = document.getElementById('cnt-' + t);
-            if (el) el.textContent = cnt[t] || 0;
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe;
+        var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span>' + pesan + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'hide\');setTimeout(function(){item.remove()},350)">&times;</button>';
+        toastContainer.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.add('show'); });
+        setTimeout(function(){ item.classList.add('hide'); setTimeout(function(){ item.remove(); }, 350); }, 4000);
+    }
+
+    /* ===== Load Data ===== */
+    function muatData() {
+        if (!wrapTabel) return;
+        body.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><div class="spinner-slate mx-auto"></div><p class="mt-3">Memuat data...</p></td></tr>';
+
+        $.ajax({
+            url: PROSES_URL + '?action=ambil-tabel-kurikulum',
+            method: 'GET',
+            dataType: 'json',
+            success: function(respon){
+                if (respon.status && respon.data) {
+                    renderTable(respon.data);
+                    updateCounts(respon.data);
+                    if (wrapTabel) wrapTabel.style.display = respon.data.length > 0 ? '' : 'none';
+                    if (noHasil) noHasil.classList.toggle('hidden', respon.data.length > 0);
+                } else {
+                    body.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500">Gagal memuat ' + (respon.pesan || 'data') + '</td></tr>';
+                }
+            },
+            error: function(){
+                body.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500">Terjadi kesalahan pada server</td></tr>';
+            }
         });
+    }
+
+    function renderTable(rows) {
+        if (!body) return;
+        body.innerHTML = '';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            var tr = document.createElement('tr');
+            tr.className = (i % 2 === 0) ? 'bg-white transition hover:bg-orange-50' : 'bg-slate-50/60 transition hover:bg-orange-50';
+            tr.setAttribute('data-kode', r.kode);
+            tr.setAttribute('data-tahun', r.tahun);
+            tr.setAttribute('data-prodi', r.prodi);
+            tr.setAttribute('data-status', r.status);
+            var prodiText = r.prodi_nama || r.prodi;
+            tr.setAttribute('data-cari', (r.kode + ' ' + r.nama + ' ' + prodiText + ' ' + r.status).toLowerCase());
+            tr.innerHTML =
+                '<td class="py-4 pl-5 pr-4"><span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">' + r.kode + '</span></td>' +
+                '<td class="px-4 py-4"><p class="font-semibold text-slate-800 leading-snug">' + r.nama + '</p></td>' +
+                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">' + r.tahun + '</span></td>' +
+                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full ' + warnaProdi(r.prodi) + ' px-2.5 py-1 text-xs font-bold">' + prodiText + '</span></td>' +
+                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full ' + warnaStatus(r.status) + ' px-2.5 py-1 text-xs font-bold">' + r.status + '</span></td>' +
+                '<td class="py-4 pr-5"><div class="flex items-center gap-1.5">' +
+                    '<button type="button" class="btn-circle btn-view bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>' +
+                    '<button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600" data-kode="' + r.kode + '"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>' +
+                    '<button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-kode="' + r.kode + '"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>' +
+                '</div></td>';
+            body.appendChild(tr);
+        }
+        rowsLoaded = Array.prototype.slice.call(body.querySelectorAll('tr'));
+    }
+
+    function updateCounts(rows) {
+        if (jmlEl) jmlEl.textContent = rows.length;
+        if (badgeEl) badgeEl.textContent = rows.length;
+    }
+
+    /* ===== Filter ===== */
+    function cocok(tr) {
+        if (fTahun && fTahun.value !== '' && tr.getAttribute('data-tahun') !== fTahun.value) return false;
+        if (fProdi.value !== '' && tr.getAttribute('data-prodi') !== fProdi.value) return false;
+        if (fStatus.value !== '' && tr.getAttribute('data-status') !== fStatus.value) return false;
+        var kata = (fCari && fCari.value || '').toLowerCase().trim();
+        if (kata !== '' && (tr.getAttribute('data-cari') || '').indexOf(kata) === -1) return false;
+        return true;
     }
 
     function render() {
         var total = 0;
-        for (var i = 0; i < rows.length; i++) {
-            var tampil = cocok(rows[i], tab);
-            rows[i].style.display = tampil ? '' : 'none';
+        for (var i = 0; i < rowsLoaded.length; i++) {
+            var tampil = cocok(rowsLoaded[i]);
+            rowsLoaded[i].style.display = tampil ? '' : 'none';
             if (tampil) total++;
         }
         if (jmlEl) jmlEl.textContent = total;
         if (badgeEl) badgeEl.textContent = total;
-        if (kosongEl) kosongEl.classList.toggle('hidden', total > 0);
+        if (noHasil) noHasil.classList.toggle('hidden', total > 0);
         if (wrapTabel) wrapTabel.style.display = total > 0 ? '' : 'none';
-        updateCounts();
     }
 
-    function setTab(t) {
-        tab = t;
-        document.querySelectorAll('.tab-btn').forEach(function (b) {
-            b.setAttribute('aria-selected', b.getAttribute('data-tab') === t ? 'true' : 'false');
-        });
-        render();
-    }
+    var jmlEl = document.getElementById('jmlData');
+    var badgeEl = document.getElementById('badgeData');
+    var rowsLoaded = [];
 
-    document.querySelectorAll('.tab-btn').forEach(function (b) {
-        b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); });
-    });
+    if (fTahun) fTahun.addEventListener('change', function () { render(); });
     if (fCari) fCari.addEventListener('input', function () { render(); });
     if (fProdi) fProdi.addEventListener('change', function () { render(); });
     if (fStatus) fStatus.addEventListener('change', function () { render(); });
-    var btnReset = document.getElementById('btnReset');
     if (btnReset) btnReset.addEventListener('click', function () {
         if (fCari) fCari.value = '';
+        if (fTahun) fTahun.value = '';
         if (fProdi) fProdi.value = '';
         if (fStatus) fStatus.value = '';
-        setTab('');
+        render();
     });
-
-    function toast(msg) {
-        var t = document.createElement('div');
-        t.textContent = msg;
-        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#0f172a;color:#fff;padding:.6rem 1rem;border-radius:.6rem;font-size:.8rem;box-shadow:0 6px 18px rgba(15,23,42,.35);transition:opacity .3s ease;';
-        document.body.appendChild(t);
-        setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2200);
-    }
 
     /* ===== Aksi ===== */
-    body.addEventListener('click', function (e) {
-        var btn = e.target.closest('button');
-        if (!btn) return;
-        var tr = btn.closest('tr');
-        if (btn.classList.contains('btn-edit')) {
-            openEdit(tr);
-        } else if (btn.classList.contains('btn-hapus')) {
-            if (confirm('Hapus kurikulum ini?')) {
-                tr.remove();
-                rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
-                render();
-                toast('Kurikulum dihapus');
-            }
-        } else if (btn.textContent.indexOf('Detail') !== -1) {
-            openDetail(tr);
-        }
-    });
-
-    /* ===== Modal ===== */
     var modal = document.getElementById('kkModal');
     var mTitle = document.getElementById('kkModalTitle');
     var mForm = document.getElementById('kkForm');
@@ -441,117 +386,226 @@
     var mStatus = document.getElementById('inpStatus');
     var mProdi = document.getElementById('inpProdi');
     var mEditing = null;
+    var detailModal = document.getElementById('detailModal');
 
     function openTambah() {
         mEditing = null;
         mTitle.innerHTML = '<i class="fas fa-plus mr-1 text-[#f97316]"></i>Tambah Kurikulum';
         mForm.reset();
-        if (mTahun) mTahun.value = '2026';
+        if (mTahun) mTahun.value = (new Date()).getFullYear().toString();
         if (modal) modal.classList.add('show');
     }
 
-    function openEdit(tr) {
-        mEditing = tr;
-        mKode.value = tr.querySelector('.font-mono') ? tr.querySelector('.font-mono').textContent : '';
-        mNama.value = tr.querySelector('p.font-semibold') ? tr.querySelector('p.font-semibold').textContent : '';
-        mTahun.value = tr.getAttribute('data-tahun') || '2026';
-        mProdi.value = tr.getAttribute('data-prodi') || '';
-        mStatus.value = tr.getAttribute('data-status') || 'Aktif';
+    function openEdit(kode) {
+        mEditing = kode;
+        var tr = body.querySelector('[data-kode="' + kode + '"]');
+        if (!tr) {
+            toast('Data tidak ditemukan', 'error');
+            return;
+        }
+        var kodeText = tr.querySelector('.font-mono') ? tr.querySelector('.font-mono').textContent : '';
+        var namaText = tr.querySelector('p.font-semibold') ? tr.querySelector('p.font-semibold').textContent : '';
+        var tahunVal = tr.getAttribute('data-tahun') || '';
+        var prodiVal = tr.getAttribute('data-prodi') || '';
+        var statusVal = tr.getAttribute('data-status') || 'aktif';
+        
+        mKode.value = kodeText;
+        mNama.value = namaText;
+        if (mTahun) mTahun.value = tahunVal;
+        if (mProdi) mProdi.value = prodiVal;
+        if (mStatus) mStatus.value = statusVal.toLowerCase();
         mTitle.innerHTML = '<i class="fas fa-pen mr-1 text-[#0ea5e9]"></i>Edit Kurikulum';
         if (modal) modal.classList.add('show');
     }
 
-    function openDetail(tr) {
-        var kode = tr.querySelector('.font-mono') ? tr.querySelector('.font-mono').textContent : '—';
-        var nama = tr.querySelector('p.font-semibold') ? tr.querySelector('p.font-semibold').textContent : '—';
-        var tahun = tr.getAttribute('data-tahun') || '—';
-        var prodi = tr.getAttribute('data-prodi') || '—';
-        var status = tr.getAttribute('data-status') || '—';
-        document.getElementById('dtKode').textContent = kode;
-        document.getElementById('dtNama').textContent = nama;
-        document.getElementById('dtTahun').textContent = tahun;
-        document.getElementById('dtProdi').textContent = prodi;
-        document.getElementById('dtStatus').textContent = status;
-        document.getElementById('detailModal').classList.add('show');
+    function openDetail(kode) {
+        $.ajax({
+            url: PROSES_URL + '?action=ambil-kurikulum&kode=' + encodeURIComponent(kode),
+            method: 'GET',
+            dataType: 'json',
+            success: function(respon){
+                if (respon.status && respon.data) {
+                    var d = respon.data;
+                    document.getElementById('dtKode').textContent = d.kode;
+                    document.getElementById('dtNama').textContent = d.nama;
+                    document.getElementById('dtTahun').textContent = d.tahun;
+                    document.getElementById('dtProdi').textContent = d.prodi_nama || d.prodi;
+                    document.getElementById('dtStatus').textContent = d.status;
+                    document.getElementById('detailModal').classList.add('show');
+                } else {
+                    toast('Gagal mengambil data', 'error');
+                }
+            },
+            error: function(){ toast('Terjadi kesalahan pada server', 'error'); }
+        });
+    }
+
+    function warnaProdi(p) {
+        if (p === 's1teknikkomputer') return 'bg-emerald-100 text-emerald-700';
+        if (p === 's1pendidikanvokasionalrekayasaelektro') return 'bg-violet-100 text-violet-700';
+        return 'bg-sky-100 text-sky-700';
+    }
+
+    function warnaStatus(s) {
+        if (s === 'aktif') return 'bg-emerald-100 text-emerald-700';
+        return 'bg-rose-100 text-rose-700';
     }
 
     document.getElementById('btnTambah').addEventListener('click', openTambah);
+
+    /* ===== Event Delegation ===== */
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        
+        if (btn.classList.contains('btn-edit')) {
+            e.preventDefault();
+            var kode = btn.getAttribute('data-kode');
+            openEdit(kode);
+            return;
+        }
+        
+        if (btn.classList.contains('btn-hapus')) {
+            e.preventDefault();
+            var kode = btn.getAttribute('data-kode');
+            if (typeof konfirmasiHapus === 'function') {
+                konfirmasiHapus('kurikulum ini', function(){
+                    $.ajax({
+                        url: PROSES_URL,
+                        method: 'POST',
+                        data: { 'hapus-data-kurikulum': 1, kode: kode },
+                        dataType: 'json',
+                        success: function(respon){
+                            toast(respon.pesan, respon.status ? 'success' : 'error');
+                            if (respon.status) muatData();
+                        },
+                        error: function(){ toast('Terjadi kesalahan pada server', 'error'); }
+                    });
+                });
+            } else {
+                toast('Fungsi konfirmasi tidak tersedia', 'error');
+            }
+            return;
+        }
+        
+        if (btn.classList.contains('btn-view')) {
+            e.preventDefault();
+            var kode = btn.closest('tr').querySelector('.font-mono').textContent;
+            openDetail(kode);
+            return;
+        }
+        
+        var closeBtn = btn.closest('[data-modal-close]');
+        if (closeBtn) {
+            if (modal) modal.classList.remove('show');
+            if (detailModal) detailModal.classList.remove('show');
+            return;
+        }
+    });
+
     modal.querySelectorAll('[data-modal-close]').forEach(function (b) {
         b.addEventListener('click', function () { modal.classList.remove('show'); });
     });
     modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
 
-    var detailModal = document.getElementById('detailModal');
     detailModal.querySelectorAll('[data-modal-close]').forEach(function (b) {
         b.addEventListener('click', function () { detailModal.classList.remove('show'); });
     });
     detailModal.addEventListener('click', function (e) { if (e.target === detailModal) detailModal.classList.remove('show'); });
 
-    function warnaProdi(p) {
-        if (p === 'S1 Teknik Komputer') return 'bg-emerald-100 text-emerald-700';
-        if (p === 'S1 Pendidikan Vokasi Rekayasa Elektro') return 'bg-violet-100 text-violet-700';
-        return 'bg-sky-100 text-sky-700';
-    }
-
-    function warnaStatus(s) {
-        if (s === 'Aktif') return 'bg-emerald-100 text-emerald-700';
-        return 'bg-rose-100 text-rose-700';
-    }
-
-    function applyForm(tr) {
-        var kode = mKode.value.trim();
-        var nama = mNama.value.trim();
-        var tahun = mTahun.value || '2026';
-        var prodi = mProdi.value || 'S1 Teknik Elektro';
-        var status = mStatus.value || 'Aktif';
-
-        tr.setAttribute('data-tahun', tahun);
-        tr.setAttribute('data-prodi', prodi);
-        tr.setAttribute('data-status', status);
-        tr.setAttribute('data-cari', (kode + ' ' + nama + ' ' + prodi + ' ' + status).toLowerCase());
-
-        tr.querySelector('.font-mono').textContent = kode;
-        tr.querySelector('p.font-semibold').textContent = nama;
-
-        var td = tr.querySelectorAll('td');
-        td[2].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">' + tahun + '</span>';
-        td[3].innerHTML = '<span class="inline-flex items-center rounded-full ' + warnaProdi(prodi) + ' px-2.5 py-1 text-xs font-bold">' + prodi + '</span>';
-        td[4].innerHTML = '<span class="inline-flex items-center rounded-full ' + warnaStatus(status) + ' px-2.5 py-1 text-xs font-bold">' + status + '</span>';
-    }
-
+    /* ===== Modal Form Submit ===== */
     mForm.addEventListener('submit', function (e) {
         e.preventDefault();
         var kode = mKode.value.trim();
         var nama = mNama.value.trim();
-        if (kode === '' || nama === '') { alert('Kode dan Nama wajib diisi.'); return; }
-        if (mEditing) {
-            applyForm(mEditing);
-            toast('Perubahan disimpan');
-        } else {
-            var r = document.createElement('tr');
-            r.className = 'bg-white transition hover:bg-orange-50';
-            r.setAttribute('data-tahun', mTahun.value || '2026');
-            r.setAttribute('data-prodi', mProdi.value || 'S1 Teknik Elektro');
-            r.setAttribute('data-status', mStatus.value || 'Aktif');
-            r.setAttribute('data-cari', (kode + ' ' + nama + ' ' + (mProdi.value || '') + ' ' + (mStatus.value || '')).toLowerCase());
-            r.innerHTML =
-                '<td class="py-4 pl-5 pr-4"><span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 font-mono">' + kode + '</span></td>' +
-                '<td class="px-4 py-4"><p class="font-semibold text-slate-800 leading-snug">' + nama + '</p></td>' +
-                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-700">' + (mTahun.value || '2026') + '</span></td>' +
-                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full ' + warnaProdi(mProdi.value) + ' px-2.5 py-1 text-xs font-bold">' + (mProdi.value || 'S1 Teknik Elektro') + '</span></td>' +
-                '<td class="px-4 py-4"><span class="inline-flex items-center rounded-full ' + warnaStatus(mStatus.value) + ' px-2.5 py-1 text-xs font-bold">' + (mStatus.value || 'Aktif') + '</span></td>' +
-                '<td class="py-4 pr-5"><div class="flex items-center gap-1.5">' +
-                    '<button type="button" class="btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>' +
-                    '<button type="button" class="btn-circle btn-edit bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>' +
-                    '<button type="button" class="btn-circle btn-hapus bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>' +
-                '</div></td>';
-            body.appendChild(r);
-            rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
-            render();
-            toast('Kurikulum ditambahkan');
+        var tahun = mTahun.value || '';
+        var prodi = mProdi.value || '';
+        var status = mStatus.value || 'aktif';
+
+        if ((mEditing && kode === '') || nama === '' || tahun === '' || prodi === '') {
+            toast('Semua field wajib diisi', 'error');
+            return;
         }
-        modal.classList.remove('show');
-        mForm.reset();
+
+        var btnSimpan = this.querySelector('button[type="submit"]');
+        setButtonLoading(btnSimpan, true);
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: mEditing 
+                ? { 'edit-data-kurikulum': 1, kode: kode, nama: nama, tahun: tahun, prodi: prodi, status: status }
+                : { 'tambah-data-kurikulum': 1, nama: nama, tahun: tahun, prodi: prodi, status: status },
+            dataType: 'json',
+            success: function(respon){
+                toast(respon.pesan, respon.status ? 'success' : 'error');
+                if (respon.status) {
+                    modal.classList.remove('show');
+                    mForm.reset();
+                    muatData();
+                }
+            },
+            error: function(){ toast('Terjadi kesalahan pada server', 'error'); },
+            complete: function(){ setButtonLoading(btnSimpan, false); }
+        });
     });
+
+    /* ===== Load Data Saat DOM Siap ===== */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProdi();
+            loadTahun();
+        });
+    } else {
+        loadProdi();
+        loadTahun();
+    }
+
+    function loadProdi() {
+        $.ajax({
+            url: PROSES_URL + '?action=ambil-prodi-kurikulum',
+            method: 'GET',
+            dataType: 'json',
+            success: function(respon){
+                if (respon.status && respon.data) {
+                    var html = '<option value="">Semua Prodi</option>';
+                    var htmlModal = '';
+                    for (var i = 0; i < respon.data.length; i++) {
+                        var p = respon.data[i];
+                        html += '<option value="' + p.kode + '">' + p.nama + '</option>';
+                        htmlModal += '<option value="' + p.kode + '">' + p.nama + '</option>';
+                    }
+                    fProdi.innerHTML = html;
+                    fProdi.disabled = false;
+                    if (btnReset) btnReset.disabled = false;
+                    if (mProdi) { mProdi.innerHTML = htmlModal; mProdi.disabled = false; }
+                    muatData();
+                }
+            },
+            error: function(){ fProdi.innerHTML = '<option value="">Gagal memuat prodi</option>'; }
+        });
+    }
+
+    function loadTahun() {
+        $.ajax({
+            url: PROSES_URL + '?action=ambil-tahun-kurikulum',
+            method: 'GET',
+            dataType: 'json',
+            success: function(respon){
+                if (respon.status && respon.data) {
+                    var htmlFilter = '<option value="">Semua Tahun</option>';
+                    var htmlModal = '';
+                    for (var i = 0; i < respon.data.length; i++) {
+                        htmlFilter += '<option value="' + respon.data[i].tahun + '">' + respon.data[i].tahun + '</option>';
+                        htmlModal += '<option value="' + respon.data[i].tahun + '">' + respon.data[i].tahun + '</option>';
+                    }
+                    if (fTahun) { fTahun.innerHTML = htmlFilter; fTahun.disabled = false; }
+                    if (mTahun) { mTahun.innerHTML = htmlModal; mTahun.disabled = false; }
+                    muatData();
+                }
+            },
+            error: function(){ if (fTahun) fTahun.innerHTML = '<option value="">Gagal memuat tahun</option>'; }
+        });
+    }
 })();
 </script>
