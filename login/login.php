@@ -193,10 +193,14 @@ document.querySelectorAll('[data-toggle-pw]').forEach(function (btn) {
 // ================= TAMPILKAN PESAN DI KOTAK =================
 function tampilPesan(pesan, gagal) {
     var box = $('#boxPesan');
+    // Reset semua class terlebih dahulu
     box.removeClass('hidden bg-rose-50 text-rose-600 border-rose-200 bg-emerald-50 text-emerald-700 border-emerald-200 shake');
-    box.addClass(gagal
-        ? 'bg-rose-50 text-rose-600 border border-rose-200 shake'
-        : 'bg-emerald-50 text-emerald-700 border border-emerald-200');
+    // Tambahkan class yang sesuai
+    if (gagal) {
+        box.addClass('bg-rose-50 text-rose-600 border border-rose-200 shake');
+    } else {
+        box.addClass('bg-emerald-50 text-emerald-700 border border-emerald-200');
+    }
     box.html('<i class="fas ' + (gagal ? 'fa-circle-exclamation' : 'fa-circle-check') + ' mt-0.5"></i>' + pesan);
 }
 
