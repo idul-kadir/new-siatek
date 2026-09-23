@@ -160,7 +160,11 @@ if ($action === 'edit-data-matakuliah') {
     // Upload RPS baru jika ada file
     $rps = null;
     if (isset($_FILES['rps_file']) && $_FILES['rps_file']['error'] === 0) {
-        $rps = upload_file($_FILES['rps_file'], 'matakuliah');
+        $cek_lama = query("SELECT rps FROM matakuliah WHERE id='$id'");
+        $lama = mysqli_fetch_assoc($cek_lama);
+        $id_file_lama = (!empty($lama['rps']) && $lama['rps'] !== '0') ? $lama['rps'] : '';
+        
+        $rps = upload_file($_FILES['rps_file'], 'matakuliah', $id_file_lama);
         if (!$rps) {
             echo json_encode(['status' => false, 'pesan' => 'Gagal mengupload file RPS']);
             exit;
@@ -195,8 +199,14 @@ if ($action === 'hapus-data-matakuliah') {
     $cek = query("SELECT rps FROM matakuliah WHERE id='$id'");
     $row = mysqli_fetch_assoc($cek);
     if ($row && !empty($row['rps'])) {
-        // Hapus dari tabel files
-        $hapus_file = query("DELETE FROM files WHERE id='" . bersihkan($row['rps']) . "'");
+        // ambil nama file fisik dari tabel files
+        $rowFile = mysqli_fetch_assoc(query("SELECT nama_file FROM files WHERE id='" . bersihkan($row['rps']) . "' LIMIT 1"));
+        if ($rowFile && !empty($rowFile['nama_file'])) {
+            $path = dirname(__DIR__, 4) . '/file/' . $rowFile['nama_file'];
+            if (file_exists($path)) { @unlink($path); }
+        }
+        // hapus record di tabel files
+        query("DELETE FROM files WHERE id='" . bersihkan($row['rps']) . "'");
     }
 
     // Hapus dari database

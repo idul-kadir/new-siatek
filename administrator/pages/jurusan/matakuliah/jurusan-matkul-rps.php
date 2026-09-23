@@ -101,7 +101,7 @@
                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-lg text-orange-600"><i class="fas fa-book"></i></div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Matakuliah / RPS</h1>
-                    <p class="text-xs text-slate-500">135 matakuliah &middot; 6 kurikulum &middot; 3 program studi.</p>
+                    <p class="text-xs text-slate-500" id="staticSubtitle">Memuat data...</p>
                 </div>
             </div>
             <button type="button" id="btnTambah" class="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 shadow-sm"><i class="fas fa-plus mr-1"></i>Tambah Matakuliah</button>
@@ -118,62 +118,17 @@
             <div class="relative z-10 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 px-6 py-7 lg:px-8">
                 <div class="min-w-0">
                     <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-200 ring-1 ring-white/15"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span></span>RPS Kurikulum Aktif</span>
-                    <h2 class="mt-3 text-xl lg:text-2xl font-bold tracking-tight">Kurikulum Tahun 2022</h2>
+                    <h2 class="mt-3 text-xl lg:text-2xl font-bold tracking-tight" id="hdrKurikulumAktif">Memuat...</h2>
                     <p class="mt-1 max-w-lg text-sm text-slate-300">Jumlah RPS matakuliah pada kurikulum terbaru setiap program studi, dirinci per semester ganjil dan genap.</p>
-                    <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 min-w-0"><i class="fas fa-bolt text-sm shrink-0" style="color:#f97316"></i><p class="truncate text-xs font-semibold text-slate-200">S1 Teknik Elektro</p></div>
-                                <span class="badge-aktif shrink-0">2022</span>
-                            </div>
-                            <div class="mt-3 flex items-end justify-between">
-                                <div><p class="text-2xl font-extrabold leading-none">34</p><p class="mt-1 text-[11px] text-slate-400">total RPS</p></div>
-                                <p class="text-xs font-bold" style="color:#f97316">106 SKS</p>
-                            </div>
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-sun mr-1"></i>Ganjil</p><p class="text-sm font-bold">20 RPS</p></div>
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-moon mr-1"></i>Genap</p><p class="text-sm font-bold">14 RPS</p></div>
-                            </div>
-                        </div>
-                        <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 min-w-0"><i class="fas fa-microchip text-sm shrink-0" style="color:#0ea5e9"></i><p class="truncate text-xs font-semibold text-slate-200">S1 Teknik Komputer</p></div>
-                                <span class="badge-aktif shrink-0">2021</span>
-                            </div>
-                            <div class="mt-3 flex items-end justify-between">
-                                <div><p class="text-2xl font-extrabold leading-none">27</p><p class="mt-1 text-[11px] text-slate-400">total RPS</p></div>
-                                <p class="text-xs font-bold" style="color:#0ea5e9">85 SKS</p>
-                            </div>
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-sun mr-1"></i>Ganjil</p><p class="text-sm font-bold">15 RPS</p></div>
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-moon mr-1"></i>Genap</p><p class="text-sm font-bold">12 RPS</p></div>
-                            </div>
-                        </div>
-                        <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 min-w-0"><i class="fas fa-graduation-cap text-sm shrink-0" style="color:#8b5cf6"></i><p class="truncate text-xs font-semibold text-slate-200">S1 Pendidikan Vokasi Rekayasa Elektro</p></div>
-                                <span class="badge-aktif shrink-0">2021</span>
-                            </div>
-                            <div class="mt-3 flex items-end justify-between">
-                                <div><p class="text-2xl font-extrabold leading-none">25</p><p class="mt-1 text-[11px] text-slate-400">total RPS</p></div>
-                                <p class="text-xs font-bold" style="color:#8b5cf6">77 SKS</p>
-                            </div>
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-sun mr-1"></i>Ganjil</p><p class="text-sm font-bold">14 RPS</p></div>
-                                <div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-moon mr-1"></i>Genap</p><p class="text-sm font-bold">11 RPS</p></div>
-                            </div>
-                        </div>
+                    <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3" id="cardProdiContainer">
                     </div>
                 </div>
                 <div class="flex flex-col items-center justify-center lg:w-[230px]">
                     <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-300">Jumlah RPS per Prodi</p>
                     <div class="relative"><div style="width:140px;height:140px;"><canvas id="donutChart"></canvas></div>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><p class="text-xl font-extrabold">86</p><p class="text-[10px] text-slate-400">RPS</p></div>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><p class="text-xl font-extrabold" id="donutTotal">0</p><p class="text-[10px] text-slate-400">RPS Aktif</p></div>
                     </div>
-                    <div class="mt-3 space-y-1.5">
-                        <div class="legend-item"><span class="legend-dot" style="background:#f97316"></span><span class="truncate max-w-[130px]">S1 Teknik Elektro</span></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#0ea5e9"></span><span class="truncate max-w-[130px]">S1 Teknik Komputer</span></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6"></span><span class="truncate max-w-[130px]">S1 Pendidikan Vokasi Rekayasa Elektro</span></div>
+                    <div class="mt-3 space-y-1.5" id="legendContainer">
                     </div>
                 </div>
             </div>
@@ -568,7 +523,7 @@
                 }
 
                 var accDiv = document.createElement('div');
-                accDiv.className = 'acc-item acc-' + (isVokasi ? 'vok' : (isKomputer ? 'tk' : 'te')) + (isAktif ? ' is-active open' : '') + ' reveal';
+                accDiv.className = 'acc-item acc-' + (isVokasi ? 'vok' : (isKomputer ? 'tk' : 'te')) + (isAktif ? ' is-active' : '') + ' reveal';
                 accDiv.setAttribute('data-prodi', prodi);
                 accDiv.setAttribute('data-tahun', tahunVal);
                 accDiv.setAttribute('data-kurikulum', kk);
@@ -635,12 +590,25 @@
 
     function renderFromData(data) {
         renderAccordion(data);
+        updateHeaderCard(data);
         updateDonut(data);
         filterAll();
         document.querySelectorAll('.sem-pill').forEach(function(p) {
             if (p.getAttribute('data-sem') === '1') p.classList.add('active');
         });
         filterAll();
+        
+        // Update static subtitle
+        var prodiSet = {};
+        var kurSet = {};
+        data.forEach(function(mk) {
+            prodiSet[mk.prodi] = true;
+            kurSet[mk.kurikulum] = true;
+        });
+        var sub = document.getElementById('staticSubtitle');
+        if (sub) {
+            sub.textContent = data.length + ' matakuliah \u00b7 ' + Object.keys(kurSet).length + ' kurikulum \u00b7 ' + Object.keys(prodiSet).length + ' program studi.';
+        }
     }
 
     // Load data saat halaman siap
@@ -670,21 +638,134 @@
     initDonut();
 
     function updateDonut(data) {
+        // Kelompokkan matakuliah per prodi + kurikulum, hanya ambil kurikulum terbaru (aktif)
+        var prodiKur = {};
+        var prodiList = {};
+        data.forEach(function(mk) {
+            if (!prodiKur[mk.prodi]) prodiKur[mk.prodi] = {};
+            if (!prodiKur[mk.prodi][mk.kurikulum]) prodiKur[mk.prodi][mk.kurikulum] = [];
+            prodiKur[mk.prodi][mk.kurikulum].push(mk);
+            prodiList[mk.prodi] = true;
+        });
         var counts = {};
-        data.forEach(function(mk) { counts[mk.prodi] = (counts[mk.prodi] || 0) + 1; });
+        var totalRPS = 0;
+        Object.keys(prodiKur).forEach(function(prodi) {
+            var kurikulumArr = Object.keys(prodiKur[prodi]).sort(function(a, b) {
+                var yA = parseInt(prodiKur[prodi][a][0] ? prodiKur[prodi][a][0].tahun : 0) || 0;
+                var yB = parseInt(prodiKur[prodi][b][0] ? prodiKur[prodi][b][0].tahun : 0) || 0;
+                return yB - yA;
+            });
+            var aktifKode = kurikulumArr[0];
+            if (!aktifKode) return;
+            prodiKur[prodi][aktifKode].forEach(function(mk) {
+                if (!counts[prodi]) counts[prodi] = 0;
+                var hasRps = mk.rps && mk.rps !== '' && mk.rps !== '0';
+                if (hasRps) {
+                    counts[prodi]++;
+                    totalRPS++;
+                }
+            });
+        });
         var prodiList = Object.keys(counts).sort();
         var colors = ["#f97316","#0ea5e9","#8b5cf6","#10b981","#ef4444","#f59e0b","#6366f1","#ec4899"];
         chartData.labels = prodiList;
         chartData.values = prodiList.map(function(p) { return counts[p]; });
         chartData.colors = prodiList.map(function(_, i) { return colors[i % colors.length]; });
-        var totalEl = document.querySelector('#donutChart').parentElement.querySelector('p.text-xl');
-        if (totalEl) totalEl.textContent = data.length;
+        
+        var totalEl = document.getElementById('donutTotal');
+        if (totalEl) totalEl.textContent = totalRPS;
+        
+        var lc = document.getElementById('legendContainer');
+        if (lc) {
+            lc.innerHTML = '';
+            prodiList.forEach(function(p, i) {
+                var color = colors[i % colors.length];
+                lc.innerHTML += '<div class="legend-item"><span class="legend-dot" style="background:' + color + '"></span><span class="truncate max-w-[130px]" title="' + p + '">' + p + '</span></div>';
+            });
+        }
+        
         if (window._donutChart) {
             window._donutChart.data.labels = chartData.labels;
             window._donutChart.data.datasets[0].data = chartData.values;
             window._donutChart.data.datasets[0].backgroundColor = chartData.colors;
             window._donutChart.update();
         }
+    }
+
+    function updateHeaderCard(data) {
+        var prodiGroups = {};
+        var kurNamaMap = {};
+        
+        data.forEach(function(mk) {
+            if (!prodiGroups[mk.prodi]) prodiGroups[mk.prodi] = {};
+            if (!prodiGroups[mk.prodi][mk.kurikulum]) prodiGroups[mk.prodi][mk.kurikulum] = [];
+            kurNamaMap[mk.kurikulum] = mk.nama_kurikulum || mk.kurikulum;
+            prodiGroups[mk.prodi][mk.kurikulum].push(mk);
+        });
+
+        var prodiNames = Object.keys(prodiGroups).sort();
+        var container = document.getElementById('cardProdiContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        var html = '';
+        var colors = [
+            { ic: 'fa-bolt', text: '#f97316' },
+            { ic: 'fa-microchip', text: '#0ea5e9' },
+            { ic: 'fa-graduation-cap', text: '#8b5cf6' },
+            { ic: 'fa-cube', text: '#10b981' }
+        ];
+
+        var latestTahunGlobal = '';
+
+        prodiNames.forEach(function(prodi, idx) {
+            var c = colors[idx % colors.length];
+            
+            var kurikulums = Object.keys(prodiGroups[prodi]).sort(function(a, b) {
+                var yearA = parseInt(prodiGroups[prodi][a][0] ? prodiGroups[prodi][a][0].tahun : 0) || 0;
+                var yearB = parseInt(prodiGroups[prodi][b][0] ? prodiGroups[prodi][b][0].tahun : 0) || 0;
+                return yearB - yearA;
+            });
+            
+            var latestKurKode = kurikulums[0];
+            if (!latestKurKode) return;
+            
+            var mkList = prodiGroups[prodi][latestKurKode];
+            var tahunTerbaru = mkList[0] ? mkList[0].tahun : '';
+            if (!latestTahunGlobal || tahunTerbaru > latestTahunGlobal) {
+                latestTahunGlobal = tahunTerbaru;
+            }
+            
+            var totalMK = mkList.length;
+            var totalSKS = mkList.reduce(function(acc, m) { return acc + m.sks; }, 0);
+            
+            var totalRPS = 0, ganjilRPS = 0, genapRPS = 0, ganjilMK = 0, genapMK = 0;
+            mkList.forEach(function(m) {
+                var hasRps = m.rps && m.rps !== '' && m.rps !== '0';
+                if (m.semester % 2 === 0) { genapMK++; if (hasRps) genapRPS++; }
+                else { ganjilMK++; if (hasRps) ganjilRPS++; }
+                if (hasRps) totalRPS++;
+            });
+            
+            html += '<div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">' +
+                    '<div class="flex items-center justify-between gap-2">' +
+                        '<div class="flex items-center gap-2 min-w-0"><i class="fas ' + c.ic + ' text-sm shrink-0" style="color:' + c.text + '"></i><p class="truncate text-xs font-semibold text-slate-200" title="' + prodi + '">' + prodi + '</p></div>' +
+                        '<span class="badge-aktif shrink-0">' + tahunTerbaru + '</span>' +
+                    '</div>' +
+                    '<div class="mt-3 flex items-end justify-between">' +
+                        '<div><p class="text-2xl font-extrabold leading-none">' + totalRPS + '<span class="text-sm font-semibold text-slate-400 ml-1">/ ' + totalMK + '</span></p><p class="mt-1 text-[11px] text-slate-400">RPS / matakuliah</p></div>' +
+                        '<p class="text-xs font-bold" style="color:' + c.text + '">' + totalSKS + ' SKS</p>' +
+                    '</div>' +
+                    '<div class="mt-3 grid grid-cols-2 gap-2">' +
+                        '<div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-sun mr-1"></i>Ganjil</p><p class="text-sm font-bold">' + ganjilRPS + '<span class="text-[10px] font-normal text-slate-400"> / ' + ganjilMK + ' MK</span></p></div>' +
+                        '<div class="rounded-lg bg-white/5 px-2.5 py-1.5 ring-1 ring-white/10"><p class="text-[10px] text-slate-400"><i class="fas fa-moon mr-1"></i>Genap</p><p class="text-sm font-bold">' + genapRPS + '<span class="text-[10px] font-normal text-slate-400"> / ' + genapMK + ' MK</span></p></div>' +
+                    '</div>' +
+                '</div>';
+        });
+        
+        container.innerHTML = html;
+        var hdr = document.getElementById('hdrKurikulumAktif');
+        if (hdr) hdr.textContent = 'Kurikulum Tahun ' + (latestTahunGlobal || 'Aktif');
     }
 
     /* Pill semester per accordion */
@@ -854,9 +935,11 @@
         } else if (btn.classList.contains('btn-edit')) {
             openEdit(tr);
         } else if (btn.classList.contains('btn-hapus')) {
-            if (confirm('Hapus matakuliah ini?')) {
-                var matkulId = tr.getAttribute('data-matkul-id');
-                if (!matkulId) { toast('ID matakuliah tidak ditemukan'); return; }
+            var matkulId = tr.getAttribute('data-matkul-id');
+            var namaMatkul = tr.querySelectorAll('td')[1] ? tr.querySelectorAll('td')[1].textContent.trim() : 'matakuliah ini';
+            if (!matkulId) { toast('ID matakuliah tidak ditemukan', 'error'); return; }
+            
+            var doHapus = function() {
                 $.ajax({
                     url: PROSES_URL,
                     method: 'POST',
@@ -865,15 +948,22 @@
                     success: function(res) {
                         if (res.status) {
                             tr.remove();
-                            toast('Matakuliah berhasil dihapus');
+                            toast('Matakuliah "' + namaMatkul + '" berhasil dihapus', 'success');
+                            loadData();
                         } else {
-                            toast('Gagal menghapus: ' + (res.pesan || 'Unknown error'));
+                            toast('Gagal menghapus: ' + (res.pesan || 'Unknown error'), 'error');
                         }
                     },
                     error: function() {
-                        toast('Terjadi kesalahan saat menghapus');
+                        toast('Terjadi kesalahan saat menghapus', 'error');
                     }
                 });
+            };
+
+            if (typeof konfirmasiHapus === 'function') {
+                konfirmasiHapus(namaMatkul, doHapus);
+            } else if (confirm('Hapus matakuliah "' + namaMatkul + '"?')) {
+                doHapus();
             }
         }
     });
@@ -1013,17 +1103,17 @@
             dataType: 'json',
             success: function(res) {
                 if (res.status) {
-                    toast('Matakuliah "' + nama + '" berhasil ditambahkan');
+                    toast('Matakuliah "' + nama + '" berhasil ditambahkan', 'success');
                     tm.classList.remove('show');
                     frmTambah.reset();
                     document.getElementById('tpFileLabel').textContent = 'Klik untuk memilih file RPS';
                     loadData();
                 } else {
-                    toast('Gagal menambahkan: ' + (res.pesan || 'Unknown error'));
+                    toast('Gagal menambahkan: ' + (res.pesan || 'Unknown error'), 'error');
                 }
             },
             error: function() {
-                toast('Terjadi kesalahan saat menambahkan');
+                toast('Terjadi kesalahan saat menambahkan', 'error');
             },
             complete: function() {
                 setButtonLoading(btnSimpanTambah, false);
@@ -1089,15 +1179,15 @@
                     editTarget.setAttribute('data-cari', (kode + ' ' + nama + ' ' + kons).toLowerCase());
 
                     var uploadInfo = epFile && epFile.files.length ? ' dan RPS "' + epFile.files[0].name + '" ditautkan' : '';
-                    toast('Matakuliah "' + nama + '" diperbarui' + uploadInfo);
+                    toast('Matakuliah "' + nama + '" diperbarui' + uploadInfo, 'success');
                     editTarget = null;
                     em.classList.remove('show');
                 } else {
-                    toast('Gagal memperbarui: ' + (res.pesan || 'Unknown error'));
+                    toast('Gagal memperbarui: ' + (res.pesan || 'Unknown error'), 'error');
                 }
             },
             error: function() {
-                toast('Terjadi kesalahan saat memperbarui');
+                toast('Terjadi kesalahan saat memperbarui', 'error');
             },
             complete: function() {
                 setButtonLoading(btnSimpanEdit, false);
