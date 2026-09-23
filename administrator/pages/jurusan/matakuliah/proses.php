@@ -1,30 +1,16 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/../../../../uploads/rps/debug.log');
 require_once __DIR__ . '/../../../../fungsi.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 $sudahLogin = !empty($_SESSION['user_id']) || !empty($_SESSION['nip']) || !empty($_SESSION['username']);
 if (!$sudahLogin) {
-    error_log("AUTH FAILURE: Session not found");
     echo json_encode(['status' => false, 'pesan' => 'Sesi berakhir. Silakan login kembali']);
     exit;
 }
 
 header('Content-Type: application/json');
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
-
-// Debug logging
-$logFile = __DIR__ . '/../../../../uploads/rps/debug.log';
-file_put_contents($logFile, "\n=== " . date('Y-m-d H:i:s') . " ===\n", FILE_APPEND);
-file_put_contents($logFile, "Action: $action\n", FILE_APPEND);
-file_put_contents($logFile, "POST: " . print_r($_POST, true) . "\n", FILE_APPEND);
-file_put_contents($logFile, "FILES: " . print_r($_FILES, true) . "\n", FILE_APPEND);
-file_put_contents($logFile, "Session user: " . ($_SESSION['user_id'] ?? 'none') . "\n", FILE_APPEND);
-file_put_contents($logFile, "Session NIP: " . ($_SESSION['nip'] ?? 'none') . "\n", FILE_APPEND);
+$action = $_POST['action'] ?? '';
 
 // ================= AMBIL DATA MATAKULIAH =================
 if ($action === 'ambil-data-matakuliah') {
@@ -39,10 +25,9 @@ if ($action === 'ambil-data-matakuliah') {
     ");
     $result = [];
     while ($row = mysqli_fetch_assoc($data)) {
-        // Gunakan nama prodi lengkap untuk matching dengan HTML
         $prodi = $row['nama_prodi'] ?? $row['prodi'] ?? '';
         $tahun = $row['tahun'] ?? '2022';
-        
+
         $result[] = [
             'id' => $row['id'],
             'kode' => $row['kode'],
@@ -62,76 +47,62 @@ if ($action === 'ambil-data-matakuliah') {
     exit;
 }
 
-// ================= AMBIL DATA KURIKULUM =================
-if ($action === 'ambil-kurikulum') {
-    $prodi_kode = $_GET['prodi'] ?? '';
-    
-    if (empty($prodi_kode)) {
-        echo json_encode(['status' => false, 'pesan' => 'Prodi harus diisi']);
-        exit;
+// ================= AMBIL FILTER PRODI & TAHUN =================
+if ($action === 'ambil-filter-data') {
+    $ambilProdiTahun = query("
+        SELECT DISTINCT p.kode as prodi_kode, p.nama as prodi,
+               k.kode as kurikulum_kode, k.nama as kurikulum_nama, k.tahun as tahun
+        FROM matakuliah m
+        JOIN kurikulum k ON m.kurikulum = k.kode
+        JOIN prodi p ON k.prodi = p.kode
+        ORDER BY p.nama ASC, k.tahun DESC
+    ");
+    $filters = [];
+    while ($row = mysqli_fetch_assoc($ambilProdiTahun)) {
+        $filters[] = [
+            'prodi_kode' => $row['prodi_kode'],
+            'prodi' => $row['prodi'],
+            'kurikulum_kode' => $row['kurikulum_kode'],
+            'kurikulum_nama' => $row['kurikulum_nama'],
+            'tahun' => $row['tahun']
+        ];
     }
-    
-    $kurikulum = [];
-    $ambilKurikulum = query("SELECT k.kode, k.nama, k.tahun FROM kurikulum k WHERE k.prodi = '$prodi_kode' AND k.status = 'aktif' ORDER BY k.tahun DESC");
-    while ($row = mysqli_fetch_assoc($ambilKurikulum)) {
-        $kurikulum[] = $row;
-    }
-    
-    echo json_encode(['status' => true, 'kurikulum' => $kurikulum]);
-    exit;
-}
-
-// ================= AMBIL FILTER MATAKULIAH =================
-if ($action === 'ambil-filter-matakuliah') {
-    // Ambil daftar prodi
-    $prodi = [];
-    $ambilProdi = query("SELECT kode, nama FROM prodi ORDER BY nama ASC");
-    while ($row = mysqli_fetch_assoc($ambilProdi)) {
-        $prodi[] = $row;
-    }
-    
-    // Ambil daftar kurikulum lengkap
-    $kurikulum = [];
-    $ambilKurikulum = query("SELECT k.kode, k.nama, k.tahun, k.prodi, p.nama as nama_prodi 
-                            FROM kurikulum k 
-                            JOIN prodi p ON k.prodi = p.kode 
-                            ORDER BY p.nama ASC, k.tahun DESC");
-    while ($row = mysqli_fetch_assoc($ambilKurikulum)) {
-        $kurikulum[] = $row;
-    }
-    
-    echo json_encode([
-        'status' => true,
-        'prodi' => $prodi,
-        'kurikulum' => $kurikulum
-    ]);
+    echo json_encode(['status' => true, 'filters' => $filters]);
     exit;
 }
 
 // ================= AMBIL KURIKULUM BY PRODI =================
 if ($action === 'ambil-kurikulum-by-prodi') {
-    $prodi_kode = $_GET['prodi'] ?? '';
-    
+    $prodi_kode = bersihkan($_POST['prodi'] ?? '');
+
     if (empty($prodi_kode)) {
         echo json_encode(['status' => false, 'pesan' => 'Prodi harus diisi']);
         exit;
     }
-    
+
     $kurikulum = [];
-    $ambilKurikulum = query("SELECT k.kode, k.nama, k.tahun 
-                            FROM kurikulum k 
-                            WHERE k.prodi = '$prodi_kode' 
-                            ORDER BY k.tahun DESC");
+    $ambilKurikulum = query("SELECT k.kode, k.nama, k.tahun FROM kurikulum k WHERE k.prodi = '$prodi_kode' ORDER BY k.tahun DESC");
     while ($row = mysqli_fetch_assoc($ambilKurikulum)) {
         $kurikulum[] = $row;
     }
-    
+
     echo json_encode(['status' => true, 'kurikulum' => $kurikulum]);
     exit;
 }
 
-// Tambah Matakuliah
-if ($action === 'tambah-matakuliah') {
+// ================= AMBIL DAFTAR PRODI =================
+if ($action === 'ambil-prodi-list') {
+    $ambil = query("SELECT kode, nama FROM prodi ORDER BY nama ASC");
+    $result = [];
+    while ($row = mysqli_fetch_assoc($ambil)) {
+        $result[] = $row;
+    }
+    echo json_encode(['status' => true, 'prodi' => $result]);
+    exit;
+}
+
+// ================= TAMBAH DATA MATAKULIAH =================
+if ($action === 'tambah-data-matakuliah') {
     $kode = bersihkan($_POST['kode'] ?? '');
     $nama = bersihkan($_POST['nama'] ?? '');
     $semester = (int)($_POST['semester'] ?? 1);
@@ -141,7 +112,6 @@ if ($action === 'tambah-matakuliah') {
     $keterangan = bersihkan($_POST['keterangan'] ?? '');
     $rps = null;
 
-    // Validasi input
     if (empty($kode) || empty($nama) || empty($kurikulum)) {
         echo json_encode(['status' => false, 'pesan' => 'Kode, nama, dan kurikulum wajib diisi']);
         exit;
@@ -155,13 +125,12 @@ if ($action === 'tambah-matakuliah') {
             exit;
         }
     }
-    // Jika tidak ada file, $rps tetap null (NULL allowed di database)
 
     // Insert ke database
     $rps_value = ($rps !== null) ? "'$rps'" : "NULL";
-    $insert = query("INSERT INTO matakuliah (kode, nama, semester, sks, kurikulum, konsentrasi, keterangan, rps) 
+    $insert = query("INSERT INTO matakuliah (kode, nama, semester, sks, kurikulum, konsentrasi, keterangan, rps)
                      VALUES ('$kode', '$nama', $semester, $sks, '$kurikulum', '$konsentrasi', '$keterangan', $rps_value)");
-    
+
     if ($insert) {
         $id_baru = mysqli_insert_id($koneksi);
         echo json_encode(['status' => true, 'pesan' => 'Matakuliah berhasil ditambahkan', 'id' => $id_baru]);
@@ -171,8 +140,8 @@ if ($action === 'tambah-matakuliah') {
     exit;
 }
 
-// Edit Matakuliah
-if ($action === 'edit-matakuliah') {
+// ================= EDIT DATA MATAKULIAH =================
+if ($action === 'edit-data-matakuliah') {
     $id = (int)($_POST['id'] ?? 0);
     $kode = bersihkan($_POST['kode'] ?? '');
     $nama = bersihkan($_POST['nama'] ?? '');
@@ -205,22 +174,22 @@ if ($action === 'edit-matakuliah') {
     }
 
     if ($update) {
-        echo json_encode(['status' => true, 'pesan' => 'Matakuliah berhasil diperbarui']);
+        echo json_encode(['status' => true, 'pesan' => 'Matakuliah berhasil diperbarui', 'rps' => $rps ?? '']);
     } else {
         echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan: ' . mysqli_error($koneksi)]);
     }
     exit;
 }
 
-// Hapus Matakuliah
-if ($action === 'hapus-matakuliah') {
+// ================= HAPUS DATA MATAKULIAH =================
+if ($action === 'hapus-data-matakuliah') {
     $id = (int)($_POST['id'] ?? 0);
-    
+
     if ($id <= 0) {
         echo json_encode(['status' => false, 'pesan' => 'ID tidak valid']);
         exit;
     }
-    
+
     // Hapus file RPS jika ada
     $cek = query("SELECT rps FROM matakuliah WHERE id='$id'");
     $row = mysqli_fetch_assoc($cek);
@@ -228,10 +197,10 @@ if ($action === 'hapus-matakuliah') {
         // Hapus dari tabel files
         $hapus_file = query("DELETE FROM files WHERE id='" . bersihkan($row['rps']) . "'");
     }
-    
+
     // Hapus dari database
     $hapus = query("DELETE FROM matakuliah WHERE id='$id'");
-    
+
     if ($hapus) {
         echo json_encode(['status' => true, 'pesan' => 'Matakuliah berhasil dihapus']);
     } else {
@@ -242,5 +211,4 @@ if ($action === 'hapus-matakuliah') {
 
 echo json_encode(['status' => false, 'pesan' => 'Aksi tidak dikenali']);
 exit;
-
 ?>

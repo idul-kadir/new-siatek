@@ -76,7 +76,25 @@
     /* ===== Empty state ===== */
     .empty-hidden { display: none; }
     .empty-show { display: flex; }
-</style><main class="content-area content-scroll">
+
+    /* ===== Loading spinner ===== */
+    .is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
+    .spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== Toast ===== */
+    #toastContainer { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; pointer-events: none; }
+    .toast-item { display: flex; align-items: center; gap: .6rem; min-width: 240px; background: #0f172a; color: #fff; padding: .6rem 1rem; border-radius: .6rem; font-size: .8rem; box-shadow: 0 6px 18px rgba(15,23,42,.35); transition: transform .3s ease, opacity .3s ease; pointer-events: auto; max-height: 120px; overflow: hidden; position: relative; animation: toastSlideIn .3s ease forwards; }
+    .toast-item.toast-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .toast-item.toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .toast-item.toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .toast-close { position: absolute; top: .4rem; right: .4rem; background: rgba(255,255,255,0.2); border: none; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; line-height: 1; }
+    .toast-close:hover { background: rgba(255,255,255,0.3); }
+    @keyframes toastSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast-item.hide { animation: toastSlideOut .3s ease forwards; }
+    @keyframes toastSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+</style>
+<main class="content-area content-scroll">
     <section class="mb-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
@@ -185,252 +203,8 @@
         <p class="mt-1 text-xs text-slate-400" id="emptyStateDetail">Tidak ada data yang cocok dengan filter yang dipilih.</p>
         <button type="button" id="btnEmptyReset" class="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset Filter</button>
     </div>
-    <section class="mb-6" data-prodi="S1 Teknik Elektro">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 shadow-sm"><i class="fas fa-bolt text-sm"></i></div>
-            <div><h2 class="text-base font-bold text-slate-800">S1 Teknik Elektro</h2><p class="text-[11px] text-slate-500">2 kurikulum &middot; 0 matakuliah &middot; 0 SKS</p></div>
-        </div>
-        <div class="space-y-4">
-            <div class="acc-item acc-te is-active reveal" data-prodi="S1 Teknik Elektro" data-tahun="2022">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600 text-lg"><i class="fas fa-bolt"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum 2022
-                            <span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2022 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                         <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="acc-item acc-te  reveal" data-prodi="S1 Teknik Elektro" data-tahun="2017">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600 text-lg"><i class="fas fa-bolt"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum KKNI 2017
-                            <span class="badge-jejak">Jejak Digital</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2017 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                        <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    <section class="mb-6" data-prodi="S1 Teknik Komputer">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600 shadow-sm"><i class="fas fa-microchip text-sm"></i></div>
-            <div><h2 class="text-base font-bold text-slate-800">S1 Teknik Komputer</h2><p class="text-[11px] text-slate-500">2 kurikulum &middot; 0 matakuliah &middot; 0 SKS</p></div>
-        </div>
-        <div class="space-y-4">
-            <div class="acc-item acc-tk is-active reveal" data-prodi="S1 Teknik Komputer" data-tahun="2021">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 text-lg"><i class="fas fa-microchip"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum 2021
-                            <span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2021 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                        <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="acc-item acc-tk  reveal" data-prodi="S1 Teknik Komputer" data-tahun="2017">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 text-lg"><i class="fas fa-microchip"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum KKNI 2017
-                            <span class="badge-jejak">Jejak Digital</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2017 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                        <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    <section class="mb-6" data-prodi="S1 Pendidikan Vokasi Rekayasa Elektro">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 shadow-sm"><i class="fas fa-graduation-cap text-sm"></i></div>
-            <div><h2 class="text-base font-bold text-slate-800">S1 Pendidikan Vokasi Rekayasa Elektro</h2><p class="text-[11px] text-slate-500">2 kurikulum &middot; 0 matakuliah &middot; 0 SKS</p></div>
-        </div>
-        <div class="space-y-4">
-            <div class="acc-item acc-vok is-active reveal" data-prodi="S1 Pendidikan Vokasi Rekayasa Elektro" data-tahun="2021">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 text-lg"><i class="fas fa-graduation-cap"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum Vokasi 2021
-                            <span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2021 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                        <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="acc-item acc-vok  reveal" data-prodi="S1 Pendidikan Vokasi Rekayasa Elektro" data-tahun="2018">
-                <div class="acc-head" onclick="toggleAcc(this)">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 text-lg"><i class="fas fa-graduation-cap"></i></span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-bold text-slate-800">Kurikulum Vokasi 2018
-                            <span class="badge-jejak">Jejak Digital</span>
-                        </span>
-                        <span class="block text-xs text-slate-500">Tahun 2018 &middot; 0 matakuliah &middot; 0 SKS</span>
-                    </span>
-                    <span class="acc-badge">0</span>
-                    <span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span>
-                </div>
-                <div class="acc-body">
-                    <div class="acc-inner">
-                        <div class="sem-pills">
-                            <span class="sem-pill active-all" data-sem="all">Semua</span>
-                            <span class="sem-pill" data-sem="1">Sem 1 (0)</span>
-                            <span class="sem-pill" data-sem="2">Sem 2 (0)</span>
-                            <span class="sem-pill" data-sem="3">Sem 3 (0)</span>
-                            <span class="sem-pill" data-sem="4">Sem 4 (0)</span>
-                            <span class="sem-pill" data-sem="5">Sem 5 (0)</span>
-                            <span class="sem-pill" data-sem="6">Sem 6 (0)</span>
-                            <span class="sem-pill" data-sem="7">Sem 7 (0)</span>
-                            <span class="sem-pill" data-sem="8">Sem 8 (0)</span>
-                        </div>
-                        <div class="border-t border-slate-100 bg-slate-50/60 p-4">
-                            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                                <div class="tbl-wrap">
-                                    <table class="tbl-modern">
-                                        <thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-right">Aksi</th></tr></thead>
-                                        <tbody></tbody></table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    <!-- Accordion container - akan diisi dinamis dari database -->
+    <div id="accordionContainer"></div>
 </main>
 <!-- ===== Modal Tambah Matakuliah ===== -->
 <div class="modal-overlay" id="tambahModal" role="dialog" aria-modal="true">
@@ -451,17 +225,11 @@
             <div class="grid grid-cols-3 gap-3">
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Program Studi</label>
                     <select id="tpProdi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option value="S1 Teknik Elektro">S1 Teknik Elektro</option>
-                        <option value="S1 Teknik Komputer">S1 Teknik Komputer</option>
-                        <option value="S1 Pendidikan Vokasi Rekayasa Elektro">S1 Pendidikan Vokasi Rekayasa Elektro</option>
+                        <option value="">Pilih Prodi</option>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kurikulum</label>
-                    <select id="tpTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option value="2022">Kurikulum 2022</option>
-                        <option value="2021">Kurikulum 2021</option>
-                        <option value="2018">Kurikulum 2018</option>
-                        <option value="2017">Kurikulum 2017</option>
-                        <option value="2016">Kurikulum 2016</option>
+                    <select id="tpTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400" disabled>
+                        <option value="">Pilih prodi dulu</option>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Semester</label>
                     <select id="tpSem" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
@@ -479,7 +247,7 @@
                 </label></div>
             <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
                 <button type="button" data-tambah-close class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium transition"><i class="fas fa-save mr-1"></i>Simpan</button>
+                <button type="submit" id="btnSimpanTambah" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium transition">Simpan</button>
             </div>
         </form>
     </div>
@@ -503,17 +271,11 @@
             <div class="grid grid-cols-3 gap-3">
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Program Studi</label>
                     <select id="epProdi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option value="S1 Teknik Elektro">S1 Teknik Elektro</option>
-                        <option value="S1 Teknik Komputer">S1 Teknik Komputer</option>
-                        <option value="S1 Pendidikan Vokasi Rekayasa Elektro">S1 Pendidikan Vokasi Rekayasa Elektro</option>
+                        <option value="">Pilih Prodi</option>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kurikulum</label>
-                    <select id="epTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
-                        <option value="2022">Kurikulum 2022</option>
-                        <option value="2021">Kurikulum 2021</option>
-                        <option value="2018">Kurikulum 2018</option>
-                        <option value="2017">Kurikulum 2017</option>
-                        <option value="2016">Kurikulum 2016</option>
+                    <select id="epTahun" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400" disabled>
+                        <option value="">Pilih prodi dulu</option>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Semester</label>
                     <select id="epSem" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-sky-400">
@@ -531,7 +293,7 @@
                 </label></div>
             <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
                 <button type="button" data-edit-close class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-medium transition"><i class="fas fa-save mr-1"></i>Simpan Perubahan</button>
+                <button type="submit" id="btnSimpanEdit" class="px-4 py-2 text-xs rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-medium transition">Simpan Perubahan</button>
             </div>
         </form>
     </div>
@@ -574,55 +336,275 @@
     var fCari = document.getElementById('fCari');
     var fProdi = document.getElementById('fProdi');
     var fTahun = document.getElementById('fTahun');
-    var prosesUrl = '../../proses.php';
+    var tpProdi = document.getElementById('tpProdi');
+    var tpTahun = document.getElementById('tpTahun');
+    var epProdi = document.getElementById('epProdi');
+    var epTahun = document.getElementById('epTahun');
+    var frmTambah = document.getElementById('frmTambah');
+    var frmEdit = document.getElementById('frmEdit');
+    var PROSES_URL = base_url() + '/administrator/pages/jurusan/matakuliah/proses.php';
+    function base_url() {
+        var root = window.location.pathname.split('/administrator/')[0];
+        return root.replace(/\/$/, '');
+    }
+
+    // ===== LOAD FILTER DROPDOWN DARI DATABASE =====
+    function loadFilterDropdown() {
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { action: 'ambil-filter-data' },
+            dataType: 'json',
+            success: function(res) {
+                if (!res.status || !res.filters) return;
+                // Group by prodi, collect unique years per prodi
+                var prodiYears = {};
+                var prodiNameToCode = {};
+                res.filters.forEach(function(f) {
+                    if (!prodiNameToCode[f.prodi]) prodiNameToCode[f.prodi] = f.prodi_kode;
+                    if (!prodiYears[f.prodi]) prodiYears[f.prodi] = [];
+                    if (prodiYears[f.prodi].indexOf(f.tahun) === -1) {
+                        prodiYears[f.prodi].push(f.tahun);
+                    }
+                });
+                // Sort years descending
+                Object.keys(prodiYears).forEach(function(p) {
+                    prodiYears[p].sort(function(a, b) { return b - a; });
+                });
+                // isi fProdi — value = nama prodi (untuk matching accordion data-prodi)
+                if (fProdi) {
+                    fProdi.innerHTML = '<option value="">Semua Prodi</option>';
+                    var prodis = Object.keys(prodiYears).sort();
+                    prodis.forEach(function(p) {
+                        var opt = document.createElement('option');
+                        opt.value = p;
+                        opt.textContent = p;
+                        fProdi.appendChild(opt);
+                    });
+                }
+                // Isi fTahun dari data filter (sudah include kurikulum kode/nama)
+                // pakai prodi pertama untuk inisialisasi
+                window._prodiNameToCode = prodiNameToCode;
+                if (fTahun && prodis.length > 0) {
+                    var firstProdi = prodis[0];
+                    var firstProdiFilters = res.filters.filter(function(f) { return f.prodi === firstProdi; });
+                    fTahun.innerHTML = '<option value="">Semua Kurikulum</option>';
+                    firstProdiFilters.forEach(function(f) {
+                        var opt = document.createElement('option');
+                        opt.value = f.kurikulum_kode;
+                        opt.textContent = (f.kurikulum_nama || 'Kurikulum ' + f.tahun) + (f.tahun ? ' (' + f.tahun + ')' : '');
+                        fTahun.appendChild(opt);
+                    });
+                }
+                // Load prodi list for modals
+                loadProdiModal();
+            },
+            error: function() {
+                toast('Gagal memuat filter dari database');
+            }
+        });
+    }
+
+    function loadProdiModal() {
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { action: 'ambil-prodi-list' },
+            dataType: 'json',
+            success: function(res) {
+                if (!res.status || !res.prodi) return;
+                // isi tpProdi
+                if (tpProdi) {
+                    tpProdi.innerHTML = '<option value="">Pilih Prodi</option>';
+                    res.prodi.forEach(function(p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.nama;
+                        opt.textContent = p.nama;
+                        opt.setAttribute('data-kode', p.kode);
+                        tpProdi.appendChild(opt);
+                    });
+                }
+                // isi epProdi
+                if (epProdi) {
+                    epProdi.innerHTML = '<option value="">Pilih Prodi</option>';
+                    res.prodi.forEach(function(p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.nama;
+                        opt.textContent = p.nama;
+                        opt.setAttribute('data-kode', p.kode);
+                        epProdi.appendChild(opt);
+                    });
+                }
+            },
+            error: function() {
+                toast('Gagal memuat daftar prodi');
+            }
+        });
+    }
+
+    function populateKurikulum(prodiSelect, tahunSelect, done) {
+        var prodiName = prodiSelect.value;
+        if (!prodiName) {
+            tahunSelect.innerHTML = '<option value="">Pilih prodi dulu</option>';
+            tahunSelect.disabled = true;
+            return;
+        }
+        var prodiCode = (window._prodiNameToCode && window._prodiNameToCode[prodiName]) || '';
+        tahunSelect.innerHTML = '<option value="">Memuat...</option>';
+        tahunSelect.disabled = true;
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { action: 'ambil-kurikulum-by-prodi', prodi: prodiCode },
+            dataType: 'json',
+            success: function(res) {
+                tahunSelect.innerHTML = '<option value="">Pilih Kurikulum</option>';
+                if (res.status && res.kurikulum) {
+                    res.kurikulum.forEach(function(k) {
+                        var opt = document.createElement('option');
+                        opt.value = k.kode;
+                        opt.textContent = k.nama || ('Kurikulum ' + k.tahun);
+                        tahunSelect.appendChild(opt);
+                    });
+                    tahunSelect.disabled = false;
+                    if (typeof done === 'function') done();
+                }
+            },
+            error: function() {
+                tahunSelect.innerHTML = '<option value="">Gagal memuat</option>';
+            }
+        });
+    }
+
+    if (tpProdi) tpProdi.addEventListener('change', function () { populateKurikulum(tpProdi, tpTahun); });
+    if (epProdi) epProdi.addEventListener('change', function () { populateKurikulum(epProdi, epTahun); });
 
     // ===== LOAD DATA DARI DATABASE =====
     function loadData() {
+        var container = document.getElementById('accordionContainer');
+        if (container) container.innerHTML = '<div class="text-center py-12"><div class="spinner-slate mx-auto mb-3" style="width:2rem;height:2rem;border-width:3px;"></div><p class="text-sm text-slate-500">Memuat data matakuliah...</p></div>';
         $.ajax({
-            url: prosesUrl + '?action=ambil-data-matakuliah',
+            url: PROSES_URL,
+            method: 'POST',
+            data: { action: 'ambil-data-matakuliah' },
             dataType: 'json',
             success: function(res) {
-                if (!res.status) return;
+                if (!res.status) { toast('Gagal memuat data dari database'); return; }
                 renderFromData(res.data);
             },
             error: function() {
+                if (container) container.innerHTML = '<div class="text-center py-12 text-rose-500"><i class="fas fa-exclamation-triangle text-2xl mb-2"></i><p class="text-sm">Terjadi kesalahan saat memuat data</p></div>';
                 toast('Gagal memuat data dari database');
             }
         });
     }
 
-    function renderFromData(data) {
-        // Kelompokkan data per prodi-tahun
-        var grouped = {};
+    // Render accordion dinamis dari database
+    function renderAccordion(data) {
+        var container = document.getElementById('accordionContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Kelompokkan data per prodi
+        var prodiGroups = {};
+        var kurNamaMap = {}; // kurikulum_kode -> nama kurikulum
         data.forEach(function(mk) {
-            var key = mk.prodi + '|' + mk.tahun;
-            var prodi_class = '';
-            if (mk.prodi.indexOf('Teknik Elektro') !== -1) prodi_class = 'te';
-            else if (mk.prodi.indexOf('Teknik Komputer') !== -1) prodi_class = 'tk';
-            else if (mk.prodi.indexOf('Vokasi') !== -1 || mk.prodi.indexOf('Pendidikan') !== -1) prodi_class = 'vok';
-            if (!grouped[key]) grouped[key] = { prodi: mk.prodi, tahun: mk.tahun, nama_prodi: mk.nama_prodi, prodi_class: prodi_class };
-            if (!grouped[key].matakuliah) grouped[key].matakuliah = [];
-            grouped[key].matakuliah.push(mk);
+            if (!prodiGroups[mk.prodi]) prodiGroups[mk.prodi] = {};
+            if (!prodiGroups[mk.prodi][mk.kurikulum]) prodiGroups[mk.prodi][mk.kurikulum] = [];
+            kurNamaMap[mk.kurikulum] = mk.nama_kurikulum || ('Kurikulum ' + mk.tahun);
+            prodiGroups[mk.prodi][mk.kurikulum].push(mk);
         });
 
-        // Clear semua tbody - hapus semua row termasuk semester rows
-        document.querySelectorAll('.acc-item tbody').forEach(function(tb) {
-            tb.innerHTML = '';
+        // Urutkan prodi
+        var prodiNames = Object.keys(prodiGroups).sort();
+
+        prodiNames.forEach(function(prodi) {
+            var kurikulums = Object.keys(prodiGroups[prodi]).sort(function(a, b) {
+                // urutkan: tahun lebih tinggi dulu
+                var yearA = parseInt(kurNamaMap[a]) || 0;
+                var yearB = parseInt(kurNamaMap[b]) || 0;
+                return yearB - yearA;
+            });
+            var isVokasi = prodi.indexOf('Vokasi') !== -1 || prodi.indexOf('Pendidikan') !== -1;
+            var isKomputer = prodi.indexOf('Komputer') !== -1;
+            var icon = isVokasi ? 'fa-graduation-cap' : (isKomputer ? 'fa-microchip' : 'fa-bolt');
+            var iconColor = isVokasi ? 'violet-100 text-violet-600' : (isKomputer ? 'sky-100 text-sky-600' : 'orange-100 text-orange-600');
+
+            // Hitung total matakuliah dan SKS
+            var totalMK = 0, totalSKS = 0;
+            kurikulums.forEach(function(kk) {
+                totalMK += prodiGroups[prodi][kk].length;
+                prodiGroups[prodi][kk].forEach(function(m) { totalSKS += m.sks; });
+            });
+
+            // Buat section prodi
+            var section = document.createElement('section');
+            section.className = 'mb-6';
+            section.setAttribute('data-prodi', prodi);
+            section.innerHTML = '<div class="flex items-center gap-3 mb-3">' +
+                '<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-' + iconColor + ' shadow-sm"><i class="fas ' + icon + ' text-sm"></i></div>' +
+                '<div><h2 class="text-base font-bold text-slate-800">' + prodi + '</h2>' +
+                '<p class="text-[11px] text-slate-500">' + kurikulums.length + ' kurikulum &middot; ' + totalMK + ' matakuliah &middot; ' + totalSKS + ' SKS</p></div></div>' +
+                '<div class="space-y-4" id="acc-wrap-' + prodi.replace(/\s+/g, '-') + '"></div>';
+
+            container.appendChild(section);
+            var accWrap = section.querySelector('#acc-wrap-' + prodi.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, ''));
+            // fallback jika id tidak ketemu (karakter aneh)
+            if (!accWrap) accWrap = section.querySelector('.space-y-4');
+
+            // Buat accordion per kurikulum (bukan per tahun)
+            kurikulums.forEach(function(kk, idx) {
+                var mkList = prodiGroups[prodi][kk];
+                var tahunVal = mkList[0] ? mkList[0].tahun : '';
+                var kurNama = kurNamaMap[kk] || ('Kurikulum ' + tahunVal);
+                var isAktif = idx === 0; // kurikulum terbaru dianggap aktif
+                var badge = isAktif ? '<span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>' : '<span class="badge-jejak">Jejak Digital</span>';
+                var displayNama = kurNama !== tahunVal ? kurNama + ' (' + tahunVal + ')' : kurNama;
+
+                // Hitung per semester
+                var semCounts = {};
+                mkList.forEach(function(m) {
+                    semCounts[m.semester] = (semCounts[m.semester] || 0) + 1;
+                });
+
+                var semPills = '';
+                for (var s = 1; s <= 8; s++) {
+                    semPills += '<span class="sem-pill" data-sem="' + s + '">Sem ' + s + ' (' + (semCounts[s] || 0) + ')</span>';
+                }
+
+                var accDiv = document.createElement('div');
+                accDiv.className = 'acc-item acc-' + (isVokasi ? 'vok' : (isKomputer ? 'tk' : 'te')) + (isAktif ? ' is-active' : '') + ' reveal';
+                accDiv.setAttribute('data-prodi', prodi);
+                accDiv.setAttribute('data-tahun', tahunVal);
+                accDiv.setAttribute('data-kurikulum', kk);
+                accDiv.setAttribute('data-kurikulum-nama', kurNama);
+                accDiv.innerHTML =
+                    '<div class="acc-head" onclick="toggleAcc(this)">' +
+                    '<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-' + iconColor + ' text-lg"><i class="fas ' + icon + '"></i></span>' +
+                    '<span class="min-w-0 flex-1"><span class="block text-sm font-bold text-slate-800">' + displayNama + ' ' + badge + '</span>' +
+                    '<span class="block text-xs text-slate-500">Tahun ' + tahunVal + ' &middot; ' + mkList.length + ' matakuliah &middot; ' + mkList.reduce(function(a, b) { return a + b.sks; }, 0) + ' SKS</span></span>' +
+                    '<span class="acc-badge">' + mkList.length + '</span>' +
+                    '<span class="acc-chev"><i class="fas fa-chevron-down text-xs"></i></span></div>' +
+                    '<div class="acc-body"><div class="acc-inner"><div class="sem-pills">' + semPills + '</div>' +
+                    '<div class="border-t border-slate-100 bg-slate-50/60 p-4"><div class="overflow-hidden rounded-xl border border-slate-200 bg-white"><div class="tbl-wrap">' +
+                    '<table class="tbl-modern"><thead><tr><th>Kode</th><th>Nama Matakuliah</th><th class="text-center">Sem</th><th class="text-center">SKS</th><th>Konsentrasi</th><th class="text-center">RPS</th><th class="text-right">Aksi</th></tr></thead>' +
+                    '<tbody></tbody></table></div></div></div></div></div>';
+                accWrap.appendChild(accDiv);
+            });
         });
 
-        // Build semester rows per acc-item
-        var semNames = ['Ganjil','Genap','Ganjil','Genap','Ganjil','Genap','Ganjil','Genap'];
-        document.querySelectorAll('.acc-item tbody').forEach(function(tb) {
-            for (var s = 1; s <= 8; s++) {
-                var semTr = document.createElement('tr');
-                semTr.className = 'sem-row';
-                semTr.innerHTML = '<td colspan="6"><i class="fas fa-layer-group mr-1.5 text-[10px]"></i>Semester ' + s + ' (' + semNames[s-1] + ')</td>';
-                tb.appendChild(semTr);
-            }
-        });
+        // Render matakuliah ke tbody
+        renderMatakuliah(data);
+    }
 
-        // Render setiap matakuliah
+    function renderMatakuliah(data) {
+        // Render setiap matakuliah ke tbody yang sesuai
         data.forEach(function(mk) {
+            var accItem = document.querySelector('.acc-item[data-prodi="' + mk.prodi + '"][data-kurikulum="' + mk.kurikulum + '"]');
+            if (!accItem) return;
+            var tb = accItem.querySelector('tbody');
+            if (!tb) return;
+
             var sem = mk.semester;
             var semColor = ['bg-emerald-100 text-emerald-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-teal-100 text-teal-700','bg-indigo-100 text-indigo-700','bg-pink-100 text-pink-700'];
             var konsBadge = mk.konsentrasi && mk.konsentrasi !== '-'
@@ -633,20 +615,6 @@
                 ? '<a href="' + base_url() + '/file/' + mk.rps + '" target="_blank" class="rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 hover:text-amber-700" data-rps-status="1"><i class="fas fa-file-pdf text-[9px]"></i>Lihat RPS</a>'
                 : '<a href="javascript:void(0)" class="rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-slate-300 cursor-not-allowed" data-rps-status="0"><i class="fas fa-file text-[9px]"></i>RPS belum tersedia</a>';
 
-            // Cari accordion item yang sesuai
-            var accItem = document.querySelector('.acc-item[data-prodi="' + mk.prodi + '"][data-tahun="' + mk.tahun + '"]');
-            if (!accItem) return;
-
-            var tb = accItem.querySelector('tbody');
-            // Cari semester row
-            var semRows = tb.querySelectorAll('tr.sem-row');
-            var semRow = null;
-            semRows.forEach(function(tr) {
-                if (tr.textContent.indexOf('Semester ' + sem) !== -1) {
-                    semRow = tr;
-                }
-            });
-
             var cari = (mk.kode + ' ' + mk.nama + ' ' + (mk.konsentrasi || '')).toLowerCase();
             var tr = document.createElement('tr');
             tr.className = 'bg-white transition hover:bg-orange-50';
@@ -654,51 +622,39 @@
             tr.setAttribute('data-sem', sem);
             tr.setAttribute('data-cari', cari);
             tr.setAttribute('data-rps', rpsStatus);
+            tr.setAttribute('data-kurikulum', mk.kurikulum);
             tr.innerHTML = '<td><span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">' + mk.kode + '</span></td>'
-                + '<td><p class="font-medium text-slate-800 leading-snug">' + mk.nama + '</p>' + rpsLink + '</td>'
+                + '<td><p class="font-medium text-slate-800 leading-snug">' + mk.nama + '</p></td>'
                 + '<td class="text-center"><span class="inline-flex items-center rounded-full ' + semColor[(parseInt(sem) - 1) % 8] + ' px-2 py-0.5 text-xs font-bold">Sem ' + sem + '</span></td>'
                 + '<td class="text-center"><span class="text-sm font-bold text-slate-700">' + mk.sks + '</span></td>'
                 + '<td>' + konsBadge + '</td>'
+                + '<td class="text-center">' + rpsLink + '</td>'
                 + '<td class="text-right"><div class="flex items-center justify-end gap-1.5">'
                 + '<button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>'
                 + '<button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>'
                 + '<button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>'
                 + '</div></td>';
-
-            if (semRow) {
-                semRow.parentNode.insertBefore(tr, semRow.nextSibling);
-            } else {
-                tb.appendChild(tr);
-            }
+            tb.appendChild(tr);
         });
+    }
 
-        // Re-init RPS buttons
-        initRpsButtons();
+    function renderFromData(data) {
+        renderAccordion(data);
+        updateDonut(data);
+        filterAll();
+        document.querySelectorAll('.sem-pill').forEach(function(p) {
+            if (p.getAttribute('data-sem') === '1') p.classList.add('active');
+        });
+        filterAll();
     }
 
     // Load data saat halaman siap
     $(document).ready(function() {
+        loadFilterDropdown();
         loadData();
     });
 
     window.toggleAcc = function (head) { head.closest('.acc-item').classList.toggle('open'); };
-
-    /* Suntik tautan 'RPS' di bawah nama matakuliah */
-    function initRpsButtons() {
-        document.querySelectorAll('.acc-item tbody tr[data-cari]').forEach(function (tr) {
-            if (tr.querySelector('.rps-link')) return;
-            var hasRps = tr.getAttribute('data-rps') === '1';
-            var nameTd = tr.querySelectorAll('td')[1];
-            if (!nameTd) return;
-            var link = document.createElement('a');
-            link.href = 'javascript:void(0)';
-            link.className = 'rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold ' + (hasRps ? 'text-amber-600 hover:text-amber-700' : 'text-slate-300 cursor-not-allowed');
-            link.setAttribute('data-rps-status', hasRps ? '1' : '0');
-            link.innerHTML = '<i class="fas ' + (hasRps ? 'fa-file-pdf' : 'fa-file') + ' text-[9px]"></i>' + (hasRps ? 'Lihat RPS' : 'RPS belum tersedia');
-            nameTd.appendChild(link);
-        });
-    }
-    initRpsButtons();
 
     /* Donut chart " Chart.js dimuat setelah include halaman ini, jadi tunggu */
     var chartData = {
@@ -709,7 +665,7 @@
     function initDonut() {
         if (!window.Chart) { setTimeout(initDonut, 200); return; }
         var ctx = document.getElementById('donutChart'); if (!ctx) return;
-        new Chart(ctx, {
+        window._donutChart = new Chart(ctx, {
             type: 'doughnut',
             data: { labels: chartData.labels, datasets: [{ data: chartData.values, backgroundColor: chartData.colors, borderWidth: 3, borderColor: 'rgba(255,255,255,.15)', hoverOffset: 8 }] },
             options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
@@ -718,6 +674,24 @@
     }
     initDonut();
 
+    function updateDonut(data) {
+        var counts = {};
+        data.forEach(function(mk) { counts[mk.prodi] = (counts[mk.prodi] || 0) + 1; });
+        var prodiList = Object.keys(counts).sort();
+        var colors = ["#f97316","#0ea5e9","#8b5cf6","#10b981","#ef4444","#f59e0b","#6366f1","#ec4899"];
+        chartData.labels = prodiList;
+        chartData.values = prodiList.map(function(p) { return counts[p]; });
+        chartData.colors = prodiList.map(function(_, i) { return colors[i % colors.length]; });
+        var totalEl = document.querySelector('#donutChart').parentElement.querySelector('p.text-xl');
+        if (totalEl) totalEl.textContent = data.length;
+        if (window._donutChart) {
+            window._donutChart.data.labels = chartData.labels;
+            window._donutChart.data.datasets[0].data = chartData.values;
+            window._donutChart.data.datasets[0].backgroundColor = chartData.colors;
+            window._donutChart.update();
+        }
+    }
+
     /* Pill semester per accordion */
     document.addEventListener('click', function (e) {
         var pill = e.target.closest('.sem-pill');
@@ -725,8 +699,8 @@
         var wrap = pill.closest('.sem-pills');
         var accBody = wrap.closest('.acc-body');
         var semVal = pill.getAttribute('data-sem');
-        wrap.querySelectorAll('.sem-pill').forEach(function (p) { p.classList.remove('active', 'active-all'); });
-        pill.classList.add(semVal === 'all' ? 'active-all' : 'active');
+        wrap.querySelectorAll('.sem-pill').forEach(function (p) { p.classList.remove('active'); });
+        pill.classList.add('active');
         accBody.querySelectorAll('tbody tr').forEach(function (tr) {
             if (tr.classList.contains('sem-row')) { tr.style.display = (semVal === 'all') ? '' : 'none'; return; }
             tr.style.display = (semVal === 'all' || tr.getAttribute('data-sem') === semVal) ? '' : 'none';
@@ -744,8 +718,8 @@
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
             var matchProdi = !prodi || it.getAttribute('data-prodi') === prodi;
-            var matchTahun = !tahun || it.getAttribute('data-tahun') === tahun;
-            var semVal = 'all';
+            var matchKur = !tahun || it.getAttribute('data-kurikulum') === tahun;
+            var semVal = '';
             var activePill = it.querySelector('.sem-pill.active');
             if (activePill) semVal = activePill.getAttribute('data-sem');
             var trs = it.querySelectorAll('tbody tr');
@@ -753,17 +727,17 @@
             for (var j = 0; j < trs.length; j++) {
                 var tr = trs[j];
                 if (tr.classList.contains('sem-row')) {
-                    tr.style.display = (semVal === 'all') ? '' : 'none';
+                    tr.style.display = 'none';
                     continue;
                 }
                 var matchKata = !kata || (tr.getAttribute('data-cari') || '').indexOf(kata) !== -1;
-                var matchSem = (semVal === 'all') || tr.getAttribute('data-sem') === semVal;
+                var matchSem = !semVal || tr.getAttribute('data-sem') === semVal;
                 var show = matchKata && matchSem;
                 tr.style.display = show ? '' : 'none';
                 if (show) visible++;
             }
-            it.style.display = (!matchProdi || !matchTahun || visible === 0) ? 'none' : '';
-            if (matchProdi && matchTahun) totalVisible += visible;
+            it.style.display = (!matchProdi || !matchKur) ? 'none' : '';
+            if (matchProdi && matchKur) totalVisible += visible;
         }
         var secs = document.querySelectorAll('section[data-prodi]');
         var anySectionVisible = false;
@@ -785,9 +759,14 @@
             emptyState.classList.toggle('empty-hidden', !showEmpty);
             if (detail) {
                 var saran = '';
+                var tahunLabel = tahun;
+                if (tahun) {
+                    var sel = fTahun.options[fTahun.selectedIndex];
+                    if (sel) tahunLabel = sel.textContent;
+                }
                 if (kata) saran = 'Tidak ada matakuliah yang cocok dengan kata "' + kata + '".';
-                else if (prodi && tahun) saran = 'Kurikulum ' + tahun + ' belum tersedia untuk ' + prodi + '.';
-                else if (tahun) saran = 'Belum ada kurikulum tahun ' + tahun + '.';
+                else if (prodi && tahun) saran = tahunLabel + ' belum tersedia untuk ' + prodi + '.';
+                else if (tahun) saran = 'Tidak ada kurikulum ' + tahunLabel + ' tersedia.';
                 else if (prodi) saran = 'Belum ada data untuk ' + prodi + '.';
                 else if (document.querySelector('.sem-pill.active')) saran = 'Tidak ada matakuliah pada semester yang dipilih.';
                 else saran = 'Tidak ada data yang cocok dengan filter yang dipilih.';
@@ -799,21 +778,29 @@
     function syncTahunOptions() {
         if (!fProdi || !fTahun) return;
         var prodi = fProdi.value;
-        var years = [];
-        document.querySelectorAll('.acc-item').forEach(function (a) {
-            if (a.getAttribute('data-prodi') === prodi) {
-                var t = a.getAttribute('data-tahun');
-                if (t && t !== 'null' && years.indexOf(t) === -1) years.push(t);
-            }
-        });
-        var opts = fTahun.querySelectorAll('option');
-        for (var i = 0; i < opts.length; i++) {
-            var o = opts[i];
-            var val = o.getAttribute('value');
-            if (!val) continue;
-            o.style.display = (!prodi || years.indexOf(val) !== -1) ? '' : 'none';
+        if (prodi) {
+            var prodiCode = (window._prodiNameToCode && window._prodiNameToCode[prodi]) || prodi;
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: { action: 'ambil-kurikulum-by-prodi', prodi: prodiCode },
+                dataType: 'json',
+                success: function(res) {
+                    if (res.status && res.kurikulum) {
+                        fTahun.innerHTML = '<option value="">Semua Kurikulum</option>';
+                        res.kurikulum.forEach(function(k) {
+                            var opt = document.createElement('option');
+                            opt.value = k.kode;
+                            opt.textContent = (k.nama || 'Kurikulum ' + k.tahun) + (k.tahun ? ' (' + k.tahun + ')' : '');
+                            fTahun.appendChild(opt);
+                        });
+                        fTahun.value = '';
+                    }
+                }
+            });
+        } else {
+            fTahun.innerHTML = '<option value="">Semua Kurikulum</option>';
         }
-        if (prodi && fTahun.value && years.indexOf(fTahun.value) === -1) fTahun.value = '';
     }
     function bindFilters() {
         if (fCari) fCari.addEventListener('input', filterAll);
@@ -829,8 +816,7 @@
         if (fTahun) fTahun.value = '';
         var opts = fTahun.querySelectorAll('option');
         for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
-        document.querySelectorAll('.sem-pill').forEach(function (p) { p.classList.remove('active', 'active-all'); });
-        document.querySelectorAll('.sem-pill[data-sem="all"]').forEach(function (p) { p.classList.add('active-all'); });
+        document.querySelectorAll('.sem-pill').forEach(function (p) { p.classList.remove('active'); });
         document.querySelectorAll('.acc-item tbody tr').forEach(function (tr) { tr.style.display = ''; });
         filterAll();
         document.querySelectorAll('.acc-item.open').forEach(function (a) { a.classList.remove('open'); });
@@ -839,12 +825,22 @@
     if (btnEmptyReset) btnEmptyReset.addEventListener('click', resetFilters);
     bindFilters();
 
-    function toast(msg) {
-        var t = document.createElement('div');
-        t.textContent = msg;
-        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#0f172a;color:#fff;padding:.6rem 1rem;border-radius:.6rem;font-size:.8rem;box-shadow:0 6px 18px rgba(15,23,42,.35);transition:opacity .3s ease;';
-        document.body.appendChild(t);
-        setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2200);
+    /* Toast Notification */
+    var toastContainer = null;
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            document.body.appendChild(toastContainer);
+        }
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe;
+        var ikon = tipe === 'success' ? 'fa-check-circle' : (tipe === 'error' ? 'fa-times-circle' : 'fa-info-circle');
+        item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span>' + pesan + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'hide\');setTimeout(function(){this.parentElement.remove()},350)">&times;</button>';
+        toastContainer.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.add('show'); });
+        setTimeout(function(){ item.classList.add('hide'); setTimeout(function(){ item.remove(); }, 350); }, 4000);
     }
 
     document.addEventListener('click', function (e) {
@@ -867,9 +863,9 @@
                 var matkulId = tr.getAttribute('data-matkul-id');
                 if (!matkulId) { toast('ID matakuliah tidak ditemukan'); return; }
                 $.ajax({
-                    url: prosesUrl + '?action=hapus-matakuliah',
+                    url: PROSES_URL,
                     method: 'POST',
-                    data: { id: matkulId },
+                    data: { action: 'hapus-data-matakuliah', id: matkulId },
                     dataType: 'json',
                     success: function(res) {
                         if (res.status) {
@@ -896,7 +892,7 @@
         document.getElementById('dtKons').textContent = tds[4] ? tds[4].textContent.trim() : '---';
         var accItem = tr.closest('.acc-item');
         document.getElementById('dtProdi').textContent = accItem ? accItem.getAttribute('data-prodi') : '---';
-        document.getElementById('dtTahun').textContent = accItem ? 'Kurikulum ' + accItem.getAttribute('data-tahun') : '---';
+        document.getElementById('dtTahun').textContent = accItem ? accItem.getAttribute('data-kurikulum-nama') || accItem.getAttribute('data-kurikulum') : '---';
         document.getElementById('detailModal').classList.add('show');
     }
 
@@ -925,11 +921,15 @@
         document.getElementById('epKons').value = kons === '\u2014' ? '' : kons;
         if (accItem) {
             var prodi = accItem.getAttribute('data-prodi');
-            document.getElementById('epProdi').value = prodi || '';
-            var tahun = accItem.getAttribute('data-tahun');
-            var tahunSel = document.getElementById('epTahun');
-            for (var i = 0; i < tahunSel.options.length; i++) {
-                if (tahunSel.options[i].value === tahun) { tahunSel.selectedIndex = i; break; }
+            var kurikulumKode = editTarget.getAttribute('data-kurikulum');
+            if (epProdi) {
+                epProdi.value = prodi || '';
+                populateKurikulum(epProdi, epTahun, function() {
+                    var tahunSel = document.getElementById('epTahun');
+                    for (var i = 0; i < tahunSel.options.length; i++) {
+                        if (tahunSel.options[i].value === kurikulumKode) { tahunSel.selectedIndex = i; break; }
+                    }
+                });
             }
         }
         document.getElementById('epFile').value = '';
@@ -946,74 +946,6 @@
     if (epFile) epFile.addEventListener('change', function () {
         var l = document.getElementById('epFileLabel');
         l.textContent = epFile.files.length ? epFile.files[0].name : 'Klik untuk memilih file RPS (opsional)';
-    });
-
-    var frmEdit = document.getElementById('frmEdit');
-    if (frmEdit) frmEdit.addEventListener('submit', function (e) {
-        e.preventDefault();
-        if (!editTarget) { em.classList.remove('show'); return; }
-        
-        var matkulId = editTarget.getAttribute('data-matkul-id');
-        if (!matkulId) { toast('ID matakuliah tidak ditemukan'); return; }
-        
-        var kode = document.getElementById('epKode').value.trim();
-        var nama = document.getElementById('epNama').value.trim();
-        var sem = document.getElementById('epSem').value;
-        var sks = document.getElementById('epSKS').value || '3';
-        var kons = document.getElementById('epKons').value.trim();
-        var prodi = document.getElementById('epProdi').value;
-        var tahun = document.getElementById('epTahun').value;
-        
-        if (!kode || !nama) return;
-        
-        // Buat FormData untuk upload file
-        var formData = new FormData();
-        formData.append('action', 'edit-matakuliah');
-        formData.append('id', matkulId);
-        formData.append('kode', kode);
-        formData.append('nama', nama);
-        formData.append('semester', sem);
-        formData.append('sks', sks);
-        formData.append('kurikulum', prodi + '-' + tahun);
-        formData.append('konsentrasi', kons);
-        if (epFile && epFile.files.length) {
-            formData.append('rps_file', epFile.files[0]);
-        }
-        
-        $.ajax({
-            url: prosesUrl,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            success: function(res) {
-                if (res.status) {
-                    // Update DOM
-                    var tds = editTarget.querySelectorAll('td');
-                    tds[0].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">' + kode + '</span>';
-                    tds[1].innerHTML = '<p class="font-medium text-slate-800 leading-snug">' + nama + '</p>' + (epFile && epFile.files.length ? '<a href="javascript:void(0)" class="rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 hover:text-amber-700" data-rps-status="1"><i class="fas fa-file-pdf text-[9px]"></i>Lihat RPS</a>' : '<a href="javascript:void(0)" class="rps-link mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-slate-300 cursor-not-allowed" data-rps-status="0"><i class="fas fa-file text-[9px]"></i>RPS belum tersedia</a>');
-                    var semColor = ['bg-emerald-100 text-emerald-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-teal-100 text-teal-700','bg-indigo-100 text-indigo-700','bg-pink-100 text-pink-700'];
-                    tds[2].innerHTML = '<span class="inline-flex items-center rounded-full ' + semColor[(parseInt(sem) - 1) % 8] + ' px-2 py-0.5 text-xs font-bold">Sem ' + sem + '</span>';
-                    tds[3].innerHTML = '<span class="text-sm font-bold text-slate-700">' + sks + '</span>';
-                    tds[4].innerHTML = kons
-                        ? '<span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2.5 py-1 text-[11px] font-bold">' + kons + '</span>'
-                        : '<span class="inline-flex items-center rounded-full bg-slate-100 text-slate-500 px-2.5 py-1 text-[11px] font-bold">&mdash;</span>';
-                    editTarget.setAttribute('data-sem', sem);
-                    editTarget.setAttribute('data-cari', (kode + ' ' + nama + ' ' + kons).toLowerCase());
-                    
-                    var uploadInfo = epFile && epFile.files.length ? ' dan RPS "' + epFile.files[0].name + '" ditautkan' : '';
-                    toast('Matakuliah "' + nama + '" diperbarui' + uploadInfo);
-                    editTarget = null;
-                    em.classList.remove('show');
-                } else {
-                    toast('Gagal memperbarui: ' + (res.pesan || 'Unknown error'));
-                }
-            },
-            error: function() {
-                toast('Terjadi kesalahan saat memperbarui');
-            }
-        });
     });
 
     /* ===== Tambah Matakuliah ===== */
@@ -1035,6 +967,24 @@
     });
 
     var frmTambah = document.getElementById('frmTambah');
+    var btnSimpanTambah = document.getElementById('btnSimpanTambah');
+    var frmEdit = document.getElementById('frmEdit');
+    var btnSimpanEdit = document.getElementById('btnSimpanEdit');
+
+    function setButtonLoading(btn, isLoading) {
+        if (!btn) return;
+        if (isLoading) {
+            btn.classList.add('is-loading');
+            btn.setAttribute('disabled', '');
+            btn.setAttribute('data-text', btn.textContent);
+            btn.innerHTML = '<span class="spinner-slate"></span> Memproses...';
+        } else {
+            btn.classList.remove('is-loading');
+            btn.removeAttribute('disabled');
+            btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+        }
+    }
+
     if (frmTambah) frmTambah.addEventListener('submit', function (e) {
         e.preventDefault();
         var kode = document.getElementById('tpKode').value.trim();
@@ -1045,22 +995,22 @@
         var sks = document.getElementById('tpSKS').value || '3';
         var kons = document.getElementById('tpKons').value.trim();
         if (!kode || !nama) return;
-        
+        setButtonLoading(btnSimpanTambah, true);
+
         // Buat FormData untuk upload file
         var formData = new FormData();
-        formData.append('action', 'tambah-matakuliah');
+        formData.append('action', 'tambah-data-matakuliah');
         formData.append('kode', kode);
         formData.append('nama', nama);
         formData.append('semester', sem);
         formData.append('sks', sks);
-        formData.append('kurikulum', prodi + '-' + tahun);
+        formData.append('kurikulum', tahun);
         formData.append('konsentrasi', kons);
         if (tpFile && tpFile.files.length) {
             formData.append('rps_file', tpFile.files[0]);
         }
-        
         $.ajax({
-            url: prosesUrl,
+            url: PROSES_URL,
             method: 'POST',
             data: formData,
             processData: false,
@@ -1072,7 +1022,6 @@
                     tm.classList.remove('show');
                     frmTambah.reset();
                     document.getElementById('tpFileLabel').textContent = 'Klik untuk memilih file RPS';
-                    // Reload data
                     loadData();
                 } else {
                     toast('Gagal menambahkan: ' + (res.pesan || 'Unknown error'));
@@ -1080,7 +1029,85 @@
             },
             error: function() {
                 toast('Terjadi kesalahan saat menambahkan');
+            },
+            complete: function() {
+                setButtonLoading(btnSimpanTambah, false);
+            }
+        });
+    });
+
+    if (frmEdit) frmEdit.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!editTarget) { em.classList.remove('show'); return; }
+
+        setButtonLoading(btnSimpanEdit, true);
+
+        var matkulId = editTarget.getAttribute('data-matkul-id');
+        if (!matkulId) { toast('ID matakuliah tidak ditemukan'); return; }
+
+        var kode = document.getElementById('epKode').value.trim();
+        var nama = document.getElementById('epNama').value.trim();
+        var sem = document.getElementById('epSem').value;
+        var sks = document.getElementById('epSKS').value || '3';
+        var kons = document.getElementById('epKons').value.trim();
+        var prodi = document.getElementById('epProdi').value;
+        var tahun = document.getElementById('epTahun').value;
+
+        if (!kode || !nama) return;
+
+        // Buat FormData untuk upload file
+        var formData = new FormData();
+        formData.append('action', 'edit-data-matakuliah');
+        formData.append('id', matkulId);
+        formData.append('kode', kode);
+        formData.append('nama', nama);
+        formData.append('semester', sem);
+        formData.append('sks', sks);
+        formData.append('kurikulum', editTarget.getAttribute('data-kurikulum'));
+        formData.append('konsentrasi', kons);
+        if (epFile && epFile.files.length) {
+            formData.append('rps_file', epFile.files[0]);
+        }
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status) {
+                    // Update DOM
+                    var tds = editTarget.querySelectorAll('td');
+                    tds[0].innerHTML = '<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 font-mono">' + kode + '</span>';
+                    tds[1].innerHTML = '<p class="font-medium text-slate-800 leading-snug">' + nama + '</p>';
+                    var semColor = ['bg-emerald-100 text-emerald-700','bg-sky-100 text-sky-700','bg-violet-100 text-violet-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-teal-100 text-teal-700','bg-indigo-100 text-indigo-700','bg-pink-100 text-pink-700'];
+                    tds[2].innerHTML = '<span class="inline-flex items-center rounded-full ' + semColor[(parseInt(sem) - 1) % 8] + ' px-2 py-0.5 text-xs font-bold">Sem ' + sem + '</span>';
+                    tds[3].innerHTML = '<span class="text-sm font-bold text-slate-700">' + sks + '</span>';
+                    tds[4].innerHTML = kons
+                        ? '<span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-2.5 py-1 text-[11px] font-bold">' + kons + '</span>'
+                        : '<span class="inline-flex items-center rounded-full bg-slate-100 text-slate-500 px-2.5 py-1 text-[11px] font-bold">&mdash;</span>';
+                    tds[5].innerHTML = epFile && epFile.files.length
+                        ? '<a href="' + base_url() + '/file/' + (res.rps || '') + '" target="_blank" class="rps-link inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 hover:text-amber-700" data-rps-status="1"><i class="fas fa-file-pdf text-[9px]"></i>Lihat RPS</a>'
+                        : '<a href="javascript:void(0)" class="rps-link inline-flex items-center gap-1 text-[10px] font-semibold text-slate-300 cursor-not-allowed" data-rps-status="0"><i class="fas fa-file text-[9px]"></i>Belum ada</a>';
+                    editTarget.setAttribute('data-sem', sem);
+                    editTarget.setAttribute('data-cari', (kode + ' ' + nama + ' ' + kons).toLowerCase());
+
+                    var uploadInfo = epFile && epFile.files.length ? ' dan RPS "' + epFile.files[0].name + '" ditautkan' : '';
+                    toast('Matakuliah "' + nama + '" diperbarui' + uploadInfo);
+                    editTarget = null;
+                    em.classList.remove('show');
+                } else {
+                    toast('Gagal memperbarui: ' + (res.pesan || 'Unknown error'));
+                }
+            },
+            error: function() {
+                toast('Terjadi kesalahan saat memperbarui');
+            },
+            complete: function() {
+                setButtonLoading(btnSimpanEdit, false);
             }
         });
     });
 })();</script>
+
