@@ -35,6 +35,7 @@ if ($action === 'ambil-data-matakuliah') {
             'semester' => (int)$row['semester'],
             'sks' => (int)$row['sks'],
             'kurikulum' => $row['kurikulum'],
+            'nama_kurikulum' => $row['nama_kurikulum'] ?? '',
             'konsentrasi' => $row['konsentrasi'] ?? '-',
             'keterangan' => $row['keterangan'] ?? '',
             'rps' => $row['rps'] ?? '',

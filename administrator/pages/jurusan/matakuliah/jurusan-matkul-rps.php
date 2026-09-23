@@ -183,15 +183,10 @@
         <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <div class="relative flex-1 min-w-[200px]"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i><input type="search" id="fCari" placeholder="Cari kode, nama matakuliah..." class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white"></div>
             <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400"><option value="">Semua Prodi</option>
-                <option>S1 Teknik Elektro</option>
-                <option>S1 Teknik Komputer</option>
-                <option>S1 Pendidikan Vokasi Rekayasa Elektro</option>
+               
             </select>
             <select id="fTahun" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400"><option value="">Semua Kurikulum</option>
-                <option value="2022">Kurikulum 2022</option>
-                <option value="2021">Kurikulum 2021</option>
-                <option value="2018">Kurikulum 2018</option>
-                <option value="2017">Kurikulum 2017</option>
+             
             </select>
             <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset</button>
         </div>
@@ -392,7 +387,7 @@
                     firstProdiFilters.forEach(function(f) {
                         var opt = document.createElement('option');
                         opt.value = f.kurikulum_kode;
-                        opt.textContent = (f.kurikulum_nama || 'Kurikulum ' + f.tahun) + (f.tahun ? ' (' + f.tahun + ')' : '');
+                        opt.textContent = f.kurikulum_nama ? (f.kurikulum_nama + ' - ' + f.tahun) : (f.kurikulum_kode + ' - ' + f.tahun);
                         fTahun.appendChild(opt);
                     });
                 }
@@ -463,7 +458,7 @@
                     res.kurikulum.forEach(function(k) {
                         var opt = document.createElement('option');
                         opt.value = k.kode;
-                        opt.textContent = k.nama || ('Kurikulum ' + k.tahun);
+                        opt.textContent = k.nama ? (k.nama + ' - ' + k.tahun) : (k.kode + ' - ' + k.tahun);
                         tahunSelect.appendChild(opt);
                     });
                     tahunSelect.disabled = false;
@@ -511,7 +506,7 @@
         data.forEach(function(mk) {
             if (!prodiGroups[mk.prodi]) prodiGroups[mk.prodi] = {};
             if (!prodiGroups[mk.prodi][mk.kurikulum]) prodiGroups[mk.prodi][mk.kurikulum] = [];
-            kurNamaMap[mk.kurikulum] = mk.nama_kurikulum || ('Kurikulum ' + mk.tahun);
+            kurNamaMap[mk.kurikulum] = mk.nama_kurikulum || mk.kurikulum;
             prodiGroups[mk.prodi][mk.kurikulum].push(mk);
         });
 
@@ -520,9 +515,9 @@
 
         prodiNames.forEach(function(prodi) {
             var kurikulums = Object.keys(prodiGroups[prodi]).sort(function(a, b) {
-                // urutkan: tahun lebih tinggi dulu
-                var yearA = parseInt(kurNamaMap[a]) || 0;
-                var yearB = parseInt(kurNamaMap[b]) || 0;
+                // urutkan berdasarkan tahun kurikulum DESC
+                var yearA = parseInt(prodiGroups[prodi][a][0] ? prodiGroups[prodi][a][0].tahun : 0) || 0;
+                var yearB = parseInt(prodiGroups[prodi][b][0] ? prodiGroups[prodi][b][0].tahun : 0) || 0;
                 return yearB - yearA;
             });
             var isVokasi = prodi.indexOf('Vokasi') !== -1 || prodi.indexOf('Pendidikan') !== -1;
@@ -556,10 +551,10 @@
             kurikulums.forEach(function(kk, idx) {
                 var mkList = prodiGroups[prodi][kk];
                 var tahunVal = mkList[0] ? mkList[0].tahun : '';
-                var kurNama = kurNamaMap[kk] || ('Kurikulum ' + tahunVal);
+                var kurNama = kurNamaMap[kk] || kk;
                 var isAktif = idx === 0; // kurikulum terbaru dianggap aktif
-                var badge = isAktif ? '<span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>' : '<span class="badge-jejak">Jejak Digital</span>';
-                var displayNama = kurNama !== tahunVal ? kurNama + ' (' + tahunVal + ')' : kurNama;
+                var badge = isAktif ? '<span class="badge-aktif"><i class="fas fa-circle text-[5px]"></i>Aktif</span>' : '<span class="badge-jejak">Tidak Aktif</span>';
+                var displayNama = kurNama + ' - ' + tahunVal;
 
                 // Hitung per semester
                 var semCounts = {};
@@ -573,7 +568,7 @@
                 }
 
                 var accDiv = document.createElement('div');
-                accDiv.className = 'acc-item acc-' + (isVokasi ? 'vok' : (isKomputer ? 'tk' : 'te')) + (isAktif ? ' is-active' : '') + ' reveal';
+                accDiv.className = 'acc-item acc-' + (isVokasi ? 'vok' : (isKomputer ? 'tk' : 'te')) + (isAktif ? ' is-active open' : '') + ' reveal';
                 accDiv.setAttribute('data-prodi', prodi);
                 accDiv.setAttribute('data-tahun', tahunVal);
                 accDiv.setAttribute('data-kurikulum', kk);
@@ -787,11 +782,11 @@
                 dataType: 'json',
                 success: function(res) {
                     if (res.status && res.kurikulum) {
-                        fTahun.innerHTML = '<option value="">Semua Kurikulum</option>';
+                    fTahun.innerHTML = '<option value="">Semua Kurikulum</option>';
                         res.kurikulum.forEach(function(k) {
                             var opt = document.createElement('option');
                             opt.value = k.kode;
-                            opt.textContent = (k.nama || 'Kurikulum ' + k.tahun) + (k.tahun ? ' (' + k.tahun + ')' : '');
+                            opt.textContent = k.nama ? (k.nama + ' - ' + k.tahun) : (k.kode + ' - ' + k.tahun);
                             fTahun.appendChild(opt);
                         });
                         fTahun.value = '';
