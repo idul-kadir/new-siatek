@@ -1,3 +1,6 @@
+<?php
+require_once __DIR__ . '/../../../../koneksi.php';
+?>
 <style>
 .content-scroll { overflow-y: auto; min-height: 0; }
 
@@ -30,6 +33,13 @@
 
 /* ===== Toolbar ===== */
 .toolbar { border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+
+/* ===== Loading Spinner ===== */
+.btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-loader .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
 </style>
 <main class="content-area content-scroll">
   <section class="mb-5">
@@ -50,11 +60,11 @@
       <div class="relative min-w-[200px] flex-1"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i><input type="search" id="fCari" placeholder="Cari kode atau nama matakuliah..." class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-orange-400 focus:bg-white"></div>
       <div class="flex flex-wrap items-center gap-1.5" id="chipContainer">
         <button type="button" class="chip-sks active rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="">Semua</button>
-<button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="2">SKS 2</button>
-  <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="3">SKS 3</button>
-  <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="4">SKS 4</button>
-  <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="5">SKS 5</button>
-        </div>
+        <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="2">SKS 2</button>
+        <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="3">SKS 3</button>
+        <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="4">SKS 4</button>
+        <button type="button" class="chip-sks rounded-full border px-3 py-1.5 text-xs font-semibold transition" data-sks="5">SKS 5</button>
+      </div>
       <button type="button" id="btnReset" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset</button>
     </div>
   </section>
@@ -66,1068 +76,117 @@
     <button type="button" id="btnEmptyReset" class="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-200"><i class="fas fa-times mr-1"></i>Reset Filter</button>
   </div>
 
-  <section class="mb-6">
+  <section class="mb-6" id="matkulContainer">
     <div class="mb-3 flex items-center justify-between">
-      <p class="text-xs font-medium text-slate-500"><i class="fas fa-list mr-1 text-orange-400"></i>Menampilkan <span id="countNow" class="font-bold text-slate-700">73</span> dari 73 matakuliah</p>
+      <p class="text-xs font-medium text-slate-500"><i class="fas fa-list mr-1 text-orange-400"></i>Menampilkan <span id="countNow" class="font-bold text-slate-700">0</span> dari 0 matakuliah</p>
     </div>
     <div class="mk-grid" id="mkGrid">
-<article class="mk-card lift reveal" data-sks="5" data-cari="eadkm60105 dasar pemrograman backend" style="--bar:#f59e0b;--ring:#fde68a">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60105</code>
-      <span class="badge-sks bg-amber-100 text-amber-700"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>5 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-amber-100 text-amber-500"><i class="fas fa-certificate"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Dasar Pemrograman Backend</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm60203 software engineering" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60203</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Software Engineering</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm60303 sustainable start up" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60303</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">sustainable Start Up</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm60403 sustainable tourism" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60403</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Sustainable Tourism</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm60503 product management" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60503</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Product Management</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm60603 integrasi membangun digital startup (ai creation dan fab creation)" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Integrasi Membangun Digital Startup (AI Creation dan Fab Creation)</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="5" data-cari="eadkm60705 project capstone ai-infra" style="--bar:#f59e0b;--ring:#fde68a">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60705</code>
-      <span class="badge-sks bg-amber-100 text-amber-700"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>5 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-amber-100 text-amber-500"><i class="fas fa-certificate"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Project Capstone AI-Infra</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm60804 capstone / final project" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60804</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Capstone / Final Project</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm60904 soft skill &amp; career development" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM60904</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Soft skill &amp; Career Development</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm61003 aplikasi back-end untuk pemula" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61003</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Aplikasi Back-End untuk Pemula</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm61104 basic frontend web development with html &amp; css" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61104</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Basic Frontend Web Development with HTML &amp; CSS</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm61202 database management &amp; technology" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61202</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Database Management &amp; Technology</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm61303 profesionalisme insinyur" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61303</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Profesionalisme Insinyur</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm61402 ekosistem industri elektronika" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Ekosistem Industri Elektronika</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm61503 perancangan pcb" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61503</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Perancangan PCB</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm61603 engineering design process" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Engineering Design Process</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm61702 growth mindset overview" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61702</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Growth Mindset Overview</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm61803 data collection device iot" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61803</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Data Collection Device IoT</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm61902 teknik mikrokontroler wemos d1" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM61902</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Teknik Mikrokontroler Wemos D1</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62002 teknik elektronika dan peralatan perbengkelan" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62002</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Teknik Elektronika dan Peralatan Perbengkelan</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm62104 proyek akhir iot smart device" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62104</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Proyek Akhir IoT Smart Device</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm62203 teknis kelistrikan" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62203</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">teknis kelistrikan</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62302 teknis kompresor dan pendingin" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">teknis kompresor dan pendingin</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62402 dasar teknik maintenance" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Dasar Teknik Maintenance</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62502 management waktu dan organisasi" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62502</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Management Waktu dan Organisasi</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm62603 safety, health and enviroment" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Safety, Health and Enviroment</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62702 continuos improvement" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62702</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Continuos Improvement</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62802 corporate comprehension" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62802</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Corporate Comprehension</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm62902 kemampuan teknis mill" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM62902</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Kemampuan Teknis Mill</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm63002 organization savvy" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63002</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Organization Savvy</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm63103 microsoft office operating skill" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63103</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Microsoft Office Operating Skill</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm63202 e-learning system abilty" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63202</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">E-Learning System Abilty</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm63302 impact through imfluence" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Impact Through Imfluence</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm63402 kemampuan kewirausahaan" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Kemampuan Kewirausahaan</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm63502 drive for result" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63502</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Drive For Result</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm63603 desain hld dan lld" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Desain HLD dan LLD</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm63703 monitoring dan evaluasi i-hld" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63703</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Monitoring dan Evaluasi I-HLD</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm63803 ekspor data design" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63803</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Ekspor Data Design</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm63903 back-end development" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM63903</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Back-End Development</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm64003 dasar pemrograman javasript" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64003</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Dasar Pemrograman  JavaSript</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64102 pemrograman python" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64102</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Pemrograman Python</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64202 logika dan konsep teknologi ai" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64202</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Logika dan Konsep Teknologi AI</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64302 siklus proyek ai" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Siklus Proyek AI</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64402 chatgpt" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">ChatGPT</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64502 etika profesi &amp; keterampilan perusahaan" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64502</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Etika Profesi &amp; Keterampilan Perusahaan</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm64603 proyek akhir" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Proyek Akhir</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64702 digital marketing" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64702</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Digital Marketing</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm64802 inisiatif" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64802</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">INISIATIF</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm64903 network architecture fundamentals" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM64903</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Network Architecture Fundamentals</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm65003 network problem management" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65003</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Network Problem Management</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65102 cybersecurity" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65102</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Cybersecurity</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm65203 network operation and maintenance" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65203</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Network Operation and Maintenance</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65302 core network management" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Core Network Management</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65402 sikap" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Sikap</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65502 kemampuan komunikasi" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65502</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Kemampuan Komunikasi</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65602 orientasi hasil kerja" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65602</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Orientasi Hasil Kerja</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65702 berfikir analisis" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65702</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Berfikir Analisis</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm65802 perencanaan dan pengorganisasian" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65802</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Perencanaan dan Pengorganisasian</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm65903 monitoring dan mengevaluasi" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM65903</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Monitoring dan Mengevaluasi</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm66003 introduction to stress and strains" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66003</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Introduction to Stress and Strains</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm66103 stress and local equilibrium" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66103</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Stress and Local Equilibrium</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm66202 volumetric and deviatoric" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66202</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Volumetric and Deviatoric</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm66302 linear and nonlinear analysis" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Linear and Nonlinear Analysis</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm66402 time domain and frequency domain analysis" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66402</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Time Domain and Frequency Domain Analysis</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm66502 thermal strain analysis" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66502</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Thermal Strain Analysis</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm66603 renewable energy capstone project" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66603</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Renewable Energy Capstone Project</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm66704 konsep dasar dan solusi smart city" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66704</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Konsep Dasar dan Solusi Smart City</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="4" data-cari="eadkm66804 konsep pariwisata yang berkelanjutan" style="--bar:#8b5cf6;--ring:#ddd6fe">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66804</code>
-      <span class="badge-sks bg-violet-100 text-violet-700"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>4 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-violet-100 text-violet-500"><i class="fas fa-brain"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Konsep Pariwisata yang Berkelanjutan</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm66903 ekosistem bisnis dan investasi" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM66903</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Ekosistem Bisnis dan Investasi</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm67003 strategi peningkatan kualitas branding kota" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM67003</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Strategi Peningkatan Kualitas Branding Kota</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="3" data-cari="eadkm67103 project management dan soft skill" style="--bar:#0ea5e9;--ring:#bae6fd">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM67103</code>
-      <span class="badge-sks bg-sky-100 text-sky-700"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>3 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-sky-100 text-sky-500"><i class="fas fa-book-open"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Project Management dan Soft Skill</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm67202 kerja sama tim" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM67202</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Kerja Sama Tim</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
-<article class="mk-card lift reveal" data-sks="2" data-cari="eadkm67302 radio access network management" style="--bar:#64748b;--ring:#cbd5e1">
-  <div class="mk-bar"></div>
-  <div class="p-4">
-    <div class="flex items-start justify-between gap-2">
-      <code class="font-mono text-[11px] font-bold tracking-wide text-slate-500">EADKM67302</code>
-      <span class="badge-sks bg-slate-100 text-slate-700"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>2 SKS</span>
-    </div>
-    <div class="mt-3 flex items-start gap-3">
-      <span class="mk-ico bg-slate-100 text-slate-500"><i class="fas fa-layer-group"></i></span>
-      <h3 class="text-[13px] font-semibold leading-snug text-slate-800">Radio Access Network Management</h3>
-    </div>
-    <div class="mk-act"><button type="button" class="btn-detail rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-700"><i class="fas fa-eye mr-1 text-[10px]"></i>Detail</button></div>
-  </div>
-</article>
     </div>
     <p class="mt-3 text-[11px] text-slate-400"><i class="fas fa-lightbulb mr-1 text-amber-400"></i>Matakuliah kesetaraan program MBKM yang diakui dan dapat dikonversi SKS-nya.</p>
   </section>
 </main>
+
+<!-- Modal Tambah/Edit Matakuliah -->
+<div id="modalMatkul" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+      <h6 class="font-semibold text-slate-900 text-sm"><i class="fas fa-book mr-1 text-[#f97316]"></i><span id="modalTitle">Tambah Matakuliah</span></h6>
+      <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="p-5">
+      <input type="hidden" id="matkulKodeLama">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Kode Matakuliah</label>
+          <input type="text" id="matkulKode" class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm outline-none transition focus:border-orange-400 focus:bg-white" placeholder="Contoh: EADKM60105">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Nama Matakuliah</label>
+          <input type="text" id="matkulNama" class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm outline-none transition focus:border-orange-400 focus:bg-white" placeholder="Nama matakuliah...">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Jumlah SKS</label>
+          <select id="matkulSks" class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-sm outline-none transition focus:border-orange-400 focus:bg-white">
+            <option value="2">2 SKS</option>
+            <option value="3" selected>3 SKS</option>
+            <option value="4">4 SKS</option>
+            <option value="5">5 SKS</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50">
+      <button type="button" class="px-3 py-1.5 text-xs rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium" onclick="closeModal()">Batal</button>
+      <button type="button" id="btnSimpan" class="px-4 py-1.5 text-xs rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-text="Simpan">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
-  function toast(msg) {
+  var PROSES_URL = 'pages/jurusan/matakuliah-mbkm/proses.php';
+
+  function toast(msg, type) {
+    var bg = '#0f1f3d';
+    var icon = 'fa-circle-info';
+    if (type === 'success') { bg = '#16a34a'; icon = 'fa-circle-check'; }
+    else if (type === 'error') { bg = '#dc2626'; icon = 'fa-triangle-exclamation'; }
+
     var t = document.createElement("div");
-    t.textContent = msg;
-    t.style.cssText = "position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#0f1f3d;color:#fff;padding:.6rem 1rem;border-radius:.6rem;font-size:.8rem;box-shadow:0 6px 18px rgba(15,23,42,.35);transition:opacity .3s ease;";
+    t.innerHTML = '<i class="fas ' + icon + ' mr-2"></i><span>' + msg + '</span>';
+    t.style.cssText = "position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.6rem;font-size:.85rem;box-shadow:0 10px 25px rgba(15,23,42,.3);transition:all .3s ease;color:#fff;background:" + bg + ";transform:translateX(100%);opacity:0;";
     document.body.appendChild(t);
-    setTimeout(function () { t.style.opacity = "0"; setTimeout(function () { t.remove(); }, 300); }, 2400);
+
+    setTimeout(function () {
+      t.style.transform = "translateX(0)";
+      t.style.opacity = "1";
+    }, 50);
+
+    setTimeout(function () {
+      t.style.transform = "translateX(100%)";
+      t.style.opacity = "0";
+      setTimeout(function () { t.remove(); }, 300);
+    }, 3000);
+  }
+
+  function setButtonLoading(btn, isLoading) {
+    if (isLoading) {
+      btn.classList.add('is-loading');
+      btn.setAttribute('disabled', '');
+      btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+    } else {
+      btn.classList.remove('is-loading');
+      btn.removeAttribute('disabled');
+      btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+    }
   }
 
   var fCari = document.getElementById("fCari");
   var chips = Array.prototype.slice.call(document.querySelectorAll(".chip-sks"));
-  var cards = Array.prototype.slice.call(document.querySelectorAll(".mk-card"));
-  var countNow = document.getElementById("countNow");
   var sksFilter = "";
 
   function filterAll() {
     var kata = (fCari && fCari.value || "").toLowerCase().trim();
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".mk-card"));
+    var countNow = document.getElementById("countNow");
     var totalVisible = 0;
+    
     cards.forEach(function (c) {
       var mKata = !kata || c.getAttribute("data-cari").indexOf(kata) !== -1;
       var mSks = !sksFilter || c.getAttribute("data-sks") === sksFilter;
       c.style.display = (mKata && mSks) ? "" : "none";
       if (mKata && mSks) totalVisible++;
     });
+    
     if (countNow) countNow.textContent = totalVisible;
     var emptyState = document.getElementById("emptyState");
     var detail = document.getElementById("emptyStateDetail");
     var hasFilter = !!kata || !!sksFilter;
-    emptyState.classList.toggle("empty-show", totalVisible === 0 && hasFilter);
-    emptyState.classList.toggle("empty-hidden", !(totalVisible === 0 && hasFilter));
+    
+    if (emptyState) {
+      emptyState.classList.toggle("empty-show", totalVisible === 0 && hasFilter);
+      emptyState.classList.toggle("empty-hidden", !(totalVisible === 0 && hasFilter));
+    }
     if (detail) {
       detail.textContent = sksFilter
         ? "Tidak ada matakuliah MBKM ber-SKS " + sksFilter + (kata ? " '" + kata + "'." : ".")
@@ -1149,7 +208,7 @@
     if (fCari) fCari.value = "";
     sksFilter = "";
     chips.forEach(function (o) { o.classList.remove("active"); });
-    var x = document.querySelector(".chip-sks[data-sks=\"\"]");
+    var x = document.querySelector('.chip-sks[data-sks=""]');
     if (x) x.classList.add("active");
     filterAll();
   }
@@ -1158,17 +217,160 @@
   if (btnReset) btnReset.addEventListener("click", resetFilters);
   if (btnEmptyReset) btnEmptyReset.addEventListener("click", resetFilters);
 
+  // Function muat ulang konten tabel/list matakuliah via AJAX
+  function muat_ulang_tabel_matkul() {
+    var container = document.getElementById("matkulContainer");
+    if (!container) return;
+    
+    $.ajax({
+      url: PROSES_URL,
+      method: 'POST',
+      data: { 'ambil-tabel-matkul': 1 },
+      dataType: 'json',
+      success: function(respon) {
+        if (respon.status) {
+          container.innerHTML = respon.data;
+          filterAll();
+        } else {
+          container.innerHTML = '<div class="text-center py-10 text-slate-500">Gagal memuat data</div>';
+        }
+      },
+      error: function() {
+        container.innerHTML = '<div class="text-center py-10 text-rose-500">Terjadi kesalahan pada server</div>';
+      }
+    });
+  }
+
+  // Modal functions
+  window.closeModal = function() {
+    document.getElementById("modalMatkul").classList.remove("show");
+    document.getElementById("matkulKodeLama").value = "";
+    document.getElementById("matkulKode").value = "";
+    document.getElementById("matkulNama").value = "";
+    document.getElementById("matkulSks").value = "3";
+    document.getElementById("modalTitle").textContent = "Tambah Matakuliah";
+  };
+
+  window.openModal = function(kode) {
+    document.getElementById("modalMatkul").classList.add("show");
+    if (kode) {
+      document.getElementById("modalTitle").textContent = "Edit Matakuliah";
+      $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: { 'ambil-detail-matkul': 1, kode: kode },
+        dataType: 'json',
+        success: function(json) {
+          if (json.status && json.data) {
+            document.getElementById("matkulKodeLama").value = json.data.kode;
+            document.getElementById("matkulKode").value = json.data.kode;
+            document.getElementById("matkulNama").value = json.data.nama;
+            document.getElementById("matkulSks").value = json.data.sks;
+          } else {
+            toast(json.pesan || "Gagal memuat data", "error");
+          }
+        },
+        error: function() {
+          toast("Terjadi kesalahan pada server", "error");
+        }
+      });
+    } else {
+      document.getElementById("modalTitle").textContent = "Tambah Matakuliah";
+    }
+  };
+
+  // Edit & Hapus button handlers
   document.addEventListener("click", function (e) {
-    var btn = e.target.closest(".btn-detail");
-    if (!btn) return;
-    var card = btn.closest(".mk-card");
-    var kode = card.querySelector("code").textContent.trim();
-    var nama = card.querySelector("h3").textContent.trim();
-    var sks = card.getAttribute("data-sks");
-    toast("Detail: " + kode + " - " + nama + " (" + sks + " SKS)");
+    var btnEdit = e.target.closest(".btn-edit");
+    if (btnEdit) {
+      var kode = btnEdit.getAttribute("data-kode");
+      openModal(kode);
+      return;
+    }
+
+    var btnHapus = e.target.closest(".btn-hapus");
+    if (btnHapus) {
+      var kodeHapus = btnHapus.getAttribute("data-kode");
+      var namaHapus = btnHapus.getAttribute("data-nama");
+      if (typeof konfirmasiHapus === "function") {
+        konfirmasiHapus(kodeHapus + " - " + namaHapus, function() {
+          $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { 'hapus-data-matkul': 1, kode: kodeHapus },
+            dataType: 'json',
+            success: function(json) {
+              if (json.status) {
+                toast(json.pesan, "success");
+                muat_ulang_tabel_matkul();
+              } else {
+                toast(json.pesan || "Gagal menghapus", "error");
+              }
+            },
+            error: function() {
+              toast("Terjadi kesalahan pada server", "error");
+            }
+          });
+        });
+      }
+    }
+  });
+
+  // Simpan button handler
+  document.getElementById("btnSimpan").addEventListener("click", function() {
+    var btnSimpan = this;
+    var kodeLama = document.getElementById("matkulKodeLama").value;
+    var kode = document.getElementById("matkulKode").value.trim();
+    var nama = document.getElementById("matkulNama").value.trim();
+    var sks = document.getElementById("matkulSks").value;
+
+    if (!kode || !nama || !sks) {
+      toast("Kode, nama, dan SKS wajib diisi", "error");
+      return;
+    }
+
+    setButtonLoading(btnSimpan, true);
+
+    var postData = {
+      kode: kode,
+      nama: nama,
+      sks: sks
+    };
+
+    if (kodeLama) {
+      postData['edit-data-matkul'] = 1;
+      postData['kodeLama'] = kodeLama;
+    } else {
+      postData['tambah-data-matkul'] = 1;
+    }
+
+    $.ajax({
+      url: PROSES_URL,
+      method: 'POST',
+      data: postData,
+      dataType: 'json',
+      success: function(json) {
+        if (json.status) {
+          toast(json.pesan, "success");
+          closeModal();
+          muat_ulang_tabel_matkul();
+        } else {
+          toast(json.pesan || "Gagal menyimpan", "error");
+        }
+      },
+      error: function() {
+        toast("Terjadi kesalahan pada server", "error");
+      },
+      complete: function() {
+        setButtonLoading(btnSimpan, false);
+      }
+    });
   });
 
   var btnTambah = document.getElementById("btnTambah");
-  if (btnTambah) btnTambah.addEventListener("click", function () { toast("Modul tambah matakuliah MBKM akan segera hadir"); });
+  if (btnTambah) btnTambah.addEventListener("click", function () { openModal(); });
+
+  // Muat data awal saat halaman dibuka
+  muat_ulang_tabel_matkul();
 })();
 </script>

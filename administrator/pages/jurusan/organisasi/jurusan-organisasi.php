@@ -1,5 +1,56 @@
+<?php
+require __DIR__ . "/../../../fungsi.php";
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// pastikan user sudah login
+$sudahLogin = !empty($_SESSION['user_id']) || !empty($_SESSION['nip']) || !empty($_SESSION['username']);
+if (!$sudahLogin) {
+    header('Location: ' . base_url() . '/');
+    exit;
+}
+
+// ================= AMBIL DATA PEJABAT JURUSAN & DAFTAR DOSEN =================
+$qJurusan = query("SELECT j.*, d1.nama AS nama_kajur, d1.nip AS nip_kajur, d2.nama AS nama_sekjur, d2.nip AS nip_sekjur, d3.nama AS nama_kalab, d3.nip AS nip_kalab, d4.nama AS nama_penjamu, d4.nip AS nip_penjamu, d5.nama AS nama_pengelolah, d5.nip AS nip_pengelolah FROM jurusan j LEFT JOIN dosen d1 ON j.kajur = d1.id LEFT JOIN dosen d2 ON j.sekjur = d2.id LEFT JOIN dosen d3 ON j.kalab = d3.id LEFT JOIN dosen d4 ON j.penjamu = d4.id LEFT JOIN dosen d5 ON j.pengelolah_jurnal = d5.id LIMIT 1");
+$rowJurusan = mysqli_fetch_assoc($qJurusan);
+
+$pejabatMap = [
+    ['id' => 'kajur', 'jabatan' => 'Ketua Jurusan', 'icon' => 'fa-crown', 'color' => 'orange'],
+    ['id' => 'sekjur', 'jabatan' => 'Sekretaris Jurusan', 'icon' => 'fa-pen-nib', 'color' => 'sky'],
+    ['id' => 'kalab', 'jabatan' => 'Kepala Laboratorium', 'icon' => 'fa-flask', 'color' => 'violet'],
+    ['id' => 'penjamu', 'jabatan' => 'Penjamin Mutu', 'icon' => 'fa-shield-halved', 'color' => 'emerald'],
+    ['id' => 'pengelolah_jurnal', 'jabatan' => 'Ketua Pengelola Jurnal', 'icon' => 'fa-book-open', 'color' => 'indigo'],
+];
+$pejabatList = [];
+foreach($pejabatMap as $p) {
+    $nipKey = 'nip_' . $p['id'];
+    $namaKey = 'nama_' . $p['id'];
+    if ($p['id'] === 'pengelolah_jurnal') {
+        $nipKey = 'nip_pengelolah';
+        $namaKey = 'nama_pengelolah';
+    }
+    $pejabatList[] = [
+        'id' => $p['id'],
+        'jabatan' => $p['jabatan'],
+        'icon' => $p['icon'],
+        'color' => $p['color'],
+        'nip' => $rowJurusan[$nipKey] ?? '',
+        'nama' => $rowJurusan[$namaKey] ?? '',
+        'dosen_id' => $rowJurusan[$p['id']] ?? '',
+    ];
+}
+
+$dosenList = [];
+$qDosen = query("SELECT id, nip, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+while($d = mysqli_fetch_assoc($qDosen)){ $dosenList[] = $d; }
+?>
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
+
+    .btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-loader .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(15,23,42,0.2); border-top-color: #1a365d; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
 
     @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
     .reveal { animation: riseIn .5s cubic-bezier(.16,1,.3,1) forwards; }
@@ -18,9 +69,8 @@
     .org-row:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -12px rgba(15,23,42,.22); border-color: #c7d2fe; }
     .org-row--on { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,.35); }
     .org-avatar { display: inline-flex; align-items: center; justify-content: center; width: 2.8rem; height: 2.8rem; border-radius: 14px; font-weight: 800; font-size: .85rem; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(15,23,42,.06); }
-    .org-jab { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: .3rem; }
+    .org-jab { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: .3rem; margin-bottom: 2px; }
     .org-nama { font-size: .85rem; font-weight: 700; color: #1e293b; line-height: 1.3; }
-    .org-nip { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
     /* ===== Kartu prodi ===== */
     .prodi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
@@ -68,69 +118,16 @@
             <p class="text-xs font-medium text-slate-500"><i class="fas fa-id-badge mr-1 text-orange-400"></i><span class="font-bold text-slate-700">7</span> jabatan</p>
         </div>
         <div class="org-grid" id="orgList">
-            <div class="org-row reveal" data-cari="ketua jurusan yasin mohamad 197102222001121001" data-jabatan="Ketua Jurusan" data-nama="Yasin Mohamad, ST., MT." data-nip="197102222001121001">
-                <span class="org-avatar bg-gradient-to-br from-orange-500 to-amber-500 text-white">YM</span>
+            <?php foreach($pejabatList as $p): $ini = $p['nama'] !== '' ? $p : null; ?>
+            <div class="org-row reveal" data-id="<?= tampil($p['id']) ?>" data-cari="<?= strtolower(($ini ? $ini['nama'] : '') . ' ' . $p['jabatan']) ?>" data-jabatan="<?= tampil($p['jabatan']) ?>" data-nama="<?= tampil($ini['nama'] ?? '') ?>" data-nip="<?= tampil($ini['nip'] ?? '') ?>">
+                <span class="org-avatar bg-gradient-to-br from-<?= $p['color'] ?>-500 to-<?= $p['color'] ?>-400 text-white"><?= $ini ? strtoupper(substr($ini['nama'], 0, 2)) : '—' ?></span>
                 <div class="min-w-0 flex-1">
-                    <p class="org-jab text-orange-500"><i class="fas fa-crown"></i>Ketua Jurusan</p>
-                    <p class="org-nama">Yasin Mohamad, ST., MT.</p>
-                    <p class="org-nip">NIP 197102222001121001</p>
+                    <p class="org-jab text-<?= $p['color'] ?>-500"><i class="fas fa-<?= $p['icon'] ?>"></i><?= tampil($p['jabatan']) ?></p>
+                    <p class="org-nama"><?= tampil($ini['nama'] ?? 'Belum diisi') ?></p>
                 </div>
                 <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
             </div>
-            <div class="org-row reveal" data-cari="sekretaris jurusan amirudin yunus dako 197410032001121001" data-jabatan="Sekretaris Jurusan" data-nama="Amirudin Yunus Dako, ST., M.Eng." data-nip="197410032001121001">
-                <span class="org-avatar bg-sky-100 text-sky-600">AD</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-sky-500"><i class="fas fa-pen-nib"></i>Sekretaris Jurusan</p>
-                    <p class="org-nama">Amirudin Yunus Dako, ST., M.Eng.</p>
-                    <p class="org-nip">NIP 197410032001121001</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
-            <div class="org-row reveal" data-cari="kepala laboratorium iskandar z nasibu 197011052001121001" data-jabatan="Kepala Laboratorium" data-nama="Iskandar Z. Nasibu, S.Pd, M.Eng." data-nip="197011052001121001">
-                <span class="org-avatar bg-violet-100 text-violet-600">IN</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-violet-500"><i class="fas fa-flask"></i>Kepala Laboratorium</p>
-                    <p class="org-nama">Iskandar Z. Nasibu, S.Pd, M.Eng.</p>
-                    <p class="org-nip">NIP 197011052001121001</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
-            <div class="org-row reveal" data-cari="penjamin mutu zainudin bonok 196704212003121001" data-jabatan="Penjamin Mutu" data-nama="Zainudin Bonok, ST., MT." data-nip="196704212003121001">
-                <span class="org-avatar bg-emerald-100 text-emerald-600">ZB</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-emerald-500"><i class="fas fa-shield-halved"></i>Penjamin Mutu</p>
-                    <p class="org-nama">Zainudin Bonok, ST., MT.</p>
-                    <p class="org-nip">NIP 196704212003121001</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
-            <div class="org-row reveal" data-cari="ketua pengelola jurnal syahrir abdussamad 197506242005011003" data-jabatan="Ketua Pengelola Jurnal" data-nama="Syahrir Abdussamad, ST., MT." data-nip="197506242005011003">
-                <span class="org-avatar bg-indigo-100 text-indigo-600">SA</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-indigo-500"><i class="fas fa-book-open"></i>Ketua Pengelola Jurnal</p>
-                    <p class="org-nama">Syahrir Abdussamad, ST., MT.</p>
-                    <p class="org-nip">NIP 197506242005011003</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
-            <div class="org-row reveal" data-cari="senat jurusan lanto m kamil amali 197704042001121001" data-jabatan="Senat Jurusan" data-nama="Dr. Lanto M. Kamil Amali, ST., MT." data-nip="197704042001121001">
-                <span class="org-avatar bg-amber-100 text-amber-600">LA</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-amber-500"><i class="fas fa-landmark"></i>Senat Jurusan</p>
-                    <p class="org-nama">Dr. Lanto M. Kamil Amali, ST., MT.</p>
-                    <p class="org-nip">NIP 197704042001121001</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
-            <div class="org-row reveal" data-cari="pengelola jurnal pengabdian jumiati ilham 197510172005012001" data-jabatan="Pengelola Jurnal Pengabdian" data-nama="Jumiati Ilham, ST., MT." data-nip="197510172005012001">
-                <span class="org-avatar bg-teal-100 text-teal-600">JI</span>
-                <div class="min-w-0 flex-1">
-                    <p class="org-jab text-teal-500"><i class="fas fa-hand-holding-heart"></i>Pengelola Jurnal Pengabdian</p>
-                    <p class="org-nama">Jumiati Ilham, ST., MT.</p>
-                    <p class="org-nip">NIP 197510172005012001</p>
-                </div>
-                <span class="btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Ubah Pejabat</span></span>
-            </div>
+            <?php endforeach; ?>
         </div>
         <p class="mt-3 text-[11px] text-slate-400"><i class="fas fa-lightbulb mr-1 text-amber-400"></i>Klik baris jabatan atau ikon pensil untuk mengganti pejabat yang menjabat.</p>
     </section>
@@ -142,69 +139,7 @@
             <p class="text-xs font-medium text-slate-500"><i class="fas fa-graduation-cap mr-1 text-orange-400"></i><span class="font-bold text-slate-700">3</span> prodi aktif</p>
         </div>
         <div class="prodi-grid" id="prodiGrid">
-            <article class="prodi-card reveal" data-cari="s1 pendidikan vokasional rekayasa elektro dr bambang panji asmara" style="--pr:#6366f1;--b1:#4f46e5;--b2:#818cf8">
-                <div class="prodi-banner">
-                    <span class="shape" style="width:70px;height:70px;top:-24px;right:-16px"></span>
-                    <span class="shape" style="width:40px;height:40px;bottom:-14px;left:52%"></span>
-                    <span class="badge-pro bg-white/20 text-white backdrop-blur-sm"><i class="fas fa-circle text-[6px]"></i>Aktif</span>
-                </div>
-                <span class="prodi-avatar bg-white text-indigo-600">VOK</span>
-                <div class="px-4 pb-4 pt-6">
-                    <h3 class="text-sm font-bold leading-snug text-slate-800">S1 Pendidikan Vokasional Rekayasa Elektro</h3>
-                    <code class="mt-1 block text-[10px] text-slate-400">s1pendidikanvokasionalrekayasaelektro</code>
-                    <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                        <div class="min-w-0"><p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Kaprodi</p><p class="truncate text-xs font-semibold text-slate-700">Dr. Bambang Panji Asmara, ST., MT.</p></div>
-                        <span class="badge-pro bg-sky-100 text-sky-700 shrink-0">S1</span>
-                    </div>
-                    <div class="mt-3 flex items-center justify-end gap-1.5">
-                        <button type="button" class="btn-aksi btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                        <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                        <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                    </div>
-                </div>
-            </article>
-            <article class="prodi-card reveal" data-cari="s1 teknik elektro ifan wiranto" style="--pr:#f43f5e;--b1:#e11d48;--b2:#fb7185">
-                <div class="prodi-banner">
-                    <span class="shape" style="width:70px;height:70px;top:-24px;right:-16px"></span>
-                    <span class="shape" style="width:40px;height:40px;bottom:-14px;left:52%"></span>
-                    <span class="badge-pro bg-white/20 text-white backdrop-blur-sm"><i class="fas fa-circle text-[6px]"></i>Aktif</span>
-                </div>
-                <span class="prodi-avatar bg-white text-rose-600">TE</span>
-                <div class="px-4 pb-4 pt-6">
-                    <h3 class="text-sm font-bold leading-snug text-slate-800">S1 Teknik Elektro</h3>
-                    <code class="mt-1 block text-[10px] text-slate-400">s1teknikelektro</code>
-                    <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                        <div class="min-w-0"><p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Kaprodi</p><p class="truncate text-xs font-semibold text-slate-700">Ifan Wiranto, ST., MT.</p></div>
-                        <span class="badge-pro bg-sky-100 text-sky-700 shrink-0">S1</span>
-                    </div>
-                    <div class="mt-3 flex items-center justify-end gap-1.5">
-                        <button type="button" class="btn-aksi btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                        <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                        <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                    </div>
-                </div>
-            </article>
-            <article class="prodi-card reveal" data-cari="s1 teknik komputer syahrir abdussamad" style="--pr:#14b8a6;--b1:#0d9488;--b2:#2dd4bf">
-                <div class="prodi-banner">
-                    <span class="shape" style="width:70px;height:70px;top:-24px;right:-16px"></span>
-                    <span class="shape" style="width:40px;height:40px;bottom:-14px;left:52%"></span>
-                    <span class="badge-pro bg-white/20 text-white backdrop-blur-sm"><i class="fas fa-circle text-[6px]"></i>Aktif</span>
-                </div>
-                <span class="prodi-avatar bg-white text-teal-600">TK</span>
-                <div class="px-4 pb-4 pt-6">
-                    <h3 class="text-sm font-bold leading-snug text-slate-800">S1 Teknik Komputer</h3>
-                    <code class="mt-1 block text-[10px] text-slate-400">s1teknikkomputer</code>
-                    <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                        <div class="min-w-0"><p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Kaprodi</p><p class="truncate text-xs font-semibold text-slate-700">Syahrir Abdussamad, ST., MT.</p></div>
-                        <span class="badge-pro bg-sky-100 text-sky-700 shrink-0">S1</span>
-                    </div>
-                    <div class="mt-3 flex items-center justify-end gap-1.5">
-                        <button type="button" class="btn-aksi btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>
-                        <button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>
-                        <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button>
-                    </div>
-                </div>
-            </article>
+            <!-- Diisi via AJAX dari proses.php -->
         </div>
         <p class="mt-3 text-[11px] text-slate-400"><i class="fas fa-lightbulb mr-1 text-amber-400"></i>Kaprodi setiap prodi dikelola lewat ikon pensil pada kartu.</p>
     </section>
@@ -225,9 +160,10 @@
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kaprodi</label>
                     <select id="tpKaprodi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option>Dr. Bambang Panji Asmara, ST., MT.</option>
-                        <option>Ifan Wiranto, ST., MT.</option>
-                        <option>Syahrir Abdussamad, ST., MT.</option>
+                        <option value="">-- Pilih Dosen --</option>
+                        <?php foreach($dosenList as $d): ?>
+                        <option value="<?= tampil($d['nip'] ?: $d['id']) ?>"><?= tampil($d['nama']) ?></option>
+                        <?php endforeach; ?>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Jenjang</label>
                     <select id="tpJenjang" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
@@ -258,13 +194,15 @@
             <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Nama Program Studi</label>
                 <input type="text" id="epNama" required class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"></div>
             <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kode</label>
+                <input type="hidden" id="epKodeLama">
                 <input type="text" id="epKode" required class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Kaprodi</label>
                     <select id="epKaprodi" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                        <option>Dr. Bambang Panji Asmara, ST., MT.</option>
-                        <option>Ifan Wiranto, ST., MT.</option>
-                        <option>Syahrir Abdussamad, ST., MT.</option>
+                        <option value="">-- Pilih Dosen --</option>
+                        <?php foreach($dosenList as $d): ?>
+                        <option value="<?= tampil($d['nip'] ?: $d['id']) ?>"><?= tampil($d['nama']) ?></option>
+                        <?php endforeach; ?>
                     </select></div>
                 <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Jenjang</label>
                     <select id="epJenjang" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
@@ -294,15 +232,10 @@
         <form id="frmPengurus" class="p-5 space-y-3">
             <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Pilih Dosen</label>
                 <select id="pengDosen" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-                    <option>Yasin Mohamad, ST., MT. — NIP 197102222001121001</option>
-                    <option>Amirudin Yunus Dako, ST., M.Eng. — NIP 197410032001121001</option>
-                    <option>Iskandar Z. Nasibu, S.Pd, M.Eng. — NIP 197011052001121001</option>
-                    <option>Zainudin Bonok, ST., MT. — NIP 196704212003121001</option>
-                    <option>Dr. Bambang Panji Asmara, ST., MT. — NIP 197004052009121001</option>
-                    <option>Ifan Wiranto, ST., MT. — NIP 197201282005011003</option>
-                    <option>Syahrir Abdussamad, ST., MT. — NIP 197506242005011003</option>
-                    <option>Dr. Lanto M. Kamil Amali, ST., MT. — NIP 197704042001121001</option>
-                    <option>Jumiati Ilham, ST., MT. — NIP 197510172005012001</option>
+                    <option value="">-- Pilih Dosen --</option>
+                    <?php foreach($dosenList as $d): ?>
+                    <option value="<?= tampil($d['id']) ?>"><?= tampil($d['nama']) ?></option>
+                    <?php endforeach; ?>
                 </select></div>
             <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
                 <button type="button" data-peng-close class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">Batal</button>
@@ -314,12 +247,31 @@
 
 <script>
 (function () {
-    function toast(msg) {
+    var PROSES_URL = '<?= base_url() ?>/administrator/pages/jurusan/organisasi/proses.php';
+    
+    function toast(pesan, tipe) {
+        if (typeof window.toast === 'function') {
+            window.toast(pesan, tipe);
+            return;
+        }
         var t = document.createElement('div');
-        t.textContent = msg;
-        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:#0f1f3d;color:#fff;padding:.6rem 1rem;border-radius:.6rem;font-size:.8rem;box-shadow:0 6px 18px rgba(15,23,42,.35);transition:opacity .3s ease;';
+        t.textContent = pesan;
+        var bg = tipe === 'success' ? '#10b981' : (tipe === 'error' ? '#ef4444' : '#3b82f6');
+        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:' + bg + ';color:#fff;padding:.6rem 1rem;border-radius:.6rem;font-size:.8rem;box-shadow:0 6px 18px rgba(15,23,42,.35);transition:opacity .3s ease;';
         document.body.appendChild(t);
         setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2400);
+    }
+    
+    function setButtonLoading(btn, isLoading) {
+        if (isLoading) {
+            btn.classList.add('is-loading');
+            btn.setAttribute('disabled', '');
+            btn.innerHTML = '<span class="spinner-slate" style="border-top-color:#fff"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+        } else {
+            btn.classList.remove('is-loading');
+            btn.removeAttribute('disabled');
+            btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
+        }
     }
 
     /* ===== Modal helpers ===== */
@@ -368,23 +320,44 @@
     var frmPengurus = document.getElementById('frmPengurus');
     if (frmPengurus) frmPengurus.addEventListener('submit', function (e) {
         e.preventDefault();
-        var val = document.getElementById('pengDosen').value;
-        var nama = val.split(' — ')[0];
-        var nip = val.split(' — ')[1] || '';
+        var sel = document.getElementById('pengDosen');
+        var dosen_id = sel.options[sel.selectedIndex].value;
+        var nama = sel.options[sel.selectedIndex].text;
+        var nip = pengTarget ? pengTarget.getAttribute('data-nip') : ''; // Simpan nip lama jika ada (kita tidak pass NIP dari option lagi)
         var jabatan = '';
-        if (pengTarget) {
-            jabatan = pengTarget.getAttribute('data-jabatan');
-            pengTarget.setAttribute('data-nama', nama);
-            pengTarget.setAttribute('data-nip', nip);
-            pengTarget.querySelector('.org-nama').textContent = nama;
-            pengTarget.querySelector('.org-nip').textContent = 'NIP ' + nip;
-            pengTarget.querySelector('.org-avatar').textContent = nama.split(' ').map(function (w) {
-                return w.charAt(0);
-            }).slice(0, 2).join('').toUpperCase();
-            pengTarget.classList.remove('org-row--on');
-        }
-        pm.classList.remove('show');
-        toast('Pejabat ' + jabatan + ' diubah menjadi ' + nama);
+        if (pengTarget) jabatan = pengTarget.getAttribute('data-jabatan');
+        
+        var btnSimpan = frmPengurus.querySelector('button[type="submit"]');
+        if (!btnSimpan.hasAttribute('data-text')) btnSimpan.setAttribute('data-text', btnSimpan.innerHTML);
+        setButtonLoading(btnSimpan, true);
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: {
+                'edit-pejabat-jurusan': 1,
+                jabatan: jabatan,
+                dosen_id: dosen_id
+            },
+            dataType: 'json',
+            success: function(respon) {
+                if(respon.status) {
+                    toast(respon.pesan, 'success');
+                    if (pengTarget) {
+                        pengTarget.setAttribute('data-nama', nama);
+                        pengTarget.querySelector('.org-nama').textContent = nama;
+                        // NIP biarkan text lama karena dosenList tidak render NIP di option lagi
+                        pengTarget.querySelector('.org-avatar').textContent = nama.split(' ').map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase();
+                        pengTarget.classList.remove('org-row--on');
+                    }
+                    pm.classList.remove('show');
+                } else {
+                    toast(respon.pesan || 'Gagal mengubah pejabat', 'error');
+                }
+            },
+            error: function() { toast('Terjadi kesalahan pada server', 'error'); },
+            complete: function() { setButtonLoading(btnSimpan, false); }
+        });
     });
 
     pm.querySelectorAll('[data-peng-close]').forEach(function (b) {
@@ -394,25 +367,54 @@
 
     /* ===== Aksi kartu prodi ===== */
     var editTarget = null;
+    
+    function muatUlangProdi() {
+        var grid = document.getElementById('prodiGrid');
+        grid.innerHTML = '<div class="col-span-full py-8 text-center"><div class="spinner-slate mx-auto"></div><p class="mt-2 text-xs text-slate-500">Memuat data program studi...</p></div>';
+        
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { 'ambil-tabel-prodi': 1 },
+            dataType: 'json',
+            success: function(respon) {
+                if (respon.status) {
+                    grid.innerHTML = respon.data;
+                } else {
+                    grid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500 text-sm">Gagal memuat program studi</div>';
+                }
+            },
+            error: function() {
+                grid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500 text-sm">Terjadi kesalahan pada server</div>';
+            }
+        });
+    }
+
     document.getElementById('prodiGrid').addEventListener('click', function (e) {
         var btn = e.target.closest('.btn-circle');
         if (!btn) return;
         var card = btn.closest('.prodi-card');
         var nama = card.querySelector('h3').textContent.trim();
+        var kode = card.querySelector('code').textContent.trim();
+        
         if (btn.classList.contains('btn-aksi')) {
-            toast('Detail program studi "' + nama + '"');
+            toast('Detail program studi "' + nama + '"', 'info');
         } else if (btn.classList.contains('btn-edit')) {
             editTarget = card;
-            var kode = card.querySelector('code').textContent.trim();
             var kaprodi = card.querySelector('.truncate').textContent.trim();
             var jenjang = card.querySelector('.badge-pro.bg-sky-100').textContent.trim();
             var status = card.querySelector('.prodi-banner .badge-pro').textContent.trim();
+            
+            document.getElementById('epKodeLama').value = kode;
             document.getElementById('epNama').value = nama;
             document.getElementById('epKode').value = kode;
             document.getElementById('epJenjang').value = jenjang;
             var kapSel = document.getElementById('epKaprodi');
             for (var i = 0; i < kapSel.options.length; i++) {
-                if (kapSel.options[i].textContent.trim() === kaprodi) { kapSel.selectedIndex = i; break; }
+                if (kapSel.options[i].textContent.trim().indexOf(kaprodi) !== -1 || kapSel.options[i].value === kaprodi) {
+                    kapSel.selectedIndex = i; 
+                    break; 
+                }
             }
             var stSel = document.getElementById('epStatus');
             for (var j = 0; j < stSel.options.length; j++) {
@@ -420,9 +422,44 @@
             }
             em.classList.add('show');
         } else if (btn.classList.contains('btn-hapus')) {
-            if (confirm('Hapus program studi "' + nama + '"?')) {
-                card.remove();
-                toast('Program studi "' + nama + '" dihapus');
+            if (typeof window.konfirmasiHapus === 'function') {
+                window.konfirmasiHapus('program studi "' + nama + '"', function() {
+                    $.ajax({
+                        url: PROSES_URL,
+                        method: 'POST',
+                        data: {
+                            'hapus-data-prodi': 1,
+                            kode: kode
+                        },
+                        dataType: 'json',
+                        success: function(respon) {
+                            toast(respon.pesan, respon.status ? 'success' : 'error');
+                            if (respon.status) {
+                                muatUlangProdi();
+                            }
+                        },
+                        error: function() { toast('Terjadi kesalahan pada server', 'error'); }
+                    });
+                });
+            } else {
+                if (confirm('Hapus program studi "' + nama + '"?')) {
+                    $.ajax({
+                        url: PROSES_URL,
+                        method: 'POST',
+                        data: {
+                            'hapus-data-prodi': 1,
+                            kode: kode
+                        },
+                        dataType: 'json',
+                        success: function(respon) {
+                            toast(respon.pesan, respon.status ? 'success' : 'error');
+                            if (respon.status) {
+                                muatUlangProdi();
+                            }
+                        },
+                        error: function() { toast('Terjadi kesalahan pada server', 'error'); }
+                    });
+                }
             }
         }
     });
@@ -431,56 +468,83 @@
     var frmTambah = document.getElementById('frmTambah');
     if (frmTambah) frmTambah.addEventListener('submit', function (e) {
         e.preventDefault();
+        var btnSimpan = frmTambah.querySelector('button[type="submit"]');
+        if (!btnSimpan.hasAttribute('data-text')) btnSimpan.setAttribute('data-text', btnSimpan.innerHTML);
+        setButtonLoading(btnSimpan, true);
+
         var nama = document.getElementById('tpNama').value.trim();
         var kode = document.getElementById('tpKode').value.trim();
         var kaprodi = document.getElementById('tpKaprodi').value;
         var jenjang = document.getElementById('tpJenjang').value;
         var status = document.getElementById('tpStatus').value;
-        var gold = ['#eab308', '#f59e0b', '#f97316'];
-        var g = gold[Math.floor(Math.random() * gold.length)];
-        var art = document.createElement('article');
-        art.className = 'prodi-card reveal';
-        art.setAttribute('data-cari', (nama + ' ' + kaprodi).toLowerCase());
-        art.style.cssText = '--pr:' + g + ';--b1:' + g + ';--b2:' + '#fbbf24';
-        art.innerHTML = '<div class="prodi-banner">' +
-            '<span class="shape" style="width:70px;height:70px;top:-24px;right:-16px"></span>' +
-            '<span class="shape" style="width:40px;height:40px;bottom:-14px;left:52%"></span>' +
-            '<span class="badge-pro bg-white/20 text-white backdrop-blur-sm"><i class="fas fa-circle text-[6px]"></i>' + status + '</span></div>' +
-            '<span class="prodi-avatar bg-white text-slate-500">NEW</span>' +
-            '<div class="px-4 pb-4 pt-6"><h3 class="text-sm font-bold leading-snug text-slate-800">' + nama + '</h3>' +
-            '<code class="mt-1 block text-[10px] text-slate-400">' + kode + '</code>' +
-            '<div class="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">' +
-            '<div class="min-w-0"><p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Kaprodi</p><p class="truncate text-xs font-semibold text-slate-700">' + kaprodi + '</p></div>' +
-            '<span class="badge-pro bg-sky-100 text-sky-700 shrink-0">' + jenjang + '</span></div>' +
-            '<div class="mt-3 flex items-center justify-end gap-1.5">' +
-            '<button type="button" class="btn-aksi btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Detail</span></button>' +
-            '<button type="button" class="btn-edit btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600"><i class="fas fa-pen text-xs"></i><span class="tip">Edit</span></button>' +
-            '<button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span></button></div></div>';
-        document.getElementById('prodiGrid').appendChild(art);
-        tm.classList.remove('show');
-        toast('Program studi "' + nama + '" ditambahkan');
-        frmTambah.reset();
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: {
+                'tambah-data-prodi': 1,
+                nama: nama,
+                kode: kode,
+                kaprodi: kaprodi,
+                jenjang: jenjang,
+                status: status
+            },
+            dataType: 'json',
+            success: function(respon) {
+                toast(respon.pesan, respon.status ? 'success' : 'error');
+                if (respon.status) {
+                    tm.classList.remove('show');
+                    frmTambah.reset();
+                    muatUlangProdi();
+                }
+            },
+            error: function() { toast('Terjadi kesalahan pada server', 'error'); },
+            complete: function() { setButtonLoading(btnSimpan, false); }
+        });
     });
 
     /* ===== Submit Edit ===== */
     var frmEdit = document.getElementById('frmEdit');
     if (frmEdit) frmEdit.addEventListener('submit', function (e) {
         e.preventDefault();
-        if (!editTarget) { em.classList.remove('show'); return; }
+        var btnSimpan = frmEdit.querySelector('button[type="submit"]');
+        if (!btnSimpan.hasAttribute('data-text')) btnSimpan.setAttribute('data-text', btnSimpan.innerHTML);
+        setButtonLoading(btnSimpan, true);
+
+        var kode_lama = document.getElementById('epKodeLama').value.trim();
         var nama = document.getElementById('epNama').value.trim();
         var kode = document.getElementById('epKode').value.trim();
         var kaprodi = document.getElementById('epKaprodi').value;
         var jenjang = document.getElementById('epJenjang').value;
         var status = document.getElementById('epStatus').value;
-        editTarget.setAttribute('data-cari', (nama + ' ' + kaprodi).toLowerCase());
-        editTarget.querySelector('h3').textContent = nama;
-        editTarget.querySelector('code').textContent = kode;
-        editTarget.querySelector('.truncate').textContent = kaprodi;
-        editTarget.querySelector('.badge-pro.bg-sky-100').textContent = jenjang;
-        var st = editTarget.querySelector('.prodi-banner .badge-pro');
-        st.innerHTML = '<i class="fas fa-circle text-[6px]"></i>' + status;
-        em.classList.remove('show');
-        toast('Program studi "' + nama + '" diperbarui');
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: {
+                'edit-data-prodi': 1,
+                kode_lama: kode_lama,
+                nama: nama,
+                kode: kode,
+                kaprodi: kaprodi,
+                jenjang: jenjang,
+                status: status
+            },
+            dataType: 'json',
+            success: function(respon) {
+                toast(respon.pesan, respon.status ? 'success' : 'error');
+                if (respon.status) {
+                    em.classList.remove('show');
+                    muatUlangProdi();
+                }
+            },
+            error: function() { toast('Terjadi kesalahan pada server', 'error'); },
+            complete: function() { setButtonLoading(btnSimpan, false); }
+        });
+    });
+    /* ===== Load Awal ===== */
+    document.addEventListener('DOMContentLoaded', function() {
+        muatUlangProdi();
     });
 })();
 </script>
