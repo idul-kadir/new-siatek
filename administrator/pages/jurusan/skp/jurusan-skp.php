@@ -5,12 +5,16 @@
  * Setiap 1 data SKP memiliki 2 file:
  *   - File Draft  : hasil unggahan dosen (pengisian SKP).
  *   - File Final  : hasil verifikasi pejabat jurusan.
- * Alur: draft masuk → menunggu review → pejabat memeriksa & mengunggah file final,
- * lalu baris berpindah ke bagian "Selesai". Status di list utama hanya satu:
- * "Menunggu Review". Dilengkapi filter per tahun & semester (ganjil/genap) serta
- * pagination. Tampilan HTML statis (dummy) — JS untuk tab, cari, filter,
- * pagination, detail/review, unggah final, dan hapus.
  */
+require __DIR__ . "/../../../fungsi.php";
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// pastikan user sudah login
+$sudahLogin = !empty($_SESSION['user_id']) || !empty($_SESSION['nip']) || !empty($_SESSION['username']);
+if (!$sudahLogin) {
+    header('Location: ' . base_url() . '/');
+    exit;
+}
 ?>
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
@@ -65,6 +69,12 @@
 
     #toastSkp { position: fixed; right: 20px; bottom: 20px; z-index: 2000; display: none; align-items: center; gap: .6rem; max-width: 360px; border-radius: .75rem; background: #0f172a; color: #fff; padding: .7rem 1rem; font-size: .82rem; box-shadow: 0 12px 24px rgba(15,23,42,.25); }
     #toastSkp.show { display: flex; animation: riseIn .3s ease; }
+
+    /* CSS Spinner & Loading state */
+    .btn-loader { display: inline-flex; align-items: center; gap: 0.5rem; }
+    .spinner-slate { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .is-loading { opacity: 0.7; cursor: not-allowed !important; pointer-events: none; }
 </style>
 <main class="content-area content-scroll">
 
@@ -86,9 +96,9 @@
     <!-- ===== Tab Status ===== -->
     <section class="mb-4">
         <div class="flex flex-wrap gap-2">
-            <button type="button" class="tab-btn" data-tab="semua" aria-selected="false"><span class="tdot bg-slate-500"></span>Semua<span class="tnum" id="cnt-semua">10</span></button>
-            <button type="button" class="tab-btn" data-tab="menunggu" aria-selected="true"><span class="tdot bg-amber-500"></span>Menunggu Review<span class="tnum" id="cnt-menunggu">7</span></button>
-            <button type="button" class="tab-btn" data-tab="selesai" aria-selected="false"><span class="tdot bg-emerald-500"></span>Selesai<span class="tnum" id="cnt-selesai">3</span></button>
+            <button type="button" class="tab-btn" data-tab="semua" aria-selected="false"><span class="tdot bg-slate-500"></span>Semua<span class="tnum" id="cnt-semua">0</span></button>
+            <button type="button" class="tab-btn" data-tab="menunggu" aria-selected="true"><span class="tdot bg-amber-500"></span>Menunggu Review<span class="tnum" id="cnt-menunggu">0</span></button>
+            <button type="button" class="tab-btn" data-tab="selesai" aria-selected="false"><span class="tdot bg-emerald-500"></span>Selesai<span class="tnum" id="cnt-selesai">0</span></button>
         </div>
     </section>
 
@@ -123,7 +133,7 @@
     <!-- ===== Tabel SKP ===== -->
     <section>
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto" id="tabelWrap">
                 <table class="pin-table">
                     <thead>
                         <tr>
@@ -136,137 +146,7 @@
                         </tr>
                     </thead>
                     <tbody id="tbSkp">
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="ganjil" data-nama="Ir. Hendra Wijaya, M.Eng." data-nip="197302151999031002" data-draft="SKP_Draft_Hendra_2026-Ganjil.pdf" data-final="" data-ket="" data-hari="18 Agu 2026" data-cari="ir hendra wijaya m eng 197302151999031002 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-100 text-[11px] font-bold text-sky-700">HW</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Ir. Hendra Wijaya, M.Eng.</p><p class="text-[10px] text-slate-400">NIP 197302151999031002</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Hendra_2026-Ganjil.pdf</span><span class="f-sub">214 KB · 18 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="ganjil" data-nama="Rina Marlina, M.M." data-nip="198105202005012004" data-draft="SKP_Draft_Rina_2026-Ganjil.pdf" data-final="" data-ket="" data-hari="18 Agu 2026" data-cari="rina marlina m m 198105202005012004 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-[11px] font-bold text-rose-700">RM</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Rina Marlina, M.M.</p><p class="text-[10px] text-slate-400">NIP 198105202005012004</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Rina_2026-Ganjil.pdf</span><span class="f-sub">180 KB · 18 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="genap" data-nama="Deni Kurniawan, M.Sc." data-nip="198611122011011003" data-draft="SKP_Draft_Deni_2026-Genap.pdf" data-final="" data-ket="" data-hari="16 Agu 2026" data-cari="deni kurniawan m sc 198611122011011003 2026 genap">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700">DK</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Deni Kurniawan, M.Sc.</p><p class="text-[10px] text-slate-400">NIP 198611122011011003</p></div></div></td>
-                            <td><span class="pr-badge bg-fuchsia-50 text-fuchsia-700">2026 · Genap</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Deni_2026-Genap.pdf</span><span class="f-sub">166 KB · 16 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="ganjil" data-nama="Dr. Ratna Dewi, M.Kom." data-nip="197608251999032003" data-draft="SKP_Draft_Ratna_2026-Ganjil.pdf" data-final="" data-ket="" data-hari="14 Agu 2026" data-cari="dr ratna dewi m kom 197608251999032003 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">RD</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Dr. Ratna Dewi, M.Kom.</p><p class="text-[10px] text-slate-400">NIP 197608251999032003</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Ratna_2026-Ganjil.pdf</span><span class="f-sub">198 KB · 14 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="ganjil" data-nama="Dr. Agus Prabowo, M.T." data-nip="197001012000031001" data-draft="SKP_Draft_Agus_2026-Ganjil.pdf" data-final="" data-ket="" data-hari="13 Agu 2026" data-cari="dr agus prabowo m t 197001012000031001 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">AP</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Dr. Agus Prabowo, M.T.</p><p class="text-[10px] text-slate-400">NIP 197001012000031001</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Agus_2026-Ganjil.pdf</span><span class="f-sub">221 KB · 13 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2025" data-semester="ganjil" data-nama="Andi Saputra, M.Kom." data-nip="198412052008011005" data-draft="SKP_Draft_Andi_2025-Ganjil.pdf" data-final="" data-ket="" data-hari="11 Agu 2026" data-cari="andi saputra m kom 198412052008011005 2025 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">AS</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Andi Saputra, M.Kom.</p><p class="text-[10px] text-slate-400">NIP 198412052008011005</p></div></div></td>
-                            <td><span class="pr-badge bg-slate-100 text-slate-600">2025 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Andi_2025-Ganjil.pdf</span><span class="f-sub">174 KB · 11 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="menunggu" data-tahun="2026" data-semester="ganjil" data-nama="Dr. Maya Sari, M.T." data-nip="197812152005012006" data-draft="SKP_Draft_Maya_2026-Ganjil.pdf" data-final="" data-ket="Capaian target belum sesuai bukti pendukung - sedang dikomunikasikan dengan dosen." data-hari="12 Agu 2026" data-cari="dr maya sari m t 197812152005012006 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-[11px] font-bold text-rose-700">MS</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Dr. Maya Sari, M.T.</p><p class="text-[10px] text-slate-400">NIP 197812152005012006</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Maya_2026-Ganjil.pdf</span><span class="f-sub">201 KB · 12 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="selesai" data-tahun="2026" data-semester="ganjil" data-nama="Prof. Dr. Ahmad Fauzi, M.T." data-nip="197205101997021002" data-draft="SKP_Draft_Ahmad_2026-Ganjil.pdf" data-final="SKP_Final_Ahmad_2026-Ganjil.pdf" data-ket="Verifikasi selesai, capaian sesuai target." data-hari="9 Agu 2026" data-cari="prof dr ahmad fauzi m t 197205101997021002 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700">AF</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Prof. Dr. Ahmad Fauzi, M.T.</p><p class="text-[10px] text-slate-400">NIP 197205101997021002</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-emerald-100 text-emerald-700"><i class="fas fa-check"></i>Selesai</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Ahmad_2026-Ganjil.pdf</span><span class="f-sub">247 KB · 9 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Final_Ahmad_2026-Ganjil.pdf</span><span class="f-sub">235 KB · final</span></span><button type="button" class="f-down" title="Unduh final"><i class="fas fa-download"></i></button></span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-edit btn-circle bg-amber-500 text-white shadow-sm hover:bg-amber-600"><i class="fas fa-pen text-xs"></i><span class="tip">Perbaiki File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="selesai" data-tahun="2026" data-semester="ganjil" data-nama="Dr. Siti Aminah, M.M." data-nip="198009152006042002" data-draft="SKP_Draft_Siti_2026-Ganjil.pdf" data-final="SKP_Final_Siti_2026-Ganjil.pdf" data-ket="Disetujui dengan catatan." data-hari="8 Agu 2026" data-cari="dr siti aminah m m 198009152006042002 2026 ganjil">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[11px] font-bold text-teal-700">SA</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Dr. Siti Aminah, M.M.</p><p class="text-[10px] text-slate-400">NIP 198009152006042002</p></div></div></td>
-                            <td><span class="pr-badge bg-sky-50 text-sky-700">2026 · Ganjil</span></td>
-                            <td><span class="st-badge bg-emerald-100 text-emerald-700"><i class="fas fa-check"></i>Selesai</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Siti_2026-Ganjil.pdf</span><span class="f-sub">189 KB · 8 Agu 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Final_Siti_2026-Ganjil.pdf</span><span class="f-sub">187 KB · final</span></span><button type="button" class="f-down" title="Unduh final"><i class="fas fa-download"></i></button></span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-edit btn-circle bg-amber-500 text-white shadow-sm hover:bg-amber-600"><i class="fas fa-pen text-xs"></i><span class="tip">Perbaiki File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
-                        <tr class="reveal" data-status="selesai" data-tahun="2025" data-semester="genap" data-nama="Budi Santoso, M.T." data-nip="197801102005011003" data-draft="SKP_Draft_Budi_2025-Genap.pdf" data-final="SKP_Final_Budi_2025-Genap.pdf" data-ket="Lengkap dan disetujui." data-hari="2 Jul 2026" data-cari="budi santoso m t 197801102005011003 2025 genap">
-                            <td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-[11px] font-bold text-cyan-700">BS</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">Budi Santoso, M.T.</p><p class="text-[10px] text-slate-400">NIP 197801102005011003</p></div></div></td>
-                            <td><span class="pr-badge bg-fuchsia-50 text-fuchsia-700">2025 · Genap</span></td>
-                            <td><span class="st-badge bg-emerald-100 text-emerald-700"><i class="fas fa-check"></i>Selesai</span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Draft_Budi_2025-Genap.pdf</span><span class="f-sub">205 KB · 2 Jul 2026</span></span><button type="button" class="f-down" title="Unduh draft"><i class="fas fa-download"></i></button></span></td>
-                            <td><span class="file-chip"><span class="f-ico f-pdf"><i class="fas fa-file-pdf"></i></span><span class="f-meta"><span class="f-name">SKP_Final_Budi_2025-Genap.pdf</span><span class="f-sub">202 KB · final</span></span><button type="button" class="f-down" title="Unduh final"><i class="fas fa-download"></i></button></span></td>
-                            <td><div class="inline-flex items-center gap-1.5">
-                                <button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>
-                                <button type="button" class="btn-edit btn-circle bg-amber-500 text-white shadow-sm hover:bg-amber-600"><i class="fas fa-pen text-xs"></i><span class="tip">Perbaiki File Final</span></button>
-                                <button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button>
-                            </div></td>
-                        </tr>
-
+                        <!-- Data dimuat dari AJAX -->
                     </tbody>
                 </table>
             </div>
@@ -335,6 +215,7 @@
             <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-final-close>&times;</button>
         </div>
         <form id="frmFinal" class="p-5 space-y-3">
+            <input type="hidden" id="fpId" name="id">
             <p class="text-xs text-slate-500">Memverifikasi SKP: <b id="fpNama" class="text-slate-700">—</b></p>
             <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">File Final (hasil verifikasi) <span class="text-rose-500">*</span></label>
                 <div class="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5">
@@ -342,14 +223,14 @@
                     <span class="text-xs text-slate-500" id="fpFileLabel">Belum ada file dipilih</span>
                     <label class="ml-auto cursor-pointer rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600">
                         Pilih File
-                        <input type="file" id="fpFile" accept=".pdf,.doc,.docx" class="hidden">
+                        <input type="file" id="fpFile" name="file_final" accept=".pdf,.doc,.docx" class="hidden">
                     </label>
                 </div></div>
             <div><label class="block text-[11px] font-semibold text-slate-500 mb-1">Catatan Verifikasi</label>
                 <textarea id="fpKet" rows="2" placeholder="mis. SKP disetujui, capaian sesuai target." class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:bg-white"></textarea></div>
             <div class="flex justify-end gap-2 pt-1 border-t border-slate-100">
                 <button type="button" data-final-close class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">Batal</button>
-                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition"><i class="fas fa-check mr-1"></i>Simpan Final</button>
+                <button type="submit" class="px-4 py-2 text-xs rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition" data-text="Simpan Final"><i class="fas fa-check mr-1"></i>Simpan Final</button>
             </div>
         </form>
     </div>
@@ -359,62 +240,72 @@
 
 <script>
 (function () {
+    var PROSES_URL = 'pages/jurusan/skp/proses.php';
     var tb = document.getElementById('tbSkp');
-    var skp = Array.prototype.slice.call(document.querySelectorAll('#tbSkp tr'));
+    var skp = [];
     var fCari = document.getElementById('fCari');
     var fTahun = document.getElementById('fTahun');
     var fSemester = document.getElementById('fSemester');
     var activeTab = 'menunggu';
     var page = 1, PER = 6;
 
-    function miniChip(nama, label) {
+    function toast(msg, type) {
+        var t = document.getElementById('toastSkp');
+        var ico = type === 'error' ? 'fa-exclamation-circle text-rose-400' : 'fa-check-circle text-emerald-400';
+        t.innerHTML = '<i class="fas ' + ico + '"></i> ' + msg;
+        t.classList.add('show');
+        clearTimeout(t._tm);
+        t._tm = setTimeout(function () { t.classList.remove('show'); }, 2600);
+    }
+
+    function setButtonLoading(btn, isLoading) {
+        if (isLoading) {
+            btn.classList.add('is-loading');
+            btn.setAttribute('disabled', '');
+            btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
+        } else {
+            btn.classList.remove('is-loading');
+            btn.removeAttribute('disabled');
+            btn.innerHTML = (btn.getAttribute('data-text') || btn.textContent);
+        }
+    }
+
+    function muatUlangTabel() {
+        tb.innerHTML = '<tr><td colspan="6" class="py-12 text-center"><div class="spinner-slate mx-auto mb-2"></div><p class="text-xs text-slate-500">Memuat data SKP...</p></td></tr>';
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: { 'ambil-tabel-skp': 1 },
+            dataType: 'json',
+            success: function (respon) {
+                if (respon.status) {
+                    tb.innerHTML = respon.data;
+                    skp = Array.prototype.slice.call(document.querySelectorAll('#tbSkp tr:not(.empty-row)'));
+                    recount();
+                    render();
+                } else {
+                    tb.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-rose-500">' + respon.pesan + '</td></tr>';
+                }
+            },
+            error: function () {
+                tb.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-rose-500">Terjadi kesalahan pada server</td></tr>';
+            }
+        });
+    }
+
+    function miniChip(nama, label, url) {
         var ext = (nama.split('.').pop() || 'pdf').toLowerCase();
         var cls = ext === 'doc' || ext === 'docx' ? 'f-word' : 'f-pdf';
         var ico = ext === 'doc' || ext === 'docx' ? 'fa-file-word' : 'fa-file-pdf';
+        var link = url ? '<a href="' + url + '" target="_blank" class="f-down" title="Unduh ' + nama + '"><i class="fas fa-download"></i></a>' : '';
         return '<span class="file-chip"><span class="f-ico ' + cls + '"><i class="fas ' + ico + '"></i></span>' +
             '<span class="f-meta"><span class="f-name">' + nama + '</span><span class="f-sub">' + label + '</span></span>' +
-            '<button type="button" class="f-down" title="Unduh ' + nama + '"><i class="fas fa-download"></i></button></span>';
+            link + '</span>';
     }
 
-    function perBadge(tahun, sem) {
-        var m = { '2026': ['bg-sky-50 text-sky-700', 'ganjil'], '2025': ['bg-slate-100 text-slate-600', 'ganjil'] };
-        var key = m[tahun] ? tahun : '2026';
-        var txt = key + ' · ' + (sem.charAt(0).toUpperCase() + sem.slice(1));
-        if (sem === 'genap') return '<span class="pr-badge bg-fuchsia-50 text-fuchsia-700">' + txt + '</span>';
-        return '<span class="pr-badge ' + m[key][0] + '">' + txt + '</span>';
-    }
-    function stBadge(st) {
-        if (st === 'selesai') return '<span class="st-badge bg-emerald-100 text-emerald-700"><i class="fas fa-check"></i>Selesai</span>';
-        return '<span class="st-badge bg-amber-100 text-amber-700"><i class="fas fa-hourglass-half"></i>Menunggu Review</span>';
-    }
-    function initial(k) {
-        return k.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w); }).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '--';
-    }
-    function chipHTML(f, sub) {
-        return f ? miniChip(f, sub) : '<span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span>';
-    }
-
-    function invRow(tr) {
-        var nama = tr.getAttribute('data-nama');
-        var nip = tr.getAttribute('data-nip');
-        var dr = tr.getAttribute('data-draft');
-        var fin = tr.getAttribute('data-final') || '';
-        var st = tr.getAttribute('data-status');
-        var tahun = tr.getAttribute('data-tahun');
-        var sem = tr.getAttribute('data-semester');
-        var hari = tr.getAttribute('data-hari');
-        var btnFinal = st === 'selesai' ?
-            '<button type="button" class="btn-edit btn-circle bg-amber-500 text-white shadow-sm hover:bg-amber-600"><i class="fas fa-pen text-xs"></i><span class="tip">Perbaiki File Final</span></button>' :
-            '<button type="button" class="btn-final btn-circle bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"><i class="fas fa-file-arrow-up text-xs"></i><span class="tip">Unggah File Final</span></button>';
-        return '<td><div class="flex items-center gap-2.5"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-100 text-[11px] font-bold text-sky-700">' + initial(nama) + '</span><div class="min-w-0"><p class="font-semibold leading-snug text-slate-800">' + nama + '</p><p class="text-[10px] text-slate-400">NIP ' + nip + '</p></div></div></td>' +
-            '<td>' + perBadge(tahun, sem) + '</td>' +
-            '<td>' + stBadge(st) + '</td>' +
-            '<td>' + chipHTML(dr, dr + ' · ' + hari) + '</td>' +
-            '<td>' + chipHTML(fin, fin ? fin + ' · final' : '') + '</td>' +
-            '<td><div class="inline-flex items-center gap-1.5">' +
-            '<button type="button" class="btn-detail btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700"><i class="fas fa-eye text-xs"></i><span class="tip">Lihat / Review</span></button>' +
-            btnFinal +
-            '<button type="button" class="btn-hapus btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600"><i class="fas fa-trash text-xs"></i><span class="tip">Hapus SKP</span></button></div></td>';
+    function chipHTML(f, sub, url) {
+        return f ? miniChip(f, sub, url) : '<span class="empty-dash"><i class="fas fa-minus"></i>Belum ada</span>';
     }
 
     function recount() {
@@ -435,9 +326,11 @@
             if (activeTab !== 'semua' && tr.getAttribute('data-status') !== activeTab) return false;
             if (th && tr.getAttribute('data-tahun') !== th) return false;
             if (sem && tr.getAttribute('data-semester') !== sem) return false;
-            return !kata || tr.getAttribute('data-cari').indexOf(kata) !== -1;
+            var cariText = tr.getAttribute('data-cari') || '';
+            return !kata || cariText.indexOf(kata) !== -1;
         });
     }
+
     function render() {
         var v = visible();
         var pages = Math.max(1, Math.ceil(v.length / PER));
@@ -447,30 +340,37 @@
         skp.forEach(function (tr) { tr.style.display = 'none'; });
         slice.forEach(function (tr) { tr.style.display = ''; });
         document.getElementById('jmlInfo').innerHTML = 'Menampilkan <b class="text-slate-800">' + slice.length + '</b> dari <b class="text-slate-800">' + v.length + '</b> data';
-        document.getElementById('pgInfo').textContent = 'Halaman ' + page + ' dari ' + pages;
-        var wrap = document.getElementById('pgWrap');
-        wrap.innerHTML = '';
-        var prev = document.createElement('button');
-        prev.className = 'pg-btn';
-        prev.innerHTML = '<i class="fas fa-chevron-left"></i>';
-        prev.disabled = page <= 1;
-        prev.addEventListener('click', function () { if (page > 1) { page--; render(); } });
-        wrap.appendChild(prev);
-        for (var i = 1; i <= pages; i++) {
-            (function (n) {
-                var b = document.createElement('button');
-                b.className = 'pg-btn' + (n === page ? ' on' : '');
-                b.textContent = n;
-                b.addEventListener('click', function () { page = n; render(); });
-                wrap.appendChild(b);
-            })(i);
+        
+        var pgContainer = document.querySelector('.border-t.border-slate-100');
+        if (v.length === 0) {
+            if (pgContainer) pgContainer.style.display = 'none';
+        } else {
+            if (pgContainer) pgContainer.style.display = 'flex';
+            document.getElementById('pgInfo').textContent = 'Halaman ' + page + ' dari ' + pages;
+            var wrap = document.getElementById('pgWrap');
+            wrap.innerHTML = '';
+            var prev = document.createElement('button');
+            prev.className = 'pg-btn';
+            prev.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prev.disabled = page <= 1;
+            prev.addEventListener('click', function () { if (page > 1) { page--; render(); } });
+            wrap.appendChild(prev);
+            for (var i = 1; i <= pages; i++) {
+                (function (n) {
+                    var b = document.createElement('button');
+                    b.className = 'pg-btn' + (n === page ? ' on' : '');
+                    b.textContent = n;
+                    b.addEventListener('click', function () { page = n; render(); });
+                    wrap.appendChild(b);
+                })(i);
+            }
+            var next = document.createElement('button');
+            next.className = 'pg-btn';
+            next.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            next.disabled = page >= pages;
+            next.addEventListener('click', function () { if (page < pages) { page++; render(); } });
+            wrap.appendChild(next);
         }
-        var next = document.createElement('button');
-        next.className = 'pg-btn';
-        next.innerHTML = '<i class="fas fa-chevron-right"></i>';
-        next.disabled = page >= pages;
-        next.addEventListener('click', function () { if (page < pages) { page++; render(); } });
-        wrap.appendChild(next);
     }
 
     document.querySelectorAll('.tab-btn').forEach(function (b) {
@@ -518,8 +418,11 @@
         var src = btn.closest('tr');
         if (!src) return;
         var nama = src.getAttribute('data-nama');
+        var id = src.getAttribute('data-id');
+        
         if (btn.classList.contains('btn-final') || btn.classList.contains('btn-final-lg') || btn.classList.contains('btn-edit')) {
             finalTarget = src;
+            document.getElementById('fpId').value = id;
             document.getElementById('fpNama').textContent = nama;
             document.getElementById('fpFileLabel').textContent = 'Belum ada file dipilih';
             document.getElementById('fpKet').value = '';
@@ -529,11 +432,21 @@
         }
         if (btn.classList.contains('btn-hapus')) {
             if (confirm('Hapus data SKP "' + nama + '"?')) {
-                src.remove();
-                skp = skp.filter(function (r) { return r !== src; });
-                recount();
-                render();
-                toast('Data SKP dihapus');
+                $.ajax({
+                    url: PROSES_URL,
+                    method: 'POST',
+                    data: { 'hapus-data-skp': 1, 'id': id },
+                    dataType: 'json',
+                    success: function (respon) {
+                        toast(respon.pesan, respon.status ? 'success' : 'error');
+                        if (respon.status) {
+                            muatUlangTabel();
+                        }
+                    },
+                    error: function () {
+                        toast('Terjadi kesalahan pada server', 'error');
+                    }
+                });
             }
             return;
         }
@@ -541,12 +454,18 @@
             var st = src.getAttribute('data-status');
             document.getElementById('dtNama').textContent = nama;
             document.getElementById('dtNip').textContent = 'NIP ' + src.getAttribute('data-nip');
-            document.getElementById('dtInisial').textContent = initial(nama);
-            document.getElementById('dtPeriode').innerHTML = perBadge(src.getAttribute('data-tahun'), src.getAttribute('data-semester'));
-            document.getElementById('dtStatus').innerHTML = stBadge(st);
-            document.getElementById('dtDraft').innerHTML = chipHTML(src.getAttribute('data-draft'), src.getAttribute('data-draft') + ' · ' + src.getAttribute('data-hari'));
+            document.getElementById('dtInisial').textContent = src.querySelector('.bg-sky-100').textContent;
+            document.getElementById('dtPeriode').innerHTML = src.children[1].innerHTML;
+            document.getElementById('dtStatus').innerHTML = src.children[2].innerHTML;
+            
+            var draftFile = src.getAttribute('data-draft');
+            var draftUrl = src.getAttribute('data-draft-url');
+            document.getElementById('dtDraft').innerHTML = chipHTML(draftFile, draftFile + ' · ' + src.getAttribute('data-hari'), draftUrl);
+            
             var fin = src.getAttribute('data-final') || '';
-            document.getElementById('dtFinal').innerHTML = chipHTML(fin, fin ? fin + ' · final' : '');
+            var finalUrl = src.getAttribute('data-final-url');
+            document.getElementById('dtFinal').innerHTML = chipHTML(fin, fin ? fin + ' · final' : '', finalUrl);
+            
             document.getElementById('dtKet').textContent = src.getAttribute('data-ket') || '—';
             document.getElementById('dtActions').style.display = (st === 'selesai') ? 'none' : 'flex';
             dm.classList.add('show');
@@ -555,35 +474,37 @@
 
     document.getElementById('frmFinal').addEventListener('submit', function (e) {
         e.preventDefault();
-        if (!finalTarget) { fm.classList.remove('show'); return; }
-        var tahun = finalTarget.getAttribute('data-tahun');
-        var sem = finalTarget.getAttribute('data-semester');
-        var fname = fpFile.files.length ? fpFile.files[0].name : 'SKP_Final_' + finalTarget.getAttribute('data-nama').split(/\s+/)[1] + '_' + tahun + '-' + sem.charAt(0).toUpperCase() + sem.slice(1) + '.pdf';
-        var ket = document.getElementById('fpKet').value.trim();
-        var namaFinal = finalTarget.getAttribute('data-nama');
-        var sudahSelesai = finalTarget.getAttribute('data-status') === 'selesai';
-        finalTarget.setAttribute('data-final', fname);
-        finalTarget.setAttribute('data-ket', ket || 'Verifikasi selesai.');
-        if (!sudahSelesai) finalTarget.setAttribute('data-status', 'selesai');
-        finalTarget.setAttribute('data-cari', finalTarget.getAttribute('data-cari') + ' ' + fname.toLowerCase());
-        finalTarget.innerHTML = invRow(finalTarget);
-        recount();
-        render();
-        fm.classList.remove('show');
-        dm.classList.remove('show');
-        toast(sudahSelesai ? 'File final "' + namaFinal + '" diperbarui' : 'SKP "' + namaFinal + '" selesai diverifikasi');
-        finalTarget = null;
+        var btnSimpan = this.querySelector('button[type="submit"]');
+        setButtonLoading(btnSimpan, true);
+
+        var data = new FormData(this);
+        data.append('unggah-final-skp', 1);
+
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: data,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function (respon) {
+                toast(respon.pesan, respon.status ? 'success' : 'error');
+                if (respon.status) {
+                    fm.classList.remove('show');
+                    dm.classList.remove('show');
+                    muatUlangTabel();
+                }
+            },
+            error: function () {
+                toast('Terjadi kesalahan pada server', 'error');
+            },
+            complete: function () {
+                setButtonLoading(btnSimpan, false);
+            }
+        });
     });
 
-    function toast(msg) {
-        var t = document.getElementById('toastSkp');
-        t.innerHTML = '<i class="fas fa-check-circle text-emerald-400"></i>' + msg;
-        t.classList.add('show');
-        clearTimeout(t._tm);
-        t._tm = setTimeout(function () { t.classList.remove('show'); }, 2600);
-    }
-
-    recount();
-    render();
+    // Panggilan awal muat data
+    muatUlangTabel();
 })();
 </script>
