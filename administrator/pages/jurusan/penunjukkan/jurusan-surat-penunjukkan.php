@@ -16,10 +16,57 @@ $KET_MAP = [
     'PENGUJI TUTUP' => 'tutup',
 ];
 
+// Ambil data dosen global buat mapping data-dosen di baris tabel
+$qDosenGbl = query("SELECT id, nip, nidn, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+$dosenMapGbl = [];
+$dosenListGbl = [];
+while ($d = mysqli_fetch_assoc($qDosenGbl)) {
+    $dosenMapGbl[$d['id']] = $d['nama'];
+    if (!empty($d['nip'])) $dosenMapGbl[$d['nip']] = $d['nama'];
+    if (!empty($d['nidn'])) $dosenMapGbl[$d['nidn']] = $d['nama'];
+    $dosenListGbl[] = ['id' => $d['id'], 'nama' => $d['nama']];
+}
+unset($qDosenGbl);
+
 // Ambil semua surat + nama mahasiswa
-$qSurat = query("SELECT sp.id, sp.no_surat, TRIM(sp.nim) AS nim, sp.keterangan, sp.tanggal, m.nama FROM surat_penunjukkan sp LEFT JOIN mahasiswa m ON TRIM(sp.nim) = TRIM(m.nim) ORDER BY sp.id DESC");
+$qSurat = query("SELECT sp.id, sp.no_surat, TRIM(sp.nim) AS nim, sp.keterangan, sp.tanggal, sp.pembimbing1, sp.pembimbing2, sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5, m.nama FROM surat_penunjukkan sp LEFT JOIN mahasiswa m ON TRIM(sp.nim) = TRIM(m.nim) ORDER BY sp.id DESC");
 $surat = [];
 while ($r = mysqli_fetch_assoc($qSurat)) {
+    $ids = [];
+    if (!empty($r['pembimbing1'])) $ids[] = $r['pembimbing1'];
+    if (!empty($r['pembimbing2'])) $ids[] = $r['pembimbing2'];
+    foreach (['penguji1','penguji2','penguji3','penguji4','penguji5'] as $k) {
+        if (!empty($r[$k])) $ids[] = $r[$k];
+    }
+    $names = [];
+    foreach ($ids as $id) {
+        if (!empty($dosenMapGbl[$id])) $names[] = $dosenMapGbl[$id];
+    }
+    
+    // Map dosen per bidang untuk setiap jenis surat
+    $dosenMap = [];
+    $dosenMap['pemskr'] = [];
+    if (!empty($r['pembimbing1'])) $dosenMap['pemskr'][] = $r['pembimbing1'];
+    if (!empty($r['pembimbing2'])) $dosenMap['pemskr'][] = $r['pembimbing2'];
+    
+    $dosenMap['hasil'] = [];
+    foreach (['penguji1','penguji2','penguji3','penguji4','penguji5'] as $k) {
+        if (!empty($r[$k])) $dosenMap['hasil'][] = $r[$k];
+    }
+    
+    $dosenMap['tutup'] = [];
+    foreach (['penguji1','penguji2','penguji3','penguji4','penguji5'] as $k) {
+        if (!empty($r[$k])) $dosenMap['tutup'][] = $r[$k];
+    }
+    
+    $dosenMap['pengkp'] = [];
+    foreach (['penguji1','penguji2','penguji3','penguji4','penguji5'] as $k) {
+        if (!empty($r[$k])) $dosenMap['pengkp'][] = $r[$k];
+    }
+    
+    $dosenMap['pemkp'] = [];
+    if (!empty($r['pembimbing1'])) $dosenMap['pemkp'][] = $r['pembimbing1'];
+    
     $surat[] = [
         'id'          => $r['id'],
         'no_surat'    => $r['no_surat'],
@@ -27,8 +74,11 @@ while ($r = mysqli_fetch_assoc($qSurat)) {
         'nama'        => $r['nama'] ?: trim($r['nim']),
         'ket'         => $r['keterangan'],
         'tahun'       => (int)date('Y', strtotime($r['tanggal'])),
+        'tanggal'     => $r['tanggal'],
         'tanggal_fmt' => date('d M Y', strtotime($r['tanggal'])),
         'url'         => 'surat-penunjukkan-' . ($KET_MAP[$r['keterangan']] ?? 'pemskr') . '/' . trim($r['nim']),
+        'dosen_names' => implode('|', $names),
+        'dosen_map'   => $dosenMap
     ];
 }
 unset($qSurat);
@@ -81,10 +131,6 @@ function buildStatistikDosen($koneksi, $tahun): array {
             if ($r['pembimbing1'] !== '') {
                 $stats[$r['pembimbing1']]['pemkp']['p1'] = ($stats[$r['pembimbing1']]['pemkp']['p1'] ?? 0) + 1;
                 if ($nim !== '') $stats[$r['pembimbing1']]['pemkp']['p1_list'][] = $nim;
-            }
-            if ($r['pembimbing2'] !== '') {
-                $stats[$r['pembimbing2']]['pemkp']['p2'] = ($stats[$r['pembimbing2']]['pemkp']['p2'] ?? 0) + 1;
-                if ($nim !== '') $stats[$r['pembimbing2']]['pemkp']['p2_list'][] = $nim;
             }
         } elseif ($ket === 'PENGUJI KP') {
             foreach (['penguji1','penguji2','penguji3','penguji4','penguji5'] as $k) {
@@ -237,8 +283,16 @@ if (!empty($daftarTahun)) {
     .modal-overlay { display: none; position: fixed; inset: 0; z-index: 1060; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
     .modal-overlay.show { display: flex; }
 
-    #toastPn { position: fixed; right: 20px; bottom: 20px; z-index: 2000; display: none; align-items: center; gap: .6rem; max-width: 360px; border-radius: .75rem; background: #0f172a; color: #fff; padding: .7rem 1rem; font-size: .82rem; box-shadow: 0 12px 24px rgba(15,23,42,.25); }
-    #toastPn.show { display: flex; animation: riseIn .3s ease; }
+    .toast-container { position: fixed; right: 20px; bottom: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .toast-item { pointer-events: auto; display: flex; align-items: center; gap: 12px; min-width: 280px; max-width: 380px; padding: 12px 16px; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; box-shadow: 0 10px 25px rgba(0,0,0,.2); opacity: 0; transform: translateX(100%); transition: all .3s cubic-bezier(.16,1,.3,1); }
+    .toast-item.show { opacity: 1; transform: translateX(0); }
+    .toast-item.hide { opacity: 0; transform: translateX(100%); }
+    .toast-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .toast-icon { font-size: 1.1rem; }
+    .toast-close { margin-left: auto; background: none; border: none; color: rgba(255,255,255,.8); font-size: 16px; cursor: pointer; line-height: 1; transition: color .15s ease; padding: 0 0 0 8px; }
+    .toast-close:hover { color: #fff; }
 </style>
 <main class="content-area content-scroll">
 
@@ -333,7 +387,7 @@ if (!empty($daftarTahun)) {
                             if ($jns === 'tutup') $bdg = 'bg-orange-50 text-orange-700';
                             $cari = strtolower(implode(' ', [$s['nama'], $s['nim'], $s['no_surat'], $s['ket'], $s['tahun']]));
                         ?>
-                        <tr class="<?= $bgC ?> transition hover:bg-orange-50 reveal"<?= $no > 30 ? ' style="display:none;"' : '' ?> data-tab-jenis="<?= $jns ?>" data-tahun="<?= $s['tahun'] ?>" data-nama="<?= tampil($s['nama']) ?>" data-nim="<?= tampil($s['nim']) ?>" data-nomor="<?= tampil($s['no_surat']) ?>" data-tanggal="<?= $s['tanggal_fmt'] ?>" data-url="<?= $s['url'] ?>" data-cari="<?= tampil($cari) ?>">
+                        <tr class="<?= $bgC ?> transition hover:bg-orange-50 reveal"<?= $no > 30 ? ' style="display:none;"' : '' ?> data-id="<?= $s['id'] ?>" data-tab-jenis="<?= $jns ?>" data-tahun="<?= $s['tahun'] ?>" data-nama="<?= tampil($s['nama']) ?>" data-nim="<?= tampil($s['nim']) ?>" data-nomor="<?= tampil($s['no_surat']) ?>" data-tanggal="<?= $s['tanggal'] ?>" data-tanggal-fmt="<?= $s['tanggal_fmt'] ?>" data-url="<?= $s['url'] ?>" data-dosen="<?= tampil(json_encode($s['dosen_map'])) ?>" data-cari="<?= tampil($cari) ?>">
                             <td class="py-4 pl-5 pr-3"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm"><?= $no++ ?></span></td>
                             <td class="px-4 py-4"><span class="pt-badge <?= $bdg ?>"><?= $lbl ?></span></td>
                             <td class="px-4 py-4 whitespace-nowrap text-slate-500"><?= $s['no_surat'] ?></td>
@@ -397,7 +451,7 @@ if (!empty($daftarTahun)) {
                 </div>
                 <div>
                     <label for="efTanggal" class="mb-1 block text-xs font-semibold text-slate-600">Tanggal Surat</label>
-                    <input type="text" id="efTanggal" placeholder="1 Okt 2024" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
+                    <input type="date" id="efTanggal" placeholder="1 Okt 2024" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">
                 </div>
             </div>
             <div id="efDosenWrap" class="grid grid-cols-2 gap-3"></div>
@@ -435,7 +489,7 @@ if (!empty($daftarTahun)) {
                         <th rowspan="2" class="text-left">No</th>
                         <th rowspan="2" class="text-left">Dosen</th>
                         <th colspan="4" class="grp">Skripsi</th>
-                        <th colspan="3" class="grp gsep">Kerja Praktek</th>
+                        <th colspan="2" class="grp gsep">Kerja Praktek</th>
                         <th rowspan="2" class="text-right">Total</th>
                     </tr>
                     <tr>
@@ -443,8 +497,7 @@ if (!empty($daftarTahun)) {
                     <th class="text-center">Pemb 2</th>
                     <th class="text-center">Hasil</th>
                     <th class="text-center">Tutup</th>
-                    <th class="gsep text-center">Pemb 1</th>
-                    <th class="text-center">Pemb 2</th>
+                    <th class="gsep text-center">Pembimbing</th>
                     <th class="text-center">Penguji</th>
                     </tr>
                 </thead>
@@ -461,7 +514,6 @@ if (!empty($daftarTahun)) {
             <td class="text-center tabular-nums text-slate-700"><?= $row['hasil'] ?: 0; ?></td>
             <td class="text-center tabular-nums text-slate-700"><?= $row['tutup'] ?: 0; ?></td>
             <td class="gsep text-center tabular-nums text-slate-700"><?= $row['kp1'] ?: 0; ?></td>
-            <td class="text-center tabular-nums text-slate-700"><?= $row['kp2'] ?: 0; ?></td>
             <td class="text-center tabular-nums text-slate-700"><?= $row['pengkp'] ?: 0; ?></td>
             <td class="px-5 text-right font-extrabold tabular-nums text-slate-900"><?= $row['total'] ?: 0; ?></td>
         </tr>
@@ -479,8 +531,7 @@ if (!empty($daftarTahun)) {
                 <td class="text-center tabular-nums font-semibold <?= $row['pemskr']['p2'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['pemskr']['p2_list'])))); ?>" data-label="Pemb Skripsi 2"><?= $row['pemskr']['p2'] ?: 0; ?></td>
                 <td class="text-center tabular-nums font-semibold <?= $row['hasil'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['hasil_list'])))); ?>" data-label="Penguji Hasil"><?= $row['hasil'] ?: 0; ?></td>
                 <td class="text-center tabular-nums font-semibold <?= $row['tutup'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['tutup_list'])))); ?>" data-label="Penguji Tutup"><?= $row['tutup'] ?: 0; ?></td>
-                <td class="gsep text-center tabular-nums font-semibold <?= $row['pemkp']['p1'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['pemkp']['p1_list'])))); ?>" data-label="Pemb KP 1"><?= $row['pemkp']['p1'] ?: 0; ?></td>
-                <td class="text-center tabular-nums font-semibold <?= $row['pemkp']['p2'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['pemkp']['p2_list'])))); ?>" data-label="Pemb KP 2"><?= $row['pemkp']['p2'] ?: 0; ?></td>
+                <td class="gsep text-center tabular-nums font-semibold <?= $row['pemkp']['p1'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['pemkp']['p1_list'])))); ?>" data-label="Pembimbing KP"><?= $row['pemkp']['p1'] ?: 0; ?></td>
                 <td class="text-center tabular-nums font-semibold <?= $row['pengkp'] ? $tx : 'text-slate-300'; ?>" data-nim-list="<?= htmlspecialchars(json_encode(array_values(array_unique($row['pengkp_list'])))); ?>" data-label="Penguji KP"><?= $row['pengkp'] ?: 0; ?></td>
                 <td class="px-5 text-right font-bold tabular-nums <?= $tx; ?>"><?= $row['total']; ?></td>
             </tr>
@@ -497,7 +548,7 @@ if (!empty($daftarTahun)) {
 </div>
 
 <!-- Toast -->
-<div id="toastPn"></div>
+<div class="toast-container" id="toastContainer"></div>
 
 <script>
 (function () {
@@ -518,12 +569,38 @@ if (!empty($daftarTahun)) {
         tutup:  'Penguji Tutup'
     };
 
-    var toast = document.getElementById('toastPn');
-    function showToast(msg, isErr) {
-        toast.textContent = msg;
-        toast.className = 'show ' + (isErr ? 'bg-rose-600' : 'bg-slate-900');
-        clearTimeout(showToast._t);
-        showToast._t = setTimeout(function () { toast.className = ''; }, 2000);
+    function showToast(pesan, isError) {
+        var container = document.getElementById('toastContainer');
+        var item = document.createElement('div');
+        
+        var tipe = isError ? 'error' : 'success';
+        if (tipe === 'error' && isError !== true && isError !== false) tipe = isError; // terima string 'error' / 'info'
+        
+        var cls = 'toast-info'; var icn = 'fa-info-circle';
+        if (tipe === 'success') { cls = 'toast-success'; icn = 'fa-check-circle'; }
+        if (tipe === 'error') { cls = 'toast-error'; icn = 'fa-exclamation-circle'; }
+
+        item.className = 'toast-item ' + cls;
+        item.innerHTML = '<i class="fas ' + icn + ' toast-icon"></i>'
+            + '<div class="flex-1">' + pesan + '</div>'
+            + '<button class="toast-close">&times;</button>';
+            
+        container.appendChild(item);
+        
+        // Force reflow
+        void item.offsetWidth;
+        item.classList.add('show');
+        
+        var t = setTimeout(closeT, 3000);
+        function closeT() {
+            item.classList.remove('show');
+            item.classList.add('hide');
+            setTimeout(function() { if (item.parentNode) item.remove(); }, 300);
+        }
+        item.querySelector('.toast-close').addEventListener('click', function() {
+            clearTimeout(t);
+            closeT();
+        });
     }
 
     function recount() {
@@ -630,11 +707,12 @@ if (!empty($daftarTahun)) {
         window.open('<?= base_url() ?>/administrator/dokumen/' + url, '_blank');
     }
 
+    var dosenListGbl = <?= json_encode($dosenListGbl, JSON_UNESCAPED_UNICODE) ?>;
     var DOSEN_LABELS = {
         pemskr: ['Pembimbing 1', 'Pembimbing 2'],
-        pemkp:  ['Pembimbing 1', 'Pembimbing 2'],
+        pemkp:  ['Pembimbing'],
         hasil:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5'],
-        pengkp: ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5'],
+        pengkp: ['Penguji 1', 'Penguji 2', 'Penguji 3'],
         tutup:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5']
     };
     var editModal = document.getElementById('editModal');
@@ -650,17 +728,19 @@ if (!empty($daftarTahun)) {
         });
         return out.sort(function (a, b) { return a.localeCompare(b); });
     }
+    
     function renderDosenFields(jenis, vals) {
         var wrap = document.getElementById('efDosenWrap');
         var labels = DOSEN_LABELS[jenis] || DOSEN_LABELS.pemskr;
-        var names = dosenNames();
         var h = '';
         labels.forEach(function (lbl, i) {
+            var val = vals[i] || '';
             h += '<div><label class="mb-1 block text-xs font-semibold text-slate-600">' + lbl + '</label>'
                 + '<select data-dosen-idx="' + i + '" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">'
                 + '<option value="">- Pilih dosen -</option>';
-            names.forEach(function (n) {
-                h += '<option value="' + esc(n) + '"' + (vals[i] === n ? ' selected' : '') + '>' + esc(n) + '</option>';
+            dosenListGbl.forEach(function (d) {
+                var isSelected = d.id === val ? ' selected' : '';
+                h += '<option value="' + esc(d.id) + '"' + isSelected + '>' + esc(d.nama) + '</option>';
             });
             h += '</select></div>';
         });
@@ -679,7 +759,8 @@ if (!empty($daftarTahun)) {
         document.getElementById('efNama').value = editRow.getAttribute('data-nama') || '';
         document.getElementById('efNomor').value = editRow.getAttribute('data-nomor') || '';
         document.getElementById('efTanggal').value = editRow.getAttribute('data-tanggal') || '';
-        renderDosenFields(jenis, (editRow.getAttribute('data-dosen') || '').split('|'));
+        var dosenRaw = JSON.parse(editRow.getAttribute('data-dosen') || '{}');
+        renderDosenFields(jenis, dosenRaw[jenis] || []);
         editModal.classList.add('show');
     });
     editModal.querySelectorAll('[data-edit-close]').forEach(function (b) {
@@ -692,19 +773,63 @@ if (!empty($daftarTahun)) {
         var nomor = document.getElementById('efNomor').value.trim();
         var tanggal = document.getElementById('efTanggal').value.trim();
         if (!nomor) { showToast('Nomor surat wajib diisi', true); return; }
+
+        var btnSimpan = this;
+        var originalText = btnSimpan.innerHTML;
+        btnSimpan.setAttribute('disabled', '');
+        btnSimpan.innerHTML = '<span class="spinner-slate"></span> Menyimpan...';
+
         var dosenVals = Array.prototype.slice.call(document.querySelectorAll('#efDosenWrap select'))
-            .map(function (s) { return s.value.trim(); }).filter(Boolean);
-        editRow.setAttribute('data-nomor', nomor);
-        editRow.setAttribute('data-tanggal', tanggal);
-        editRow.setAttribute('data-dosen', dosenVals.join('|'));
-        var nama = editRow.getAttribute('data-nama') || '';
-        editRow.setAttribute('data-cari', (nama + ' ' + nomor + ' ' + tanggal + ' ' + dosenVals.join(' ')).toLowerCase());
-        var tds = editRow.querySelectorAll('td');
-        tds[2].textContent = nomor;
-        tds[4].textContent = tanggal;
-        editModal.classList.remove('show');
-        render();
-        showToast('Surat penunjukkan diperbarui (dummy)');
+            .map(function (s) { return s.value.trim(); });
+
+        var jenis = document.getElementById('efJenis').value;
+        var formData = new FormData();
+        formData.append('edit-surat-penunjukkan', '1');
+        formData.append('id', editRow.getAttribute('data-id') || '');
+        formData.append('no_surat', nomor);
+        formData.append('tanggal', tanggal);
+        formData.append('jenis', jenis);
+        for (var i = 0; i < dosenVals.length; i++) {
+            formData.append('dosen[]', dosenVals[i]);
+        }
+
+        var PROSES_URL = '<?= base_url() ?>/administrator/pages/jurusan/penunjukkan/proses.php';
+        $.ajax({
+            url: PROSES_URL,
+            method: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function (respon) {
+                if (respon.status) {
+                    showToast(respon.pesan);
+                    editRow.setAttribute('data-nomor', nomor);
+                    editRow.setAttribute('data-tanggal', tanggal);
+                    var tFmt = new Date(tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                    editRow.setAttribute('data-tanggal-fmt', tFmt);
+                    var dosenRaw = JSON.parse(editRow.getAttribute('data-dosen') || '{}');
+                    dosenRaw[jenis] = dosenVals.filter(Boolean);
+                    editRow.setAttribute('data-dosen', JSON.stringify(dosenRaw));
+                    var nama = editRow.getAttribute('data-nama') || '';
+                    editRow.setAttribute('data-cari', (nama + ' ' + nomor + ' ' + tanggal + ' ' + dosenVals.join(' ')).toLowerCase());
+                    var tds = editRow.querySelectorAll('td');
+                    tds[2].textContent = nomor;
+                    tds[4].textContent = tFmt;
+                    editModal.classList.remove('show');
+                    render();
+                } else {
+                    showToast(respon.pesan, true);
+                }
+            },
+            error: function (xhr, status, error) {
+                showToast('Terjadi kesalahan pada server: ' + xhr.responseText, true);
+            },
+            complete: function () {
+                btnSimpan.removeAttribute('disabled');
+                btnSimpan.innerHTML = originalText;
+            }
+        });
     });
 
     /* ===== Statistik Beban Dosen ===== */
