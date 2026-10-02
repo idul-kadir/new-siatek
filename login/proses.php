@@ -87,7 +87,7 @@ if (isset($_POST['masuk-login'])) {
     }
 
     // ---------- 2) Coba sebagai mahasiswa (tabel mahasiswa) ----------
-    $m = mysqli_fetch_assoc(query("SELECT * FROM mahasiswa WHERE nim = '$nip' LIMIT 1"));
+    $m = mysqli_fetch_assoc(query("SELECT * FROM mahasiswa WHERE TRIM(nim) = '$nip' LIMIT 1"));
 
     if ($m) {
         $stored = (string)$m['password'];

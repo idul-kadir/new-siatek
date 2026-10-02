@@ -32,7 +32,7 @@ if (isset($_POST['ambil-tabel-skp'])) {
     ob_start();
     if (mysqli_num_rows($ambil) > 0) {
         while ($data = mysqli_fetch_assoc($ambil)) {
-            $status = ($data['hasil'] !== '') ? 'selesai' : 'menunggu';
+            $status = ($data['hasil'] !== null && $data['hasil'] !== '') ? 'selesai' : 'menunggu';
             
             // Dummy semester dan keterangan karena tidak ada di tabel skp
             $semester = 'ganjil'; 
