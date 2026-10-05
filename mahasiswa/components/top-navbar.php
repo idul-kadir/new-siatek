@@ -10,14 +10,20 @@ $pageTitle = $pageTitle ?? 'Beranda';
 
 /* ===== Identitas pengguna aktif (dari session login) ===== */
 $nmUser = trim((string)($_SESSION['nama'] ?? '')) !== '' ? $_SESSION['nama'] : 'Pengguna';
+$peranU = strtolower(trim((string)($_SESSION['peran'] ?? 'mahasiswa')));
 $tipeU  = strtolower(trim((string)($_SESSION['tipe_login'] ?? '')));
 $levelU = (string)($_SESSION['level'] ?? '');
-$roleTeks = ($tipeU === 'superadmin' || $levelU === '0')
-    ? 'Super Admin'
-    : ($tipeU === 'admin' ? 'Admin' : 'Dosen');
+
+if ($peranU === 'mahasiswa') {
+    $roleTeks = 'Mahasiswa';
+} else {
+    $roleTeks = ($tipeU === 'superadmin' || $levelU === '0')
+        ? 'Super Admin'
+        : ($tipeU === 'admin' ? 'Admin' : 'Dosen');
+}
 
 /* ===== Fungsi bersama (upload_file, url_file, dll) ===== */
-require_once __DIR__ . '/../fungsi.php';
+require_once __DIR__ . '/../../fungsi.php';
 
 /* ===== Foto profil: prefer session, fallback query DB =====
    Kolom profil (dosen) / foto (mahasiswa) menyimpan id file di tabel files.
@@ -28,15 +34,12 @@ if (trim($fotoProfil) === '' && !empty($_SESSION['peran'])) {
     $idRef = $_SESSION['nip'] ?? $_SESSION['nim'] ?? '';
     if ($idRef !== '') {
         if ($_SESSION['peran'] === 'staf') {
-            $kol = 'profil'; $tab = 'dosen'; $keyCol = 'nip';
-        } else {
-            $kol = 'foto';   $tab = 'mahasiswa'; $keyCol = 'nim';
-        }
-        $q = mysqli_query($GLOBALS['koneksi'], "SELECT `$kol` AS f FROM `$tab` WHERE `$keyCol` = '" . mysqli_real_escape_string($GLOBALS['koneksi'], $idRef) . "' LIMIT 1");
-        $r = $q ? mysqli_fetch_assoc($q) : null;
-        if ($r && trim((string)$r['f']) !== '') {
-            $fotoProfil = $r['f'];
-            $_SESSION['profil'] = $fotoProfil;
+            $q = @mysqli_query($GLOBALS['koneksi'], "SELECT `profil` AS f FROM `dosen` WHERE `nip` = '" . mysqli_real_escape_string($GLOBALS['koneksi'], $idRef) . "' LIMIT 1");
+            $r = $q ? mysqli_fetch_assoc($q) : null;
+            if ($r && trim((string)$r['f']) !== '') {
+                $fotoProfil = $r['f'];
+                $_SESSION['profil'] = $fotoProfil;
+            }
         }
     }
 }

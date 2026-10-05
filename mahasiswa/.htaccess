@@ -1,0 +1,26 @@
+# ==========================================================
+# SIATEK v3.0 - Pretty URL Rewrite (Portal Mahasiswa)
+# Memetakan /skripsi, /kp, dll ke index.php?page=X
+# ==========================================================
+
+RewriteEngine On
+RewriteBase /redesain-siatek/mahasiswa/
+
+# Jangan rewrite file/folder eksis
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Root → beranda
+RewriteRule ^$ index.php?page=beranda [L,QSA]
+
+# --- Top-level ---
+RewriteRule ^beranda/?$   index.php?page=beranda [L,QSA]
+RewriteRule ^dashboard/?$ index.php?page=beranda [L,QSA]
+RewriteRule ^skripsi/?$   index.php?page=skripsi [L,QSA]
+RewriteRule ^kp/?$        index.php?page=kp [L,QSA]
+RewriteRule ^biodata/?$   index.php?page=biodata [L,QSA]
+RewriteRule ^arsip/?$     index.php?page=arsip [L,QSA]
+
+# Fallback: slug apapun yang tidak di-match di atas → ke index.php (router handle)
+RewriteRule ^([a-z0-9][a-z0-9\-]+)/?$ index.php?page=$1 [L,QSA]
