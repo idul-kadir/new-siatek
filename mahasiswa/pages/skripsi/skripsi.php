@@ -1,49 +1,172 @@
 <?php
 /**
- * Halaman: Skripsi Mahasiswa (dummy data layout 2 kolom)
+ * Halaman: Skripsi Mahasiswa (Data Dinamis)
  */
 require_once __DIR__ . '/../../../fungsi.php';
 mysqli_set_charset($GLOBALS['koneksi'], 'utf8mb4');
 $nim = $_SESSION['nim'] ?? '';
 
-/* --- Data Dummy Informasi Skripsi --- */
+/* --- Ambil Data Utama Mahasiswa & Skripsi --- */
+$dMhs = ['nama' => '', 'prodi' => '', 'angkatan' => '', 'pa' => '', 'nip_pa' => ''];
+$dSkr = ['judul' => '', 'pembimbing_1' => '-', 'nip_pemb_1' => '-', 'pembimbing_2' => '-', 'nip_pemb_2' => '-'];
+$jadwal = ['proposal' => 'Belum dijadwalkan', 'hasil' => 'Belum dijadwalkan', 'tutup' => 'Belum dijadwalkan'];
+$progresSaatIni = 'Menunggu data SOP';
+
+// Ambil Mahasiswa
+$qMhs = query("SELECT nama, prodi, angkatan, dosen_pa FROM mahasiswa WHERE nim = '$nim' LIMIT 1");
+if ($qMhs && mysqli_num_rows($qMhs) > 0) {
+    $row = mysqli_fetch_assoc($qMhs);
+    $dMhs['nama']     = $row['nama'];
+    $dMhs['angkatan'] = $row['angkatan'];
+    
+    // Ambil nama prodi lengkap dari tabel prodi berdasar kode/nama
+    $kodeProdi = bersihkan($row['prodi']);
+    $qProdi = query("SELECT nama FROM prodi WHERE kode = '$kodeProdi' OR nama = '$kodeProdi' LIMIT 1");
+    if ($qProdi && mysqli_num_rows($qProdi) > 0) {
+        $dMhs['prodi'] = mysqli_fetch_assoc($qProdi)['nama'];
+    } else {
+        $dMhs['prodi'] = $row['prodi'];
+    }
+    
+    // Cari nama PA
+    if (!empty($row['dosen_pa'])) {
+        $nipPa = $row['dosen_pa'];
+        $dMhs['nip_pa'] = $nipPa;
+        $qPa = query("SELECT nama FROM dosen WHERE nip = '$nipPa' LIMIT 1");
+        if ($qPa && mysqli_num_rows($qPa) > 0) {
+            $dMhs['pa'] = mysqli_fetch_assoc($qPa)['nama'];
+        } else {
+            $dMhs['pa'] = $nipPa;
+        }
+    } else {
+        $dMhs['pa'] = '-';
+        $dMhs['nip_pa'] = '-';
+    }
+}
+
+// Ambil Data Skripsi & Pembimbing
+// Cek status pendaftaran di tabel skripsi
+$statusSkripsiDb = null;
+$qSkr = query("SELECT judul, penunjukkan_pembimbing, status FROM skripsi WHERE nim = '$nim' LIMIT 1");
+if ($qSkr && mysqli_num_rows($qSkr) > 0) {
+    $row = mysqli_fetch_assoc($qSkr);
+    $statusSkripsiDb = strtolower(trim((string)$row['status']));
+    $dSkr['judul'] = $row['judul'] ?: 'Belum mengajukan judul skripsi';
+    
+    // Ambil Pembimbing dari tabel surat_penunjukkan (untuk skripsi)
+    if (!empty($row['penunjukkan_pembimbing'])) {
+        $noSurat = $row['penunjukkan_pembimbing'];
+        // Relasikan dengan nim, atau id, atau no_surat
+        $qSurat = query("SELECT pembimbing1, pembimbing2 FROM surat_penunjukkan WHERE (id = '$noSurat' OR no_surat = '$noSurat' OR nim = '$nim') AND keterangan LIKE '%PEMBIMBING%' LIMIT 1");
+        if ($qSurat && mysqli_num_rows($qSurat) > 0) {
+            $surat = mysqli_fetch_assoc($qSurat);
+            
+            // Pembimbing 1
+            if (!empty($surat['pembimbing1'])) {
+                $dSkr['nip_pemb_1'] = $surat['pembimbing1'];
+                $qP1 = query("SELECT nama FROM dosen WHERE nip = '{$surat['pembimbing1']}' OR id = '{$surat['pembimbing1']}' LIMIT 1");
+                $dSkr['pembimbing_1'] = ($qP1 && mysqli_num_rows($qP1) > 0) ? mysqli_fetch_assoc($qP1)['nama'] : $surat['pembimbing1'];
+            } else {
+                $dSkr['pembimbing_1'] = 'Belum Ditentukan';
+                $dSkr['nip_pemb_1']   = '-';
+            }
+            // Pembimbing 2
+            if (!empty($surat['pembimbing2'])) {
+                $dSkr['nip_pemb_2'] = $surat['pembimbing2'];
+                $qP2 = query("SELECT nama FROM dosen WHERE nip = '{$surat['pembimbing2']}' OR id = '{$surat['pembimbing2']}' LIMIT 1");
+                $dSkr['pembimbing_2'] = ($qP2 && mysqli_num_rows($qP2) > 0) ? mysqli_fetch_assoc($qP2)['nama'] : $surat['pembimbing2'];
+            } else {
+                $dSkr['pembimbing_2'] = 'Belum Ditentukan';
+                $dSkr['nip_pemb_2']   = '-';
+            }
+        } else {
+            $dSkr['pembimbing_1'] = 'Belum Ditentukan';
+            $dSkr['nip_pemb_1']   = '-';
+            $dSkr['pembimbing_2'] = 'Belum Ditentukan';
+            $dSkr['nip_pemb_2']   = '-';
+        }
+    } else {
+        $dSkr['pembimbing_1'] = 'Belum Ditentukan';
+        $dSkr['nip_pemb_1']   = '-';
+        $dSkr['pembimbing_2'] = 'Belum Ditentukan';
+        $dSkr['nip_pemb_2']   = '-';
+    }
+} else {
+    $dSkr['judul'] = 'Belum mengajukan judul skripsi';
+}
+
+// Ambil Jadwal Proposal, Hasil, Tutup (kolom tgl_ujian ada di hasil & tutup, proposal cek bila ada)
+$tahapan = ['hasil' => 'tgl_ujian', 'tutup' => 'tgl_ujian'];
+foreach ($tahapan as $tabel => $kolomTgl) {
+    $qJadwal = query("SELECT $kolomTgl FROM $tabel WHERE nim = '$nim' LIMIT 1");
+    if ($qJadwal && mysqli_num_rows($qJadwal) > 0) {
+        $j = mysqli_fetch_assoc($qJadwal);
+        if (!empty($j[$kolomTgl]) && $j[$kolomTgl] != '0000-00-00') {
+            $jadwal[$tabel] = date('d M Y', strtotime($j[$kolomTgl]));
+        }
+    }
+}
+
+// Ambil Status Proses SOP dari tabel progres_skripsi via helper
+$currentProgres = get_progres_skripsi($nim);
+$lastProsesId = ($currentProgres !== '-') ? (int) $currentProgres : 0;
+
+/* --- Susun Array Info Skripsi --- */
 $infoSkripsi = [
-    'nama'          => $_SESSION['nama'] ?? 'Mohamad Rivan Abdullah',
-    'nim'           => $nim !== '' ? $nim : '05201425002',
-    'prodi'         => $_SESSION['prodi'] ?? 'S1 Teknik Informatika',
-    'angkatan'      => '2020',
-    'judul'         => 'Rancang Bangun Sistem Informasi Monitoring Skripsi Berbasis SOP Interaktif Menggunakan Web Responsive',
-    'bidang'        => 'Rekayasa Perangkat Lunak & Sistem Informasi',
-    'pembimbing_1'  => 'Dr. Ir. Mohamad S. Abubakar, M.T.',
-    'nip_pemb_1'    => '197508122002121001',
-    'pembimbing_2'  => 'Nur Rahmawati, S.T., M.Kom.',
-    'nip_pemb_2'    => '198403152010122003',
-    'pa'            => 'Bagus Priyo Raharjo, S.T., M.T.',
-    'nip_pa'        => '198205162010121005',
-    'ujian_prop'    => 'Belum dijadwalkan',
-    'ujian_hasil'   => 'Belum dijadwalkan',
-    'ujian_tutup'   => 'Belum dijadwalkan',
+    'nama'          => $dMhs['nama'] ?: 'Nama Tidak Ditemukan',
+    'nim'           => $nim,
+    'prodi'         => $dMhs['prodi'] ?: '-',
+    'angkatan'      => $dMhs['angkatan'] ?: '-',
+    'judul'         => $dSkr['judul'],
+    'pembimbing_1'  => $dSkr['pembimbing_1'],
+    'nip_pemb_1'    => $dSkr['nip_pemb_1'],
+    'pembimbing_2'  => $dSkr['pembimbing_2'],
+    'nip_pemb_2'    => $dSkr['nip_pemb_2'],
+    'pa'            => $dMhs['pa'],
+    'nip_pa'        => $dMhs['nip_pa'],
+    'ujian_prop'    => $jadwal['proposal'],
+    'ujian_hasil'   => $jadwal['hasil'],
+    'ujian_tutup'   => $jadwal['tutup'],
 ];
 
-/* --- Ambil data alur SOP Skripsi dari database --- */
+/* --- Ambil data alur SOP Skripsi --- */
 $steps = [];
 $querySop = query("SELECT * FROM sop_skripsi ORDER BY CAST(no AS UNSIGNED) ASC");
-$idxCounter = 1;
 
 if ($querySop && mysqli_num_rows($querySop) > 0) {
     while ($row = mysqli_fetch_assoc($querySop)) {
-        // Status dummy awal: step 1 selesai, step 2 aktif, sisanya menunggu
-        $st = ($idxCounter == 1) ? 'selesai' : (($idxCounter == 2) ? 'aktif' : 'menunggu');
-        
+        $noSop = (int) $row['no'];
+
+        // Logika status step berdasarkan tabel progres_skripsi:
+        // Jika no_sop < lastProsesId => selesai
+        // Jika no_sop == lastProsesId => aktif
+        // Jika no_sop > lastProsesId => menunggu
+        // (Jika lastProsesId == 0, maka step 1 aktif)
+
+        if ($lastProsesId == 0) {
+            $st = ($noSop == 1) ? 'aktif' : 'menunggu';
+        } else {
+            if ($noSop < $lastProsesId) {
+                $st = 'selesai';
+            } elseif ($noSop == $lastProsesId) {
+                $st = 'aktif';
+            } else {
+                $st = 'menunggu';
+            }
+        }
+
+        if ($st === 'aktif') {
+            $progresSaatIni = $row['keterangan'];
+        }
+
         $steps[] = [
             'id'       => $row['no'],
-            'urutan'   => $idxCounter,
+            'urutan'   => $noSop,
             'judul'    => $row['keterangan'],
             'desc'     => 'Eksekutor: ' . ucfirst(strtolower($row['eksekutor'])),
             'executor' => ucfirst(strtolower($row['eksekutor'])),
             'status'   => $st,
         ];
-        $idxCounter++;
     }
 }
 
@@ -51,7 +174,7 @@ $total    = count($steps);
 $selesai  = count(array_filter($steps, fn($s) => $s['status'] === 'selesai'));
 $progres  = $total > 0 ? round($selesai / $total * 100) : 0;
 
-/* Ambil step aktif saat ini */
+/* Ambil step aktif saat ini untuk ditampilkan di Lembar Kerja */
 $currentStep = null;
 foreach ($steps as $s) {
     if ($s['status'] === 'aktif') {
@@ -60,7 +183,35 @@ foreach ($steps as $s) {
     }
 }
 if (!$currentStep && !empty($steps)) {
-    $currentStep = $steps[0];
+    // Kalau semua selesai, ambil yang terakhir
+    $currentStep = $steps[$total - 1];
+    $progresSaatIni = 'Semua tahapan selesai';
+}
+
+/* Flag Kondisi Status Pendaftaran Skripsi Mahasiswa */
+$hasSkripsiRecord  = ($statusSkripsiDb !== null);
+$isSkripsiInactive = ($statusSkripsiDb === 'tidak aktif' || $statusSkripsiDb === 'nonaktif');
+$hasProgres        = ($currentProgres !== '-');
+
+/* --- Ambil Persyaratan Berkas sesuai progres saat ini --- */
+$berkasDibutuhkan = [];
+$berkasSudahDunggah = [];
+$nim_clean = bersihkan($nim);
+if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
+    $qBerkas = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId' ORDER BY id ASC");
+    if ($qBerkas && mysqli_num_rows($qBerkas) > 0) {
+        while ($b = mysqli_fetch_assoc($qBerkas)) {
+            $berkasDibutuhkan[] = $b;
+        }
+    }
+    
+    // Cek berkas yang sudah ada di temp_skripsi untuk progres ini
+    $qSudah = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId')");
+    if ($qSudah && mysqli_num_rows($qSudah) > 0) {
+        while ($t = mysqli_fetch_assoc($qSudah)) {
+            $berkasSudahDunggah[] = (int) $t['id_persyaratan'];
+        }
+    }
 }
 ?>
 <style>
@@ -238,6 +389,64 @@ if (!$currentStep && !empty($steps)) {
     <!-- ===== Tata Letak 2 Kolom (Besar: Lembar Kerja SOP | Kecil: Progress Line) ===== -->
     <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
 
+        <?php if (!$hasSkripsiRecord): ?>
+        <!-- BELUM TERDAFTAR DI SKRIPSI -->
+        <div class="md:col-span-12 reveal">
+            <div class="rounded-xl border border-slate-200 bg-white p-8 md:p-10 text-center shadow-sm">
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-3xl text-orange-500 mx-auto mb-4">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Mulai Skripsi/Tugas Akhir</h3>
+                <p class="mt-2 text-sm text-slate-500 max-w-lg mx-auto">Anda belum terdaftar dalam aktivitas skripsi. Pastikan Anda telah memenuhi persyaratan utama di bawah ini sebelum mendaftar.</p>
+
+                <!-- Box Persyaratan Checkbox -->
+                <div class="mt-6 max-w-xl mx-auto rounded-xl border border-slate-200 bg-slate-50 p-5 text-left space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Persyaratan Wajib Pendaftaran:</h4>
+                    
+                    <label class="flex items-start gap-3 cursor-pointer select-none">
+                        <input type="checkbox" id="chkSks" class="mt-0.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
+                        <span class="text-xs text-slate-700 leading-normal">
+                            <strong class="font-bold text-slate-800">SKS dicapai minimal 120 SKS</strong> (dibuktikan dengan dokumen Lampiran Transkrip Nilai).
+                        </span>
+                    </label>
+
+                    <label class="flex items-start gap-3 cursor-pointer select-none">
+                        <input type="checkbox" id="chkKrs" class="mt-0.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
+                        <span class="text-xs text-slate-700 leading-normal">
+                            <strong class="font-bold text-slate-800">Mengontrak Mata Kuliah Skripsi</strong> pada semester berjalan saat ini (dibuktikan dengan Kartu Rencana Studi / KRS).
+                        </span>
+                    </label>
+                </div>
+                
+                <button type="button" id="btnDaftarSkripsi" disabled class="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-300 px-5 py-2.5 text-sm font-bold text-slate-500 cursor-not-allowed transition min-w-[210px] h-[42px]">
+                    <i class="fas fa-rocket"></i>Daftar Skripsi Sekarang
+                </button>
+            </div>
+        </div>
+        <?php elseif ($isSkripsiInactive): ?>
+        <!-- SUDAH TERDAFTAR TAPI STATUS TIDAK AKTIF -->
+        <div class="md:col-span-12 reveal">
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-2xl text-amber-600 flex-shrink-0">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-amber-900">Pendaftaran Skripsi Anda Masih Non-Aktif</h3>
+                        <p class="mt-1 text-sm text-amber-800 leading-relaxed">
+                            Pendaftaran Anda tercatat dalam sistem namun aktivasi tahapan skripsinya masih menunggu konfirmasi.
+                        </p>
+                        <p class="mt-3 text-xs text-amber-700 font-medium border-t border-amber-200 pt-3">
+                            <i class="fas fa-exclamation-triangle text-amber-500 mr-1"></i>
+                            Harap segera menghadap <strong class="text-amber-900 font-bold">Operator Jurusan/Prodi</strong> untuk mengaktifkan pendaftaran skripsi dengan membawa dokumen 
+                            <strong class="font-bold text-amber-900">Transkrip Nilai</strong> dan <strong class="font-bold text-amber-900">KRS</strong> semester berjalan.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php else: ?>
+
         <!-- ===== KOLOM BESAR (md:col-span-7 lg:col-span-8): Lembar Kerja Aktivitas SOP ===== -->
         <div class="md:col-span-7 lg:col-span-8 space-y-5 reveal">
             <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -257,44 +466,307 @@ if (!$currentStep && !empty($steps)) {
 
                 <!-- Konten Aktivitas Formulir / Task SOP -->
                 <div class="space-y-4">
+                    <?php if (strtolower($currentStep['executor']) === 'mahasiswa'): ?>
                     <div class="rounded-lg bg-orange-50/60 border border-orange-100 p-4 text-xs text-slate-700 leading-relaxed">
                         <i class="fas fa-info-circle text-orange-500 mr-1.5"></i>
                         Silakan lengkapi berkas dan persyaratan berikut untuk menyelesaikan tahapan <strong><?= htmlspecialchars($currentStep['judul']) ?></strong>.
                     </div>
+                    <?php endif; ?>
 
-                    <form id="formSopKerja" method="post" action="javascript:void(0)" class="space-y-4">
-                        <!-- Upload KRS -->
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Upload KRS Terakhir (PDF) <span class="text-rose-500">*</span></label>
-                            <input type="file" accept=".pdf" class="w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-slate-50 focus:bg-white focus:outline-none">
-                            <p class="text-[11px] text-slate-400 mt-1">Maksimal 2 MB, format file PDF.</p>
+                    <?php if (strtolower($currentStep['executor']) !== 'mahasiswa'): ?>
+                        <div class="p-8 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
+                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-400 mb-3 text-xl">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-700">Menunggu Tindakan dari <?= htmlspecialchars($currentStep['executor']) ?></h4>
+                            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Anda tidak dapat melakukan tindakan pada tahapan ini. Harap menunggu hingga <?= htmlspecialchars($currentStep['executor']) ?> memproses tahapan ini.</p>
                         </div>
+                    <?php else: ?>
 
-                        <!-- Upload Transkrip -->
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Upload Transkrip Nilai (PDF) <span class="text-rose-500">*</span></label>
-                            <input type="file" accept=".pdf" class="w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-slate-50 focus:bg-white focus:outline-none">
-                            <p class="text-[11px] text-slate-400 mt-1">Maksimal 2 MB, format file PDF.</p>
-                        </div>
+                        <?php 
+                        // ==============================================================
+                        // SWITCH CASE TAHAPAN / STEP MAHASISWA
+                        // ==============================================================
+                        $nomorStepMhs = (int)$currentStep['urutan'];
+                        switch ($nomorStepMhs):
 
-                        <!-- Upload Draf Proposal -->
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Upload Draf Proposal Skripsi (PDF/DOCX) <span class="text-rose-500">*</span></label>
-                            <input type="file" accept=".pdf,.docx" class="w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-slate-50 focus:bg-white focus:outline-none">
-                        </div>
+                            case 1: 
+                                // Step 1: Mengunggah Berkas Persyaratan Proposal
+                            ?>
+                                <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasDibutuhkan as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+                                                
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            <?php 
+                                break;
 
-                        <!-- Catatan Catatan Tambahan -->
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Catatan Tambahan untuk Pembimbing/Admin</label>
-                            <textarea rows="3" class="w-full text-xs text-slate-700 border border-slate-200 rounded-lg p-2.5 bg-slate-50 focus:bg-white focus:outline-none" placeholder="Tuliskan catatan opsional..."></textarea>
-                        </div>
+                            case 4: 
+                                // Step 4: Mengunggah Laporan Proposal dan Lembar Bimbingan
+                            ?>
+                                <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                    <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-800">
+                                        <i class="fas fa-info-circle mr-1 text-sky-600"></i>Unggah naskah laporan proposal dan lembar bimbingan yang telah disetujui untuk melanjutkan ke tahap penelitian.
+                                    </div>
+                                    
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasDibutuhkan as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+                                                
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            <?php 
+                                break;
 
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                            <button type="submit" id="btnSubmitSop" data-text="Kirim & Tandai Selesai" class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition">
-                                <i class="fas fa-paper-plane"></i>Kirim & Tandai Selesai
-                            </button>
-                        </div>
-                    </form>
+                            case 6: 
+                                // Step 6: Tahap Penelitian
+                            ?>
+                                <div class="space-y-4">
+                                    <div class="rounded-xl border border-sky-100 bg-sky-50/70 p-5 space-y-3">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white flex-shrink-0 text-base shadow-sm">
+                                                <i class="fas fa-microscope"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-bold text-slate-800">Sedang dalam Proses Penelitian</h4>
+                                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                                                    Saat ini Anda berada pada tahapan penelitian skripsi. Lakukan pengumpulan data, analisis, dan penelitian sesuai metodologi yang telah ditentukan oleh pembimbing.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div class="border-t border-sky-100 pt-3">
+                                            <p class="text-[11px] text-slate-500 leading-relaxed">
+                                                <i class="fas fa-info-circle text-sky-500 mr-1"></i>Untuk komponen pendukung seperti <strong>Surat Izin Penelitian</strong>, surat pengantar instansi/lapangan, dan administrasi lainnya, diharapkan untuk berkonsultasi langsung dengan <strong>Operator Jurusan / Prodi</strong>.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Konfirmasi Kesiapan Ujian Hasil -->
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                                        <label class="flex items-start gap-3 cursor-pointer select-none">
+                                            <input type="checkbox" id="chkSiapHasil" class="mt-0.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
+                                            <span class="text-xs text-slate-700 leading-normal">
+                                                Saya menyatakan bahwa proses penelitian telah selesai, draf laporan hasil telah disusun, dan saya <strong class="text-slate-800 font-bold">benar-benar siap untuk melaksanakan Ujian Hasil Penelitian</strong>.
+                                            </span>
+                                        </label>
+
+                                        <div class="pt-2 border-t border-slate-200 flex justify-end">
+                                            <button 
+                                                type="button" 
+                                                id="btnSelesaiPenelitian" 
+                                                disabled 
+                                                data-step="6"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-300 px-5 py-2.5 text-xs font-bold text-slate-500 cursor-not-allowed transition min-w-[170px]"
+                                            >
+                                                <i class="fas fa-check"></i>Selesai Penelitian
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 7: 
+                                // Step 7: Mengupload berkas pendaftaran Ujian Hasil Penelitian
+                            ?>
+                                <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                    <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-800">
+                                        <i class="fas fa-info-circle mr-1 text-sky-600"></i>Silakan lengkapi berkas pendaftaran Ujian Hasil Penelitian berikut. File yang diunggah akan diverifikasi oleh Operator Jurusan/Prodi.
+                                    </div>
+
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasDibutuhkan as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+                                                
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            <?php 
+                                break;
+
+                            default: 
+                                // Wajib didefinisikan per step - tidak ada aksi jika belum terdaftar di case
+                            ?>
+                                <div class="p-8 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
+                                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-3 text-xl">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-700">Aktivitas Tahapan Ini Belum Dikonfigurasi</h4>
+                                    <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Tahapan SOP ini belum memiliki lembar kerja khusus dalam sistem.</p>
+                                </div>
+                            <?php 
+                                break;
+                        endswitch; 
+                        ?>
+
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -355,6 +827,7 @@ if (!$currentStep && !empty($steps)) {
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
     </div>
 
@@ -387,11 +860,204 @@ function setButtonLoading(btn, isLoading) {
     }
 }
 
-document.getElementById('formSopKerja').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('btnSubmitSop');
-    setButtonLoading(btn, true);
-    toast('Data formulir SOP berhasil disimulasikan.', 'success');
-    setTimeout(function(){ setButtonLoading(btn, false); }, 1500);
+// Auto Upload Berkas saat event Change pada input file
+document.querySelectorAll('.auto-upload-input').forEach(function(input) {
+    input.addEventListener('change', function() {
+        var fileInput = this;
+        var idPersyaratan = this.getAttribute('data-id');
+        var fieldTarget = this.getAttribute('data-field');
+        var badge = document.querySelector('.status-berkas-badge[data-id="' + idPersyaratan + '"]');
+
+        if (!fileInput.files[0]) return;
+
+        // Visual loading
+        if (badge) {
+            badge.className = 'status-berkas-badge text-[10px] font-semibold text-orange-500';
+            badge.innerHTML = '<i class="fas fa-spinner animate-spin"></i> Mengunggah...';
+        }
+        fileInput.setAttribute('disabled', 'disabled');
+
+        var formData = new FormData();
+        formData.append('unggah-berkas-skripsi', '1');
+        formData.append('id_persyaratan', idPersyaratan);
+        formData.append('field_target', fieldTarget);
+        formData.append('file', fileInput.files[0]);
+
+        fetch('pages/skripsi/proses.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status) {
+                toast(data.pesan, 'success');
+                if (badge) {
+                    badge.className = 'status-berkas-badge text-[10px] font-bold text-emerald-600';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i> Berhasil diunggah';
+                }
+                fileInput.classList.add('bg-emerald-50', 'border-emerald-200');
+
+                // Jika seluruh berkas di tahapan ini sudah diunggah & diproses server
+                if (data.proses_selesai) {
+                    toast('Semua berkas lengkap. Memperbarui progres...', 'success');
+                    setTimeout(function(){ location.reload(); }, 1200);
+                }
+            } else {
+                toast(data.pesan, 'error');
+                if (badge) {
+                    badge.className = 'status-berkas-badge text-[10px] font-semibold text-rose-500';
+                    badge.innerHTML = 'Gagal mengunggah';
+                }
+                fileInput.removeAttribute('disabled');
+            }
+        })
+        .catch(err => {
+            toast('Terjadi kesalahan koneksi server.', 'error');
+            if (badge) {
+                badge.className = 'status-berkas-badge text-[10px] font-semibold text-rose-500';
+                badge.innerHTML = 'Gagal koneksi';
+            }
+            fileInput.removeAttribute('disabled');
+        });
+    });
 });
+
+document.getElementById('btnSelesaikanLangkah')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    var btn = this;
+    var originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-slate"></span> Memproses...';
+    btn.setAttribute('disabled', 'disabled');
+
+    var formData = new FormData();
+    formData.append('tandai-selesai-step', '1');
+
+    fetch('pages/skripsi/proses.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status) {
+            toast(data.pesan, 'success');
+            setTimeout(function(){ location.reload(); }, 1000);
+        } else {
+            toast(data.pesan, 'error');
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+        }
+    })
+    .catch(err => {
+        toast('Terjadi kesalahan server.', 'error');
+        btn.innerHTML = originalText;
+        btn.removeAttribute('disabled');
+    });
+});
+
+// Logika Step 6: Selesai Penelitian
+var chkSiapHasil = document.getElementById('chkSiapHasil');
+var btnSelesaiPenelitian = document.getElementById('btnSelesaiPenelitian');
+
+if (chkSiapHasil && btnSelesaiPenelitian) {
+    chkSiapHasil.addEventListener('change', function() {
+        if (this.checked) {
+            btnSelesaiPenelitian.removeAttribute('disabled');
+            btnSelesaiPenelitian.className = 'inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition min-w-[170px]';
+        } else {
+            btnSelesaiPenelitian.setAttribute('disabled', 'disabled');
+            btnSelesaiPenelitian.className = 'inline-flex items-center justify-center gap-2 rounded-lg bg-slate-300 px-5 py-2.5 text-xs font-bold text-slate-500 cursor-not-allowed transition min-w-[170px]';
+        }
+    });
+
+    btnSelesaiPenelitian.addEventListener('click', function() {
+        if (!this.hasAttribute('disabled')) {
+            var btn = this;
+            var originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-slate"></span> Memproses...';
+            btn.setAttribute('disabled', 'disabled');
+
+            var formData = new FormData();
+            formData.append('tandai-selesai-step', '1');
+
+            fetch('pages/skripsi/proses.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status) {
+                    toast('Tahap penelitian selesai. Melanjutkan ke step berikutnya.', 'success');
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    toast(data.pesan, 'error');
+                    btn.innerHTML = originalText;
+                    btn.removeAttribute('disabled');
+                }
+            })
+            .catch(err => {
+                toast('Terjadi kesalahan koneksi server.', 'error');
+                btn.innerHTML = originalText;
+                btn.removeAttribute('disabled');
+            });
+        }
+    });
+}
+
+// Logika pendaftaran skripsi
+var chkSks = document.getElementById('chkSks');
+var chkKrs = document.getElementById('chkKrs');
+var btnDaftar = document.getElementById('btnDaftarSkripsi');
+
+function checkPersyaratan() {
+    if (chkSks.checked && chkKrs.checked) {
+        btnDaftar.removeAttribute('disabled');
+        btnDaftar.className = 'mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition focus:ring focus:ring-orange-500/30 min-w-[210px] h-[42px]';
+    } else {
+        btnDaftar.setAttribute('disabled', 'disabled');
+        btnDaftar.className = 'mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-300 px-5 py-2.5 text-sm font-bold text-slate-500 cursor-not-allowed transition min-w-[210px] h-[42px]';
+    }
+}
+
+if(chkSks && chkKrs) {
+    chkSks.addEventListener('change', checkPersyaratan);
+    chkKrs.addEventListener('change', checkPersyaratan);
+    
+    btnDaftar.addEventListener('click', function() {
+        if (!this.hasAttribute('disabled')) {
+            var btn = this;
+            var originalText = btn.innerHTML;
+            
+            // Tampilan loading
+            btn.innerHTML = '<span class="spinner-slate"></span> Mendaftarkan...';
+            btn.setAttribute('disabled', 'disabled');
+            
+            // Request AJAX ke proses.php
+            var formData = new FormData();
+            formData.append('daftar-skripsi', '1');
+
+            fetch('pages/skripsi/proses.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status) {
+                    toast(data.pesan, 'success');
+                    setTimeout(function() {
+                        location.reload(); 
+                    }, 1000);
+                } else {
+                    toast(data.pesan, 'error');
+                    btn.innerHTML = originalText;
+                    btn.removeAttribute('disabled');
+                }
+            })
+            .catch(err => {
+                toast('Terjadi kesalahan pada server.', 'error');
+                btn.innerHTML = originalText;
+                btn.removeAttribute('disabled');
+            });
+        }
+    });
+}
 </script>

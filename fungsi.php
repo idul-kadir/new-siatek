@@ -207,3 +207,16 @@ function validasi_file($file, $level = 1){
 
   return ['valid' => true, 'pesan' => ''];
 }
+
+// ================= FUNCTION CEK PROGRES SKRIPSI MAHASISWA =================
+// Mengambil nomor proses/step skripsi terakhir yang dicatat untuk mahasiswa tertentu.
+// Return: integer nomor proses (jika ada), atau '-' (jika belum ada).
+function get_progres_skripsi($nim) {
+    $nim_clean = bersihkan($nim);
+    $q = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $row = mysqli_fetch_assoc($q);
+        return (int) $row['proses'];
+    }
+    return '-';
+}
