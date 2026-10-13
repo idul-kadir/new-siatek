@@ -61,27 +61,38 @@ if (isset($_POST['unggah-berkas-skripsi'])) {
         $simpan = query("INSERT INTO temp_skripsi (id_persyaratan, nim, file, status, ket) VALUES ('$id_persyaratan', '$nim_clean', '$id_file', 'menunggu', '')");
     }
 
-    // Ambil proses/step saat ini dari tabel progres_skripsi (progres terakhir mahasiswa)
-    $qStep = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
-    $stepProgres = ($qStep && mysqli_num_rows($qStep) > 0) ? mysqli_fetch_assoc($qStep)['proses'] : 0;
+    // Ambil proses/step saat ini menggunakan helper get_progres_skripsi()
+    $progresSaatIni = get_progres_skripsi($nim_clean);
+    $stepProgres    = ($progresSaatIni !== '-') ? (int)$progresSaatIni : 0;
 
     if ($simpan) {
-        // Cek apakah semua berkas persyaratan untuk step ini sudah diunggah dan TIDAK ditolak
-        $qSelesai = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres'");
-        $jmlTotal = ($qSelesai && mysqli_num_rows($qSelesai) > 0) ? mysqli_fetch_assoc($qSelesai)['total'] : 0;
-
-        $qValid = query("SELECT COUNT(*) AS cnt FROM temp_skripsi WHERE nim = '$nim_clean' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres')");
-        $jmlValid = ($qValid && mysqli_num_rows($qValid) > 0) ? mysqli_fetch_assoc($qValid)['cnt'] : 0;
+        // Ambil progres dari berkas persyaratan yang sedang diunggah
+        $qProgBerkas   = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$id_persyaratan' LIMIT 1");
+        $progresBerkas = ($qProgBerkas && mysqli_num_rows($qProgBerkas) > 0) ? (int)mysqli_fetch_assoc($qProgBerkas)['progres'] : 0;
 
         $prosesSelesai = false;
-        // Jika SEMUA berkas sudah diunggah dan tidak ada yang berstatus 'ditolak'
-        if ($jmlTotal > 0 && $jmlValid >= $jmlTotal) {
-            $waktu = time();
-            $nextProses = (int)$stepProgres + 1; // Pindah ke tahapan SOP selanjutnya
-            
-            // Selalu catat histori baru dengan waktu terbaru ke progres_skripsi
-            query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', '$nextProses', '$nim_clean')");
-            $prosesSelesai = true;
+
+        // Kenaikan step otomatis HANYA boleh terjadi jika progres mahasiswa saat ini ($stepProgres)
+        // sama dengan progres berkas yang diunggah ($progresBerkas).
+        // Jika mahasiswa mencicil berkas step 20 saat masih di step 19 (atau step 12 saat di step 11),
+        // progres mahasiswa TIDAK BOLEH lompat.
+        if ($progresBerkas > 0 && $stepProgres === $progresBerkas) {
+            // Cek apakah semua berkas persyaratan untuk step ini sudah diunggah dan TIDAK ditolak
+            $qSelesai = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres'");
+            $jmlTotal = ($qSelesai && mysqli_num_rows($qSelesai) > 0) ? (int)mysqli_fetch_assoc($qSelesai)['total'] : 0;
+
+            $qValid = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim_clean' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres')");
+            $jmlValid = ($qValid && mysqli_num_rows($qValid) > 0) ? (int)mysqli_fetch_assoc($qValid)['cnt'] : 0;
+
+            // Jika SEMUA berkas sudah diunggah dan tidak ada yang berstatus 'ditolak'
+            if ($jmlTotal > 0 && $jmlValid >= $jmlTotal) {
+                $waktu = time();
+                $nextProses = $stepProgres + 1; // Pindah ke tahapan SOP selanjutnya
+                
+                // Selalu catat histori baru dengan waktu terbaru ke progres_skripsi
+                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', '$nextProses', '$nim_clean')");
+                $prosesSelesai = true;
+            }
         }
 
         echo json_encode(['status' => true, 'pesan' => 'Berkas berhasil diunggah', 'proses_selesai' => $prosesSelesai]);
@@ -133,14 +144,9 @@ if (isset($_POST['tandai-selesai-step'])) {
     $nim_clean = bersihkan($nim_login);
     $waktu     = time();
     
-    // Ambil proses/step saat ini
-    $q_proses = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
-    if ($q_proses && mysqli_num_rows($q_proses) > 0) {
-        $lastProses = (int) mysqli_fetch_assoc($q_proses)['proses'];
-        $nextProses = $lastProses + 1;
-    } else {
-        $nextProses = 2;
-    }
+    // Ambil proses/step saat ini menggunakan helper get_progres_skripsi()
+    $progresSaatIni = get_progres_skripsi($nim_clean);
+    $nextProses     = ($progresSaatIni !== '-') ? ((int)$progresSaatIni + 1) : 2;
 
     // Pindahkan langkah proses ke step selanjutnya
     $simpan = query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', '$nextProses', '$nim_clean')");
@@ -150,6 +156,96 @@ if (isset($_POST['tandai-selesai-step'])) {
     } else {
         echo json_encode(['status' => false, 'pesan' => 'Gagal mengubah proses SOP']);
     }
+    exit;
+}
+
+// ================= UBAH / TULIS JUDUL SKRIPSI =================
+if (isset($_POST['ubah-judul-skripsi'])) {
+    if (empty($nim_login)) {
+        echo json_encode(['status' => false, 'pesan' => 'Sesi tidak valid, silakan login ulang']);
+        exit;
+    }
+
+    $nim_clean  = bersihkan($nim_login);
+    $judul_raw  = trim(strip_tags(stripslashes((string)($_POST['judul'] ?? ''))));
+    $judul      = bersihkan($_POST['judul'] ?? '');
+
+    if ($judul === '') {
+        echo json_encode(['status' => false, 'pesan' => 'Judul skripsi tidak boleh kosong']);
+        exit;
+    }
+
+    // Pastikan mahasiswa sudah terdaftar dan status skripsinya aktif
+    $cekSkripsi = query("SELECT status FROM skripsi WHERE nim = '$nim_clean' LIMIT 1");
+    if (!$cekSkripsi || mysqli_num_rows($cekSkripsi) === 0) {
+        echo json_encode(['status' => false, 'pesan' => 'Data pendaftaran skripsi tidak ditemukan']);
+        exit;
+    }
+
+    $rowSkripsi = mysqli_fetch_assoc($cekSkripsi);
+    $stSkripsi  = strtolower(trim((string)$rowSkripsi['status']));
+    if ($stSkripsi === 'tidak aktif' || $stSkripsi === 'nonaktif') {
+        echo json_encode(['status' => false, 'pesan' => 'Status skripsi Anda belum aktif']);
+        exit;
+    }
+
+    // Pastikan mahasiswa sudah melewati tahap 2 (progres > 2)
+    $progresSekarang = get_progres_skripsi($nim_clean);
+    if ($progresSekarang === '-' || (int)$progresSekarang <= 2) {
+        echo json_encode(['status' => false, 'pesan' => 'Judul skripsi baru dapat ditulis atau diubah setelah melewati Tahap 2']);
+        exit;
+    }
+
+    // Simpan perubahan judul ke tabel skripsi
+    $update = query("UPDATE skripsi SET judul = '$judul' WHERE nim = '$nim_clean'");
+
+    if ($update) {
+        echo json_encode([
+            'status' => true,
+            'pesan'  => 'Judul skripsi berhasil disimpan',
+            'judul'  => $judul_raw
+        ]);
+    } else {
+        echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan judul skripsi']);
+    }
+    exit;
+}
+
+// ================= CETAK LEMBAR PERSETUJUAN PEMBIMBING (STEP 14) =================
+if (isset($_POST['cetak-persetujuan-pembimbing'])) {
+    if (empty($nim_login)) {
+        echo json_encode(['status' => false, 'pesan' => 'Sesi tidak valid']);
+        exit;
+    }
+
+    $nim_clean = bersihkan($nim_login);
+    $waktu     = time();
+
+    // Ambil proses/step saat ini menggunakan helper get_progres_skripsi()
+    $progresSaatIni = get_progres_skripsi($nim_clean);
+    $naikStep       = false;
+
+    // Hanya naikkan ke step 15 jika saat ini mahasiswa memang berada di step 14
+    if ((int)$progresSaatIni === 14) {
+        $simpan = query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', 15, '$nim_clean')");
+        if (!$simpan) {
+            echo json_encode(['status' => false, 'pesan' => 'Gagal memproses tahapan SOP']);
+            exit;
+        }
+        $naikStep = true;
+    }
+
+    // Link dummy cetak dokumen lembar persetujuan pembimbing
+    $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing/' . $nim_clean;
+
+    echo json_encode([
+        'status'    => true,
+        'pesan'     => $naikStep
+            ? 'Berhasil mencetak lembar persetujuan pembimbing dan melanjutkan ke tahap berikutnya'
+            : 'Membuka dokumen lembar persetujuan pembimbing',
+        'buka_tab'  => $cetakUrl,
+        'naik_step' => $naikStep
+    ]);
     exit;
 }
 ?>

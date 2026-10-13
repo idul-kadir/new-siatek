@@ -387,6 +387,9 @@ if (!$sudahLogin) {
                         $('#modalPratinjau').removeClass('show');
                         $('#iframePratinjau').attr('src', 'about:blank');
                         muatUlangTabel();
+                        if (typeof window.cekNotifikasiVerifikasi === 'function') {
+                            window.cekNotifikasiVerifikasi(true);
+                        }
                     }
                 },
                 error: function() {
@@ -423,6 +426,9 @@ if (!$sudahLogin) {
                         $('#modalPratinjau').removeClass('show');
                         $('#iframePratinjau').attr('src', 'about:blank');
                         muatUlangTabel();
+                        if (typeof window.cekNotifikasiVerifikasi === 'function') {
+                            window.cekNotifikasiVerifikasi(true);
+                        }
                     }
                 },
                 error: function() {

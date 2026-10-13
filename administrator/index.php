@@ -396,7 +396,8 @@ $activePage = $pageKey;
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Local JS -->
-    <script src="js/dashboard.js"></script>
+    <script>window.SIATEK_VERIFIKASI_PROSES_URL = '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/verifikasi/proses.php';</script>
+    <script src="js/dashboard.js?v=<?= @filemtime(__DIR__ . '/js/dashboard.js') ?: time() ?>"></script>
 
     <script>
     /* ===== Global Delete Confirmation ===== */

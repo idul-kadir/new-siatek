@@ -11,6 +11,8 @@ if (!$sudahLogin) {
     exit;
 }
 
+$userLevel = (int)($_SESSION['level'] ?? 0);
+
 // ================= AMBIL DATA TABEL SKRIPSI =================
 if(isset($_POST['ambil-tabel-skripsi'])){
     $cari     = bersihkan($_POST['cari'] ?? '');
@@ -18,6 +20,11 @@ if(isset($_POST['ambil-tabel-skripsi'])){
     $angkatan = bersihkan($_POST['angkatan'] ?? '');
     $status   = bersihkan($_POST['status'] ?? '');
     $progres  = bersihkan($_POST['progres'] ?? '');
+
+    // Jika yang login level 3 atau 5, paksa filter hanya sesuai program studinya
+    if (in_array($userLevel, [3, 5], true)) {
+        $prodi = get_prodi_user();
+    }
 
     $where = ["1=1"];
     if($cari !== '') {
@@ -47,12 +54,18 @@ if(isset($_POST['ambil-tabel-skripsi'])){
         }
     }
 
-    $sql = "SELECT s.*, m.nama AS nama_mhs, m.prodi, m.angkatan, p.nama AS nama_prodi 
+    $sql = "SELECT s.*, m.nama AS nama_mhs, m.prodi, m.angkatan, p.nama AS nama_prodi, 
+                   COALESCE(ps.waktu_terbaru, 0) AS waktu_progres
             FROM skripsi s 
             LEFT JOIN mahasiswa m ON s.nim = m.nim 
             LEFT JOIN prodi p ON m.prodi = p.kode 
+            LEFT JOIN (
+                SELECT mahasiswa, MAX(waktu) AS waktu_terbaru 
+                FROM progres_skripsi 
+                GROUP BY mahasiswa
+            ) ps ON s.nim = ps.mahasiswa 
             WHERE $whereSql 
-            ORDER BY s.nim DESC";
+            ORDER BY waktu_progres DESC, s.nim DESC";
 
     $ambil = query($sql);
 
@@ -72,7 +85,7 @@ if(isset($_POST['ambil-tabel-skripsi'])){
             }
             $d['progres_num'] = $progresVal;
             $sopItem = $sopMap[(int)$progresVal] ?? null;
-            $d['progres_label'] = $sopItem ? $sopItem['keterangan'] : ('Tahap ' . $progresVal);
+            $d['progres_label'] = $sopItem ? $sopItem['keterangan'] : '-';
             $d['eksekutor']     = $sopItem ? $sopItem['eksekutor'] : 'mahasiswa';
             $dataFiltered[] = $d;
         }
@@ -106,12 +119,16 @@ if(isset($_POST['ambil-tabel-skripsi'])){
                     <div class="flex items-center gap-3">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-base font-bold text-white shadow-sm"><?= $no ?></span>
                         <div class="min-w-0">
-                            <p class="font-semibold text-slate-800 leading-snug"><?= tampil($namaMhs) ?></p>
-                            <div class="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                                <span><?= tampil($data['nim']) ?></span>
-                                <?php if($prodiNm !== ''): ?><span>&bull;</span><span><?= tampil($prodiNm) ?></span><?php endif; ?>
-                                <?php if($angkatanTxt !== ''): ?><span>&bull;</span><span><?= tampil($angkatanTxt) ?></span><?php endif; ?>
+                            <div class="flex flex-wrap items-center gap-1.5 leading-snug">
+                                <p class="font-semibold text-slate-800"><?= tampil($namaMhs) ?></p>
+                                <?php if($prodiNm !== ''): ?>
+                                    <span class="text-slate-300">&bull;</span>
+                                    <span class="text-xs font-medium text-slate-500"><?= tampil($prodiNm) ?></span>
+                                <?php endif; ?>
                             </div>
+                            <p class="mt-0.5 text-xs text-slate-500 leading-snug">
+                                <?= tampil($data['progres_label']) ?>
+                            </p>
                         </div>
                     </div>
                 </td>
@@ -270,10 +287,13 @@ if(isset($_POST['muat-lembar-kerja'])){
             });
         </script>
 
-        <?php else: ?>
+        <?php else: 
+            $sopRow = mysqli_fetch_assoc(query("SELECT keterangan FROM sop_skripsi WHERE no='" . (int)$progres . "' LIMIT 1"));
+            $namaTugasSop = ($sopRow && !empty($sopRow['keterangan'])) ? $sopRow['keterangan'] : 'Tahapan Skripsi';
+        ?>
 
         <!-- CASE 2: PROSES BERJALAN SESUAI SOP SKRIPSI -->
-        <h5 class="font-bold text-slate-800 text-[14px] border-b border-slate-200 pb-2"><i class="fas fa-tasks mr-1.5 text-slate-400"></i>Tugas: SOP Tahap <?= tampil($progres) ?></h5>
+        <h5 class="font-bold text-slate-800 text-[14px] border-b border-slate-200 pb-2"><i class="fas fa-tasks mr-1.5 text-slate-400"></i>Tugas: <?= tampil($namaTugasSop) ?></h5>
         <div class="py-3">
             <?php 
             // Progres Verifikasi Berkas yang harus diproses di halaman mhs-verifikasi
@@ -285,7 +305,7 @@ if(isset($_POST['muat-lembar-kerja'])){
                         <i class="fas fa-clipboard-list"></i>
                     </div>
                     <h6 class="font-bold text-blue-800 text-sm mb-2">Verifikasi Berkas Mahasiswa</h6>
-                    <p class="text-xs text-blue-600 mb-4">Tugas pada tahap SOP <?= tampil($progres) ?> adalah melakukan verifikasi terhadap berkas mahasiswa. Proses ini tidak dilakukan di halaman ini.</p>
+                    <p class="text-xs text-blue-600 mb-4">Tugas pada tahapan ini adalah melakukan verifikasi terhadap berkas mahasiswa. Proses ini tidak dilakukan di halaman ini.</p>
                     <a href="<?= base_url() ?>/administrator/mhs-verifikasi" class="inline-block px-4 py-2 text-xs rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition">
                         Buka Halaman Verifikasi Berkas
                     </a>
@@ -297,67 +317,529 @@ if(isset($_POST['muat-lembar-kerja'])){
                     <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
                     <input type="hidden" name="progres_sekarang" value="<?= tampil($progres) ?>">
                     
-                    <?php if((string)$progres === '3'): ?>
-                        <!-- Form Khusus: SOP 3 (Penunjukkan Pembimbing) -->
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan</label>
-                            <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat..." required>
-                        </div>
-                        <div class="mb-4 grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 1</label>
-                                <select name="pembimbing1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                    <option value="">-- Pilih Dosen --</option>
-                                    <?php
-                                    $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
-                                    if($qDosen){
-                                        while($dsn = mysqli_fetch_assoc($qDosen)){
-                                            echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
+                    <?php
+                    switch((int)$progres):
+                        case 3:
+                            // Form Khusus: SOP 3 (Penunjukkan Pembimbing)
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan</label>
+                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat..." required>
+                            </div>
+                            <div class="mb-4 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 1</label>
+                                    <select name="pembimbing1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen --</option>
+                                        <?php
+                                        $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+                                        if($qDosen){
+                                            while($dsn = mysqli_fetch_assoc($qDosen)){
+                                                echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
+                                            }
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 2</label>
+                                    <select name="pembimbing2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen --</option>
+                                        <?php
+                                        if($qDosen) mysqli_data_seek($qDosen, 0);
+                                        if($qDosen){
+                                            while($dsn = mysqli_fetch_assoc($qDosen)){
+                                                echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
+                                            }
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" name="tindakan" value="selesai">
+                            <?php
+                            break;
+
+                        case 9:
+                            // Form Khusus: SOP 9 (Penunjukkan Penguji Hasil)
+                            // Ambil pembimbing 1 & 2 dari surat penunjukan sebelumnya sebagai nilai default/saran
+                            $suratBimb = mysqli_fetch_assoc(query("SELECT sp.pembimbing1, sp.pembimbing2 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_pembimbing = sp.id WHERE s.nim = '$nim' LIMIT 1"));
+                            $saranPenguji1 = $suratBimb ? (string)$suratBimb['pembimbing1'] : '';
+                            $saranPenguji2 = $suratBimb ? (string)$suratBimb['pembimbing2'] : '';
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji</label>
+                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
+                            </div>
+                            <div class="space-y-3 mb-4">
+                                <?php 
+                                // Query list dosen sekali saja
+                                $listDosen = [];
+                                $qDosenAll = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+                                if($qDosenAll){
+                                    while($dRow = mysqli_fetch_assoc($qDosenAll)){
+                                        $listDosen[] = $dRow;
+                                    }
+                                }
+
+                                for($i = 1; $i <= 5; $i++): 
+                                    // Default nilai terpilih: Penguji 1 -> Pembimbing 1, Penguji 2 -> Pembimbing 2
+                                    $defaultTerpilih = '';
+                                    $labelSaran = '';
+                                    if($i === 1 && $saranPenguji1 !== ''){
+                                        $defaultTerpilih = $saranPenguji1;
+                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 1)</span>';
+                                    } elseif($i === 2 && $saranPenguji2 !== ''){
+                                        $defaultTerpilih = $saranPenguji2;
+                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 2)</span>';
+                                    }
+                                ?>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Penguji <?= $i ?><?= $labelSaran ?></label>
+                                    <select name="penguji<?= $i ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen Penguji <?= $i ?> --</option>
+                                        <?php
+                                        foreach($listDosen as $dsn){
+                                            $selected = ((string)$dsn['id'] === (string)$defaultTerpilih) ? 'selected' : '';
+                                            echo '<option value="' . tampil($dsn['id']) . '" ' . $selected . '>' . tampil($dsn['nama']) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                <?php endfor; ?>
+                            </div>
+                            <input type="hidden" name="tindakan" value="selesai">
+                            <?php
+                            break;
+
+                        case 10:
+                            // Form Khusus: SOP 10 (Jadwal Ujian Hasil)
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Undangan</label>
+                                <input type="text" name="no_undangan_hasil" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat undangan..." required>
+                            </div>
+                            <div class="mb-4 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Ujian</label>
+                                    <input type="date" name="tanggal_hasil" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Ujian</label>
+                                    <input type="text" name="jam_hasil" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: 08:00 - Selesai" required>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Ruangan / Tempat Ujian</label>
+                                <input type="text" name="ruangan_hasil" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: Ruang Sidang Jurusan" required>
+                            </div>
+                            <input type="hidden" name="tindakan" value="selesai">
+                            <?php
+                            break;
+
+                        case 11:
+                            // Form Khusus: SOP 11 (Unggah File Komponen Ujian Hasil) - Style & auto-upload event change persis portal mahasiswa
+                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 11 ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
+                            $listSyarat = [];
+                            if($qSyarat){
+                                while($sRow = mysqli_fetch_assoc($qSyarat)){
+                                    $listSyarat[] = $sRow;
+                                }
+                                usort($listSyarat, function($a, $b) {
+                                    $isBaA = stripos($a['nama_berkas'], 'Berita Acara') !== false ? 0 : 1;
+                                    $isBaB = stripos($b['nama_berkas'], 'Berita Acara') !== false ? 0 : 1;
+                                    if ($isBaA !== $isBaB) return $isBaA - $isBaB;
+                                    return strnatcasecmp($a['nama_berkas'], $b['nama_berkas']);
+                                });
+                            }
+
+                            // Ambil data dosen penguji dari surat_penunjukkan hasil mahasiswa
+                            $dosenPenguji = [];
+                            $qSuratPenguji = query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 
+                                                    FROM skripsi s 
+                                                    JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id 
+                                                    WHERE s.nim = '$nim' LIMIT 1");
+                            if($qSuratPenguji && mysqli_num_rows($qSuratPenguji) > 0){
+                                $rPenguji = mysqli_fetch_assoc($qSuratPenguji);
+                                for($p = 1; $p <= 5; $p++){
+                                    $idDsn = trim((string)($rPenguji['penguji' . $p] ?? ''));
+                                    if($idDsn !== ''){
+                                        $qNama = query("SELECT nama FROM dosen WHERE id = '$idDsn' OR nip = '$idDsn' LIMIT 1");
+                                        $dosenPenguji[$p] = ($qNama && mysqli_num_rows($qNama) > 0) ? mysqli_fetch_assoc($qNama)['nama'] : $idDsn;
+                                    } else {
+                                        $dosenPenguji[$p] = '';
+                                    }
+                                }
+                            }
+                            ?>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4 mb-4">
+                                <?php foreach($listSyarat as $syarat): 
+                                    // Cek apakah berkas sudah pernah diunggah
+                                    $idSyarat = (int)$syarat['id'];
+                                    $qBerkas = query("SELECT b.file, f.nama_file FROM berkas_skripsi b LEFT JOIN files f ON b.file = f.id WHERE b.id_persyaratan = $idSyarat AND b.nim = '$nim' LIMIT 1");
+                                    $berkasAda = ($qBerkas && mysqli_num_rows($qBerkas) > 0);
+                                    $urlBerkas = '';
+                                    if($berkasAda){
+                                        $dFile = mysqli_fetch_assoc($qBerkas);
+                                        $urlBerkas = url_file($dFile['file']);
+                                    }
+
+                                    // Mapping nama dosen penguji jika berkas merupakan Lembar Penilaian 1 - 5
+                                    $namaPengujiTerkait = '';
+                                    if(preg_match('/Lembar Penilaian (\d+)/i', $syarat['nama_berkas'], $mPen)){
+                                        $idxP = (int)$mPen[1];
+                                        if(!empty($dosenPenguji[$idxP])){
+                                            $namaPengujiTerkait = htmlspecialchars($dosenPenguji[$idxP]);
                                         }
                                     }
-                                    ?>
-                                </select>
+                                ?>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-xs font-bold text-slate-700">
+                                            <?= htmlspecialchars($syarat['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                        </label>
+                                        <div class="flex items-center gap-3">
+                                            <?php if($urlBerkas): ?>
+                                            <a href="<?= $urlBerkas ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                            <?php endif; ?>
+                                            <span class="status-berkas-badge text-[10px] font-semibold <?= $berkasAda ? 'text-emerald-600 font-bold' : 'text-slate-400' ?>" data-badge-id="<?= $idSyarat ?>">
+                                                <?= $berkasAda ? '<i class="fas fa-check-circle mr-1"></i>Tersimpan' : 'Belum diunggah' ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf" 
+                                        class="auto-upload-operator w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $berkasAda ? 'bg-emerald-50 border-emerald-200' : '' ?>"
+                                        data-id-syarat="<?= $idSyarat ?>"
+                                        data-nim="<?= tampil($nim) ?>"
+                                    >
+                                    <?php if($namaPengujiTerkait !== ''): ?>
+                                    <p class="mt-1 text-[11px] text-slate-500 leading-tight">
+                                        <i class="fas fa-user-tie text-orange-500 mr-1"></i>Dosen Penguji: <span class="font-semibold text-slate-700"><?= $namaPengujiTerkait ?></span>
+                                    </p>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 2</label>
-                                <select name="pembimbing2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                    <option value="">-- Pilih Dosen --</option>
-                                    <?php
-                                    if($qDosen) mysqli_data_seek($qDosen, 0);
-                                    if($qDosen){
-                                        while($dsn = mysqli_fetch_assoc($qDosen)){
-                                            echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
+                            <script>
+                            $(document).ready(function(){
+                                $('.auto-upload-operator').on('change', function(){
+                                    var fileInput = this;
+                                    var idSyarat = $(fileInput).data('id-syarat');
+                                    var nimMhs = $(fileInput).data('nim');
+                                    var badge = $('[data-badge-id="' + idSyarat + '"]');
+
+                                    if(!fileInput.files || fileInput.files.length === 0) return;
+
+                                    badge.removeClass('text-slate-400 text-emerald-600 text-rose-500').addClass('text-orange-500 font-semibold');
+                                    badge.html('<i class="fas fa-spinner animate-spin mr-1"></i>Mengunggah...');
+                                    $(fileInput).prop('disabled', true);
+
+                                    var formData = new FormData();
+                                    formData.append('unggah-komponen-per-item', '1');
+                                    formData.append('id_persyaratan', idSyarat);
+                                    formData.append('nim', nimMhs);
+                                    formData.append('file', fileInput.files[0]);
+
+                                    $.ajax({
+                                        url: '<?= base_url() ?>/administrator/pages/pengelolaan/mahasiswa/skripsi/proses.php',
+                                        method: 'POST',
+                                        data: formData,
+                                        contentType: false,
+                                        processData: false,
+                                        dataType: 'json',
+                                        success: function(res) {
+                                            if(res.status){
+                                                toast(res.pesan, 'success');
+                                                badge.removeClass('text-orange-500').addClass('text-emerald-600 font-bold');
+                                                badge.html('<i class="fas fa-check-circle mr-1"></i>Tersimpan');
+                                                $(fileInput).addClass('bg-emerald-50 border-emerald-200');
+
+                                                // Jika seluruh berkas komponen sudah lengkap, progres otomatis naik ke 12
+                                                if(res.selesai_semua){
+                                                    toast('Seluruh komponen ujian telah lengkap diunggah! Progres mahasiswa dimajukan.', 'success');
+                                                    setTimeout(function(){
+                                                        $('#modalLembarKerja').removeClass('show');
+                                                        muatUlangTabel();
+                                                    }, 1200);
+                                                }
+                                            } else {
+                                                toast(res.pesan, 'error');
+                                                badge.removeClass('text-orange-500').addClass('text-rose-500 font-semibold');
+                                                badge.html('<i class="fas fa-times-circle mr-1"></i>Gagal');
+                                            }
+                                            $(fileInput).prop('disabled', false);
+                                        },
+                                        error: function(xhr, status, err) {
+                                            var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : err;
+                                            toast('Error upload: ' + detail, 'error');
+                                            badge.removeClass('text-orange-500').addClass('text-rose-500 font-semibold');
+                                            badge.html('Gagal koneksi');
+                                            $(fileInput).prop('disabled', false);
+                                        }
+                                    });
+                                });
+                            });
+                            </script>
+                            <?php
+                            break;
+
+                        case 17:
+                            // Form Khusus: SOP 17 (Penunjukkan Penguji Tutup)
+                            // Ambil penguji 1 - 5 dari surat penunjukan hasil sebelumnya sebagai nilai default/saran
+                            $suratHasil = mysqli_fetch_assoc(query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id WHERE s.nim = '$nim' LIMIT 1"));
+                            if(!$suratHasil){
+                                $suratHasil = mysqli_fetch_assoc(query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1"));
+                            }
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji</label>
+                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
+                            </div>
+                            <div class="space-y-3 mb-4">
+                                <?php 
+                                $listDosen = [];
+                                $qDosenAll = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+                                if($qDosenAll){
+                                    while($dRow = mysqli_fetch_assoc($qDosenAll)){
+                                        $listDosen[] = $dRow;
+                                    }
+                                }
+
+                                for($i = 1; $i <= 5; $i++): 
+                                    $saranPenguji = $suratHasil ? trim((string)($suratHasil['penguji' . $i] ?? '')) : '';
+                                    $defaultTerpilih = '';
+                                    $labelSaran = '';
+                                    if($saranPenguji !== ''){
+                                        $defaultTerpilih = $saranPenguji;
+                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Penguji Hasil ' . $i . ')</span>';
+                                    }
+                                ?>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Penguji <?= $i ?><?= $labelSaran ?></label>
+                                    <select name="penguji<?= $i ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen Penguji <?= $i ?> --</option>
+                                        <?php
+                                        foreach($listDosen as $dsn){
+                                            $selected = ((string)$dsn['id'] === (string)$defaultTerpilih) ? 'selected' : '';
+                                            echo '<option value="' . tampil($dsn['id']) . '" ' . $selected . '>' . tampil($dsn['nama']) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                <?php endfor; ?>
+                            </div>
+                            <input type="hidden" name="tindakan" value="selesai">
+                            <?php
+                            break;
+
+                        case 18:
+                            // Form Khusus: SOP 18 (Jadwal Ujian Tutup)
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Undangan</label>
+                                <input type="text" name="no_undangan_tutup" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat undangan..." required>
+                            </div>
+                            <div class="mb-4 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Ujian</label>
+                                    <input type="date" name="tanggal_tutup" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Ujian</label>
+                                    <input type="text" name="jam_tutup" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: 08:00 - Selesai" required>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Ruangan / Tempat Ujian</label>
+                                <input type="text" name="ruangan_tutup" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: Ruang Sidang Jurusan" required>
+                            </div>
+                            <input type="hidden" name="tindakan" value="selesai">
+                            <?php
+                            break;
+
+                        case 19:
+                            // Form Khusus: SOP 19 (Unggah File Komponen / Lembar Penilaian Ujian Tutup)
+                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 19 ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
+                            $listSyarat = [];
+                            if($qSyarat){
+                                while($sRow = mysqli_fetch_assoc($qSyarat)){
+                                    $listSyarat[] = $sRow;
+                                }
+                                usort($listSyarat, function($a, $b) {
+                                    $isBaA = stripos($a['nama_berkas'], 'Berita Acara') !== false ? 0 : 1;
+                                    $isBaB = stripos($b['nama_berkas'], 'Berita Acara') !== false ? 0 : 1;
+                                    if ($isBaA !== $isBaB) return $isBaA - $isBaB;
+                                    return strnatcasecmp($a['nama_berkas'], $b['nama_berkas']);
+                                });
+                            }
+
+                            // Ambil data dosen penguji dari surat_penunjukkan tutup mahasiswa
+                            $dosenPenguji = [];
+                            $qSuratPenguji = query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 
+                                                    FROM skripsi s 
+                                                    JOIN surat_penunjukkan sp ON s.penunjukkan_tutup = sp.id 
+                                                    WHERE s.nim = '$nim' LIMIT 1");
+                            if(!$qSuratPenguji || mysqli_num_rows($qSuratPenguji) === 0){
+                                $qSuratPenguji = query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 
+                                                        FROM surat_penunjukkan 
+                                                        WHERE nim = '$nim' AND keterangan = 'PENGUJI TUTUP' 
+                                                        ORDER BY id DESC LIMIT 1");
+                            }
+                            if($qSuratPenguji && mysqli_num_rows($qSuratPenguji) > 0){
+                                $rPenguji = mysqli_fetch_assoc($qSuratPenguji);
+                                for($p = 1; $p <= 5; $p++){
+                                    $idDsn = trim((string)($rPenguji['penguji' . $p] ?? ''));
+                                    if($idDsn !== ''){
+                                        $qNama = query("SELECT nama FROM dosen WHERE id = '$idDsn' OR nip = '$idDsn' LIMIT 1");
+                                        $dosenPenguji[$p] = ($qNama && mysqli_num_rows($qNama) > 0) ? mysqli_fetch_assoc($qNama)['nama'] : $idDsn;
+                                    } else {
+                                        $dosenPenguji[$p] = '';
+                                    }
+                                }
+                            }
+                            ?>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4 mb-4">
+                                <?php foreach($listSyarat as $syarat): 
+                                    $idSyarat = (int)$syarat['id'];
+                                    $qBerkas = query("SELECT b.file, f.nama_file FROM berkas_skripsi b LEFT JOIN files f ON b.file = f.id WHERE b.id_persyaratan = $idSyarat AND b.nim = '$nim' LIMIT 1");
+                                    $berkasAda = ($qBerkas && mysqli_num_rows($qBerkas) > 0);
+                                    $urlBerkas = '';
+                                    if($berkasAda){
+                                        $dFile = mysqli_fetch_assoc($qBerkas);
+                                        $urlBerkas = url_file($dFile['file']);
+                                    }
+
+                                    // Mapping nama dosen penguji jika berkas merupakan Lembar Penilaian 1 - 5
+                                    $namaPengujiTerkait = '';
+                                    if(preg_match('/Lembar Penilaian (\d+)/i', $syarat['nama_berkas'], $mPen)){
+                                        $idxP = (int)$mPen[1];
+                                        if(!empty($dosenPenguji[$idxP])){
+                                            $namaPengujiTerkait = htmlspecialchars($dosenPenguji[$idxP]);
                                         }
                                     }
-                                    ?>
-                                </select>
+                                ?>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-xs font-bold text-slate-700">
+                                            <?= htmlspecialchars($syarat['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                        </label>
+                                        <div class="flex items-center gap-3">
+                                            <?php if($urlBerkas): ?>
+                                            <a href="<?= $urlBerkas ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                            <?php endif; ?>
+                                            <span class="status-berkas-badge text-[10px] font-semibold <?= $berkasAda ? 'text-emerald-600 font-bold' : 'text-slate-400' ?>" data-badge-id="<?= $idSyarat ?>">
+                                                <?= $berkasAda ? '<i class="fas fa-check-circle mr-1"></i>Tersimpan' : 'Belum diunggah' ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf" 
+                                        class="auto-upload-operator w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $berkasAda ? 'bg-emerald-50 border-emerald-200' : '' ?>"
+                                        data-id-syarat="<?= $idSyarat ?>"
+                                        data-nim="<?= tampil($nim) ?>"
+                                    >
+                                    <?php if($namaPengujiTerkait !== ''): ?>
+                                    <p class="mt-1 text-[11px] text-slate-500 leading-tight">
+                                        <i class="fas fa-user-tie text-orange-500 mr-1"></i>Dosen Penguji: <span class="font-semibold text-slate-700"><?= $namaPengujiTerkait ?></span>
+                                    </p>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
-                        </div>
-                        <input type="hidden" name="tindakan" value="selesai">
-                    <?php else: ?>
-                        <!-- Form Default untuk tahapan lainnya -->
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">Pilih Aksi</label>
-                            <select name="tindakan" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                <option value="">-- Pilih Tindakan --</option>
-                                <option value="selesai">Selesai (Lanjut ke tahap berikutnya)</option>
-                                <option value="tolak">Tolak / Revisi (Kembalikan ke mahasiswa)</option>
-                            </select>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">Upload Berkas (Jika Ada)</label>
-                            <input type="file" name="file_balasan" class="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
-                            <p class="text-[10px] text-slate-400 mt-1">Upload BA, Surat Penunjukan, atau berkas lainnya jika disyaratkan oleh SOP.</p>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">Catatan Operator</label>
-                            <textarea name="catatan" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Ketik pesan atau catatan..."></textarea>
-                        </div>
-                    <?php endif; ?>
+                            <script>
+                            $(document).ready(function(){
+                                $('.auto-upload-operator').on('change', function(){
+                                    var fileInput = this;
+                                    var idSyarat = $(fileInput).data('id-syarat');
+                                    var nimMhs = $(fileInput).data('nim');
+                                    var badge = $('[data-badge-id="' + idSyarat + '"]');
+
+                                    if(!fileInput.files || fileInput.files.length === 0) return;
+
+                                    badge.removeClass('text-slate-400 text-emerald-600 text-rose-500').addClass('text-orange-500 font-semibold');
+                                    badge.html('<i class="fas fa-spinner animate-spin mr-1"></i>Mengunggah...');
+                                    $(fileInput).prop('disabled', true);
+
+                                    var formData = new FormData();
+                                    formData.append('unggah-komponen-per-item', '1');
+                                    formData.append('id_persyaratan', idSyarat);
+                                    formData.append('nim', nimMhs);
+                                    formData.append('file', fileInput.files[0]);
+
+                                    $.ajax({
+                                        url: '<?= base_url() ?>/administrator/pages/pengelolaan/mahasiswa/skripsi/proses.php',
+                                        method: 'POST',
+                                        data: formData,
+                                        contentType: false,
+                                        processData: false,
+                                        dataType: 'json',
+                                        success: function(res) {
+                                            if(res.status){
+                                                toast(res.pesan, 'success');
+                                                badge.removeClass('text-orange-500').addClass('text-emerald-600 font-bold');
+                                                badge.html('<i class="fas fa-check-circle mr-1"></i>Tersimpan');
+                                                $(fileInput).addClass('bg-emerald-50 border-emerald-200');
+
+                                                // Jika seluruh berkas komponen sudah lengkap, progres otomatis naik
+                                                if(res.selesai_semua){
+                                                    toast('Seluruh komponen ujian telah lengkap diunggah! Progres mahasiswa dimajukan.', 'success');
+                                                    setTimeout(function(){
+                                                        $('#modalLembarKerja').removeClass('show');
+                                                        muatUlangTabel();
+                                                    }, 1200);
+                                                }
+                                            } else {
+                                                toast(res.pesan, 'error');
+                                                badge.removeClass('text-orange-500').addClass('text-rose-500 font-semibold');
+                                                badge.html('<i class="fas fa-times-circle mr-1"></i>Gagal');
+                                            }
+                                            $(fileInput).prop('disabled', false);
+                                        },
+                                        error: function(xhr, status, err) {
+                                            var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : err;
+                                            toast('Error upload: ' + detail, 'error');
+                                            badge.removeClass('text-orange-500').addClass('text-rose-500 font-semibold');
+                                            badge.html('Gagal koneksi');
+                                            $(fileInput).prop('disabled', false);
+                                        }
+                                    });
+                                });
+                            });
+                            </script>
+                            <?php
+                            break;
+
+                        default:
+                            // Tampilan default untuk tahapan yang belum diimplementasikan form khususnya
+                            ?>
+                            <div class="rounded-lg bg-slate-100 border border-slate-200 p-4 text-center">
+                                <div class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-500 mb-2 text-base">
+                                    <i class="fas fa-tools"></i>
+                                </div>
+                                <h6 class="font-bold text-slate-700 text-xs mb-1">Tahapan Sedang Dipersiapkan</h6>
+                                <p class="text-xs text-slate-500">Lembar kerja untuk tahapan ini belum memiliki formulir khusus.</p>
+                            </div>
+                            <?php
+                            break;
+                    endswitch;
                     
+                    // Tombol submit manual hanya untuk tahap 3, 9, 10, 17, 18. Tahap 11 & 19 auto-upload per item (tanpa tombol).
+                    if(in_array((string)$progres, ['3', '9', '10', '17', '18'], true)): ?>
                     <div class="flex justify-end">
-                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm" data-text="<?= ((string)$progres === '3') ? 'Buat Surat' : 'Eksekusi Tugas' ?>"><?= ((string)$progres === '3') ? 'Buat Surat' : 'Eksekusi Tugas' ?></button>
+                        <?php
+                        $labelTombol = 'Simpan';
+                        if(in_array((string)$progres, ['3', '9', '17'], true)) {
+                            $labelTombol = 'Buat Surat';
+                        } elseif(in_array((string)$progres, ['10', '18'], true)) {
+                            $labelTombol = 'Simpan Jadwal';
+                        }
+                        ?>
+                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm" data-text="<?= $labelTombol ?>"><?= $labelTombol ?></button>
                     </div>
+                    <?php endif; ?>
                 </form>
             <?php endif; ?>
         </div>
@@ -411,6 +893,11 @@ if(isset($_POST['muat-lembar-kerja'])){
                     if (respon.status) {
                         $('#modalLembarKerja').removeClass('show');
                         muatUlangTabel();
+
+                        // Jika respon menginstruksikan buka tab baru (misal cetak dokumen)
+                        if (respon.buka_tab) {
+                            window.open(respon.buka_tab, '_blank');
+                        }
                     }
                 },
                 error: function(xhr, status, err) {
@@ -483,76 +970,426 @@ if(isset($_POST['proses-lembar-kerja'])){
     if($aksi === 'proses-sop'){
         $progresSekarang = (int)($_POST['progres_sekarang'] ?? 1);
         
-        // Khusus SOP 3 (Penunjukkan Pembimbing)
-        if($progresSekarang === 3) {
-            $noSurat = bersihkan($_POST['no_surat'] ?? '');
-            $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
-            $pembimbing2 = bersihkan($_POST['pembimbing2'] ?? '');
+        switch($progresSekarang):
+            case 3:
+                // SOP 3: Penunjukkan Pembimbing
+                $noSurat = bersihkan($_POST['no_surat'] ?? '');
+                $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
+                $pembimbing2 = bersihkan($_POST['pembimbing2'] ?? '');
 
-            if($noSurat === '' || $pembimbing1 === '' || $pembimbing2 === ''){
-                echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan pembimbing wajib diisi']);
+                if($noSurat === '' || $pembimbing1 === '' || $pembimbing2 === ''){
+                    echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan pembimbing wajib diisi']);
+                    exit;
+                }
+
+                // Simpan surat penunjukkan ke tabel terpisah dengan ID manual (timestamp integer)
+                $waktuSistem = time();
+                $tanggalSekarang = date('Y-m-d');
+                $idSurat = $waktuSistem;
+                
+                $insertSurat = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, pembimbing2, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$pembimbing2', '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
+
+                if($insertSurat) {
+                    // Update skripsi table with the new surat_penunjukkan ID
+                    $updateSkripsi = query("UPDATE skripsi SET penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
+
+                    // Majukan progres (step/progres naik 1 tingkat, dari 3 ke 4)
+                    $progresBaru = 4;
+                    $waktuProgres = time() + 1;
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+                    
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan berhasil dibuat']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan data penunjukkan pembimbing: ' . mysqli_error($GLOBALS['koneksi'])]);
+                }
                 exit;
-            }
 
-            // Simpan surat penunjukkan ke tabel terpisah dengan ID manual (timestamp integer)
-            $waktuSistem = time();
-            $tanggalSekarang = date('Y-m-d');
-            $idSurat = $waktuSistem; // ID manual berupa timestamp UNIX
-            
-            // Kolom penguji tidak diisi untuk SOP Penunjukkan Pembimbing. Berikan nilai string kosong ('') agar tidak error di MySQL tanpa default value
-            $insertSurat = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, pembimbing2, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$pembimbing2', '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
+            case 9:
+                // SOP 9: Penunjukkan Penguji Hasil
+                $noSurat  = bersihkan($_POST['no_surat'] ?? '');
+                $penguji1 = bersihkan($_POST['penguji1'] ?? '');
+                $penguji2 = bersihkan($_POST['penguji2'] ?? '');
+                $penguji3 = bersihkan($_POST['penguji3'] ?? '');
+                $penguji4 = bersihkan($_POST['penguji4'] ?? '');
+                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
 
-            if($insertSurat) {
-                
-                // Update skripsi table with the new surat_penunjukkan ID
-                $updateSkripsi = query("UPDATE skripsi SET penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
+                if($noSurat === '' || $penguji1 === '' || $penguji2 === '' || $penguji3 === '' || $penguji4 === '' || $penguji5 === ''){
+                    echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan kelima dosen penguji wajib diisi']);
+                    exit;
+                }
 
-                // Majukan progres (step/progres naik 1 tingkat, dari 3 ke 4)
-                $progresBaru = 4;
-                $waktuProgres = time() + 1; // tambah 1 detik agar timestamp selalu unik
-                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
-                
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan data penunjukkan pembimbing: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
-        }
+                $waktuSistem = time();
+                $tanggalSekarang = date('Y-m-d');
+                $idSurat = $waktuSistem;
 
-        // Logic normal untuk tahapan lainnya
-        if($tindakan === 'selesai'){
-            $progresBaru = $progresSekarang + 1;
-            $waktu = time();
-            
-            // Upload berkas balasan bila ada
-            $id_file = null;
-            if(isset($_FILES['file_balasan']) && $_FILES['file_balasan']['error'] == 0){
-                $id_file = upload_file($_FILES['file_balasan'], 'skripsi');
-            }
+                // Surat penunjukkan penguji murni mencatat penguji saja
+                $insertSurat = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI HASIL')");
 
-            // Catat progres baru
-            $simpan = query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktu, $progresBaru, '$nim')");
-            
-            if($simpan){
-                echo json_encode(['status' => true, 'pesan' => 'Tahapan berhasil diselesaikan. Progres skripsi mahasiswa dimajukan']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal memajukan tahapan skripsi (Mungkin ada kendala database: ' . addslashes(mysqli_error($GLOBALS['koneksi'])) . ')']);
-            }
-            exit;
-        } elseif($tindakan === 'tolak'){
-            // Di sini kita bisa catat ke tabel revisi jika ada
-            
-            // Upload berkas balasan bila ada (misalnya untuk file lembar koreksi revisi)
-            if(isset($_FILES['file_balasan']) && $_FILES['file_balasan']['error'] == 0){
-                upload_file($_FILES['file_balasan'], 'skripsi');
-            }
+                if($insertSurat) {
+                    // Update ke tabel skripsi kolom penunjukkan_hasil
+                    query("UPDATE skripsi SET penunjukkan_hasil = '$idSurat' WHERE nim = '$nim'");
 
-            echo json_encode(['status' => true, 'pesan' => 'Tahapan ditolak / dikembalikan ke mahasiswa untuk revisi']);
-            exit;
-        }
+                    // Majukan progres (SOP 9 -> SOP 10)
+                    $progresBaru = 10;
+                    $waktuProgres = time() + 1;
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan penguji berhasil dibuat dan sudah diteruskan keakun Ketua Jurusan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan data penunjukkan penguji: ' . mysqli_error($GLOBALS['koneksi'])]);
+                }
+                exit;
+
+            case 10:
+                // SOP 10: Pengaturan Jadwal Ujian Hasil
+                $noUndangan = bersihkan($_POST['no_undangan_hasil'] ?? '');
+                $tanggal    = bersihkan($_POST['tanggal_hasil'] ?? '');
+                $jam        = bersihkan($_POST['jam_hasil'] ?? '');
+                $ruangan    = bersihkan($_POST['ruangan_hasil'] ?? '');
+
+                if($noUndangan === '' || $tanggal === '' || $jam === '' || $ruangan === ''){
+                    echo json_encode(['status' => false, 'pesan' => 'Nomor undangan, tanggal, jam, dan ruangan wajib diisi']);
+                    exit;
+                }
+
+                $updateJadwal = query("UPDATE skripsi SET 
+                    no_undangan_hasil = '$noUndangan', 
+                    tanggal_hasil = '$tanggal', 
+                    jam_hasil = '$jam', 
+                    ruangan_hasil = '$ruangan' 
+                    WHERE nim = '$nim'");
+
+                if($updateJadwal){
+                    // Majukan progres (SOP 10 -> SOP 11)
+                    $progresBaru = 11;
+                    $waktuProgres = time();
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    // Link dummy cetak dokumen komponen ujian hasil
+                    $cetakUrl = base_url() . "/administrator/dokumen/komponen-hasil/" . $nim;
+
+                    echo json_encode([
+                        'status'    => true, 
+                        'pesan'     => 'Jadwal ujian hasil berhasil disimpan dan mahasiswa siap ujian',
+                        'buka_tab'  => $cetakUrl
+                    ]);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan jadwal ujian: ' . mysqli_error($GLOBALS['koneksi'])]);
+                }
+                exit;
+
+            case 11:
+                // SOP 11: Unggah Berkas Komponen Ujian Hasil
+                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 11");
+                $suksesUpload = 0;
+                $waktuSistem = time();
+
+                if($qSyarat){
+                    while($syarat = mysqli_fetch_assoc($qSyarat)){
+                        $idSyarat = (int)$syarat['id'];
+                        $inputName = 'berkas_' . $idSyarat;
+
+                        if(isset($_FILES[$inputName]) && $_FILES[$inputName]['error'] == 0){
+                            // Cek terlebih dahulu apakah berkas dengan persyaratan ini sudah ada
+                            $cekBerkas = query("SELECT id, file FROM berkas_skripsi WHERE id_persyaratan = $idSyarat AND nim = '$nim' LIMIT 1");
+                            $sudahAdaBerkas = ($cekBerkas && mysqli_num_rows($cekBerkas) > 0);
+                            $idFileLama = '';
+                            if($sudahAdaBerkas){
+                                $rowBerkas = mysqli_fetch_assoc($cekBerkas);
+                                $idFileLama = trim((string)($rowBerkas['file'] ?? ''));
+                            }
+
+                            // Kirim $idFileLama sebagai parameter ke-3 agar file fisik lama dihapus otomatis oleh upload_file()
+                            $idFile = upload_file($_FILES[$inputName], 'skripsi', $idFileLama);
+                            if($idFile !== false){
+                                if($sudahAdaBerkas){
+                                    query("UPDATE berkas_skripsi SET file = '$idFile' WHERE id_persyaratan = $idSyarat AND nim = '$nim'");
+                                } else {
+                                    query("INSERT INTO berkas_skripsi (id_persyaratan, nim, file) VALUES ($idSyarat, '$nim', '$idFile')");
+                                }
+                                $suksesUpload++;
+                            }
+                        }
+                    }
+                }
+
+                if($suksesUpload > 0){
+                    // Majukan progres (SOP 11 -> SOP 12)
+                    $progresBaru = 12;
+                    $waktuProgres = time() + 1;
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    // Cek apakah mahasiswa sudah mengunggah semua persyaratan di step 12
+                    $qTotal12 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 12");
+                    $jmlTotal12 = ($qTotal12 && mysqli_num_rows($qTotal12) > 0) ? (int)mysqli_fetch_assoc($qTotal12)['total'] : 0;
+
+                    $qValid12 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12)");
+                    $jmlValid12 = ($qValid12 && mysqli_num_rows($qValid12) > 0) ? (int)mysqli_fetch_assoc($qValid12)['cnt'] : 0;
+
+                    if($jmlTotal12 > 0 && $jmlValid12 >= $jmlTotal12){
+                        $waktuProgres13 = $waktuProgres + 1;
+                        query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres13, 13, '$nim')");
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Seluruh berkas komponen ujian hasil berhasil diunggah dan progres dilanjutkan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah berkas komponen ujian']);
+                }
+                exit;
+
+            case 17:
+                // SOP 17: Penunjukkan Penguji Tutup
+                $noSurat  = bersihkan($_POST['no_surat'] ?? '');
+                $penguji1 = bersihkan($_POST['penguji1'] ?? '');
+                $penguji2 = bersihkan($_POST['penguji2'] ?? '');
+                $penguji3 = bersihkan($_POST['penguji3'] ?? '');
+                $penguji4 = bersihkan($_POST['penguji4'] ?? '');
+                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
+
+                if($noSurat === '' || $penguji1 === '' || $penguji2 === '' || $penguji3 === '' || $penguji4 === '' || $penguji5 === ''){
+                    echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan kelima dosen penguji wajib diisi']);
+                    exit;
+                }
+
+                $waktuSistem = time();
+                $tanggalSekarang = date('Y-m-d');
+                $idSurat = $waktuSistem;
+
+                // Simpan surat penunjukkan penguji tutup
+                $insertSurat = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI TUTUP')");
+
+                if($insertSurat) {
+                    // Update ke tabel skripsi kolom penunjukkan_tutup
+                    query("UPDATE skripsi SET penunjukkan_tutup = '$idSurat' WHERE nim = '$nim'");
+
+                    // Majukan progres (SOP 17 -> SOP 18)
+                    $progresBaru = 18;
+                    $waktuProgres = time() + 1;
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan penguji tutup berhasil dibuat dan sudah diteruskan ke akun Ketua Jurusan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan data penunjukkan penguji tutup: ' . mysqli_error($GLOBALS['koneksi'])]);
+                }
+                exit;
+
+            case 18:
+                // SOP 18: Pengaturan Jadwal Ujian Tutup
+                $noUndangan = bersihkan($_POST['no_undangan_tutup'] ?? '');
+                $tanggal    = bersihkan($_POST['tanggal_tutup'] ?? '');
+                $jam        = bersihkan($_POST['jam_tutup'] ?? '');
+                $ruangan    = bersihkan($_POST['ruangan_tutup'] ?? '');
+
+                if($noUndangan === '' || $tanggal === '' || $jam === '' || $ruangan === ''){
+                    echo json_encode(['status' => false, 'pesan' => 'Nomor undangan, tanggal, jam, dan ruangan wajib diisi']);
+                    exit;
+                }
+
+                $updateJadwal = query("UPDATE skripsi SET 
+                    no_undangan_tutup = '$noUndangan', 
+                    tanggal_tutup = '$tanggal', 
+                    jam_tutup = '$jam', 
+                    ruangan_tutup = '$ruangan' 
+                    WHERE nim = '$nim'");
+
+                if($updateJadwal){
+                    // Majukan progres (SOP 18 -> SOP 19)
+                    $progresBaru = 19;
+                    $waktuProgres = time();
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    // Link cetak dokumen komponen ujian tutup
+                    $cetakUrl = base_url() . "/administrator/dokumen/komponen-tutup/" . $nim;
+
+                    echo json_encode([
+                        'status'    => true, 
+                        'pesan'     => 'Jadwal ujian tutup berhasil disimpan dan mahasiswa siap ujian',
+                        'buka_tab'  => $cetakUrl
+                    ]);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan jadwal ujian tutup: ' . mysqli_error($GLOBALS['koneksi'])]);
+                }
+                exit;
+
+            case 19:
+                // SOP 19: Unggah Berkas Komponen / Lembar Penilaian Ujian Tutup
+                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 19");
+                $suksesUpload = 0;
+
+                if($qSyarat){
+                    while($syarat = mysqli_fetch_assoc($qSyarat)){
+                        $idSyarat = (int)$syarat['id'];
+                        $inputName = 'berkas_' . $idSyarat;
+
+                        if(isset($_FILES[$inputName]) && $_FILES[$inputName]['error'] == 0){
+                            $cekBerkas = query("SELECT id, file FROM berkas_skripsi WHERE id_persyaratan = $idSyarat AND nim = '$nim' LIMIT 1");
+                            $sudahAdaBerkas = ($cekBerkas && mysqli_num_rows($cekBerkas) > 0);
+                            $idFileLama = '';
+                            if($sudahAdaBerkas){
+                                $rowBerkas = mysqli_fetch_assoc($cekBerkas);
+                                $idFileLama = trim((string)($rowBerkas['file'] ?? ''));
+                            }
+
+                            $idFile = upload_file($_FILES[$inputName], 'skripsi', $idFileLama);
+                            if($idFile !== false){
+                                if($sudahAdaBerkas){
+                                    query("UPDATE berkas_skripsi SET file = '$idFile' WHERE id_persyaratan = $idSyarat AND nim = '$nim'");
+                                } else {
+                                    query("INSERT INTO berkas_skripsi (id_persyaratan, nim, file) VALUES ($idSyarat, '$nim', '$idFile')");
+                                }
+                                $suksesUpload++;
+                            }
+                        }
+                    }
+                }
+
+                if($suksesUpload > 0){
+                    // Majukan progres (SOP 19 -> SOP 20)
+                    $progresBaru = 20;
+                    $waktuProgres = time() + 1;
+                    query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+
+                    // Cek apakah mahasiswa sudah mengunggah semua persyaratan di step 20
+                    $qTotal20 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 20");
+                    $jmlTotal20 = ($qTotal20 && mysqli_num_rows($qTotal20) > 0) ? (int)mysqli_fetch_assoc($qTotal20)['total'] : 0;
+
+                    $qValid20 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20)");
+                    $jmlValid20 = ($qValid20 && mysqli_num_rows($qValid20) > 0) ? (int)mysqli_fetch_assoc($qValid20)['cnt'] : 0;
+
+                    if($jmlTotal20 > 0 && $jmlValid20 >= $jmlTotal20){
+                        $waktuProgres21 = $waktuProgres + 1;
+                        query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres21, 21, '$nim')");
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Seluruh berkas komponen ujian tutup berhasil diunggah dan progres dilanjutkan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah berkas komponen ujian tutup']);
+                }
+                exit;
+
+            default:
+                // Logic normal untuk tahapan lainnya
+                if($tindakan === 'selesai'){
+                    $progresBaru = $progresSekarang + 1;
+                    $waktu = time();
+                    
+                    // Upload berkas balasan bila ada
+                    $id_file = null;
+                    if(isset($_FILES['file_balasan']) && $_FILES['file_balasan']['error'] == 0){
+                        $id_file = upload_file($_FILES['file_balasan'], 'skripsi');
+                    }
+
+                    // Catat progres baru
+                    $simpan = query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktu, $progresBaru, '$nim')");
+                    
+                    if($simpan){
+                        echo json_encode(['status' => true, 'pesan' => 'Tahapan berhasil diselesaikan. Progres skripsi mahasiswa dimajukan']);
+                    } else {
+                        echo json_encode(['status' => false, 'pesan' => 'Gagal memajukan tahapan skripsi (Mungkin ada kendala database: ' . addslashes(mysqli_error($GLOBALS['koneksi'])) . ')']);
+                    }
+                    exit;
+                } elseif($tindakan === 'tolak'){
+                    // Upload berkas balasan bila ada (misalnya untuk file lembar koreksi revisi)
+                    if(isset($_FILES['file_balasan']) && $_FILES['file_balasan']['error'] == 0){
+                        upload_file($_FILES['file_balasan'], 'skripsi');
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Tahapan ditolak / dikembalikan ke mahasiswa untuk revisi']);
+                    exit;
+                }
+                break;
+        endswitch;
     }
 
     echo json_encode(['status' => false, 'pesan' => 'Aksi lembar kerja tidak dikenali']);
+    exit;
+}
+
+// ================= UNGGAH KOMPONEN UJIAN PER ITEM (EVENT CHANGE AUTO-UPLOAD) =================
+if(isset($_POST['unggah-komponen-per-item'])){
+    if (ob_get_length()) ob_clean();
+
+    $idSyarat = (int)($_POST['id_persyaratan'] ?? 0);
+    $nim = bersihkan($_POST['nim'] ?? '');
+
+    if($idSyarat <= 0 || $nim === ''){
+        echo json_encode(['status' => false, 'pesan' => 'Data tidak lengkap']);
+        exit;
+    }
+
+    if(!isset($_FILES['file']) || $_FILES['file']['error'] !== 0){
+        echo json_encode(['status' => false, 'pesan' => 'Gagal membuka file']);
+        exit;
+    }
+
+    // Cek terlebih dahulu apakah berkas untuk persyaratan ini sudah pernah diunggah di berkas_skripsi
+    $cek = query("SELECT id, file FROM berkas_skripsi WHERE id_persyaratan = $idSyarat AND nim = '$nim' LIMIT 1");
+    $sudahAda = ($cek && mysqli_num_rows($cek) > 0);
+    $idFileLama = '';
+    if($sudahAda){
+        $rowLama = mysqli_fetch_assoc($cek);
+        $idFileLama = trim((string)($rowLama['file'] ?? ''));
+    }
+
+    // Kirim $idFileLama ke parameter ke-3 upload_file() agar file fisik lama dihapus otomatis
+    $idFile = upload_file($_FILES['file'], 'skripsi', $idFileLama);
+    if($idFile === false){
+        echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah file']);
+        exit;
+    }
+
+    // Simpan ke tabel berkas_skripsi (update atau insert)
+    if($sudahAda){
+        query("UPDATE berkas_skripsi SET file = '$idFile' WHERE id_persyaratan = $idSyarat AND nim = '$nim'");
+    } else {
+        // Kolom id adalah auto_increment, tidak perlu di-insert manual
+        query("INSERT INTO berkas_skripsi (id_persyaratan, nim, file) VALUES ($idSyarat, '$nim', '$idFile')");
+    }
+
+    // Cari progres dari persyaratan yang diunggah (misal 11 untuk Ujian Hasil, 19 untuk Ujian Tutup)
+    $qProgSyarat = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = $idSyarat LIMIT 1");
+    $progresSyarat = ($qProgSyarat && mysqli_num_rows($qProgSyarat) > 0) ? (int)mysqli_fetch_assoc($qProgSyarat)['progres'] : 11;
+    $progresSelanjutnya = $progresSyarat + 1;
+
+    // Cek apakah seluruh berkas untuk SOP progres ini sudah lengkap diunggah mahasiswa ini
+    $qTotalSyarat = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSyarat");
+    $totalSyarat = $qTotalSyarat ? (int)mysqli_fetch_assoc($qTotalSyarat)['total'] : 6;
+
+    $qUploaded = query("SELECT COUNT(DISTINCT b.id_persyaratan) AS total FROM berkas_skripsi b JOIN persyaratan_berkas_skripsi p ON b.id_persyaratan = p.id WHERE p.progres = $progresSyarat AND b.nim = '$nim'");
+    $totalUploaded = $qUploaded ? (int)mysqli_fetch_assoc($qUploaded)['total'] : 0;
+
+    $selesaiSemua = ($totalSyarat > 0 && $totalUploaded >= $totalSyarat);
+
+    if($selesaiSemua){
+        // Majukan progres otomatis ke tahap berikutnya (11 -> 12, atau 19 -> 20) jika belum mencapai tahap tersebut
+        $currProg = get_progres_skripsi($nim);
+        $waktuProgres = time() + 1;
+        if((int)$currProg < $progresSelanjutnya){
+            query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresSelanjutnya, '$nim')");
+            $currProg = $progresSelanjutnya;
+        }
+
+        // Setelah naik step, langsung cek apakah mahasiswa sudah mengunggah semua persyaratan di step tersebut (12 atau 20)
+        if((int)$currProg === $progresSelanjutnya){
+            $qTotalNext = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya");
+            $jmlTotalNext = ($qTotalNext && mysqli_num_rows($qTotalNext) > 0) ? (int)mysqli_fetch_assoc($qTotalNext)['total'] : 0;
+
+            $qValidNext = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya)");
+            $jmlValidNext = ($qValidNext && mysqli_num_rows($qValidNext) > 0) ? (int)mysqli_fetch_assoc($qValidNext)['cnt'] : 0;
+
+            if($jmlTotalNext > 0 && $jmlValidNext >= $jmlTotalNext){
+                $progresLompat = $progresSelanjutnya + 1;
+                $waktuProgresLompat = $waktuProgres + 1;
+                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgresLompat, $progresLompat, '$nim')");
+            }
+        }
+    }
+
+    echo json_encode([
+        'status'        => true,
+        'pesan'         => 'Berkas berhasil disimpan',
+        'selesai_semua' => $selesaiSemua
+    ]);
     exit;
 }
 

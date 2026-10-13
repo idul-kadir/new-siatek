@@ -220,3 +220,30 @@ function get_progres_skripsi($nim) {
     }
     return '-';
 }
+
+// ================= FUNCTION AMBIL PRODI USER LOGIN =================
+// Mengambil kode prodi staf/user yang sedang login dari session atau database
+function get_prodi_user() {
+    if (!empty($_SESSION['prodi'])) {
+        return trim((string)$_SESSION['prodi']);
+    }
+    $nip = bersihkan((string)($_SESSION['nip'] ?? $_SESSION['user_id'] ?? ''));
+    if ($nip === '') {
+        return '';
+    }
+    $level = (int)($_SESSION['level'] ?? 0);
+    if ($level === 5) {
+        $id = bersihkan((string)($_SESSION['id'] ?? ''));
+        $q = query("SELECT kode FROM prodi WHERE (kaprodi = '$nip' AND '$nip' != '') OR (kaprodi = '$id' AND '$id' != '') LIMIT 1");
+        if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['kode'])) {
+            $_SESSION['prodi'] = trim((string)$r['kode']);
+            return $_SESSION['prodi'];
+        }
+    }
+    $qDosen = query("SELECT prodi FROM dosen WHERE nip = '$nip' LIMIT 1");
+    if ($qDosen && ($rD = mysqli_fetch_assoc($qDosen)) && !empty($rD['prodi'])) {
+        $_SESSION['prodi'] = trim((string)$rD['prodi']);
+        return $_SESSION['prodi'];
+    }
+    return '';
+}

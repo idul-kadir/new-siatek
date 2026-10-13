@@ -317,3 +317,233 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleSubmenu(btn, sub);
     });
 });
+
+// ============= NOTIFIKASI VERIFIKASI BERKAS RINGAN (BADGE SIDEBAR + WEB AUDIO) =============
+(function () {
+    'use strict';
+
+    var SESSION_STATE_KEY = 'siatek_notif_verifikasi_state_v3';
+    var POLL_VISIBLE_MS   = 4000; // 4 detik saat tab aktif
+    var POLL_HIDDEN_MS    = 8000; // 8 detik saat tab di latar belakang
+
+    var audioCtx     = null;
+    var pendingSound = false;
+    var isFetching   = false;
+    var lastCheckTs  = 0;
+    var pollTimer    = null;
+
+    function ensureAudioContext() {
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!audioCtx) {
+            try {
+                audioCtx = new AudioContextClass();
+            } catch (e) {
+                return null;
+            }
+        }
+        return audioCtx;
+    }
+
+    // Sintesis bunyi "ting-tong" jernih via Web Audio API (0 KB file eksternal, hemat memori)
+    function playNotifChime() {
+        var ctx = ensureAudioContext();
+        if (!ctx) return;
+
+        try {
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(function () {
+                    pendingSound = false;
+                    triggerOscillator(ctx);
+                }).catch(function () {
+                    pendingSound = true;
+                });
+                return;
+            }
+            triggerOscillator(ctx);
+        } catch (e) {
+            pendingSound = true;
+        }
+    }
+
+    function triggerOscillator(ctx) {
+        try {
+            var now = ctx.currentTime;
+
+            // Nada lonceng 3-nada jernih: D5 (587.33 Hz) -> G5 (783.99 Hz) -> C6 (1046.50 Hz)
+            var notes = [
+                { freq: 587.33,  start: 0,    dur: 0.16, peak: 0.28 },
+                { freq: 783.99,  start: 0.13, dur: 0.18, peak: 0.30 },
+                { freq: 1046.50, start: 0.27, dur: 0.38, peak: 0.32 }
+            ];
+
+            notes.forEach(function (n) {
+                var osc  = ctx.createOscillator();
+                var gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(n.freq, now + n.start);
+
+                gain.gain.setValueAtTime(0.0001, now + n.start);
+                gain.gain.exponentialRampToValueAtTime(n.peak, now + n.start + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + n.dur);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now + n.start);
+                osc.stop(now + n.start + n.dur + 0.02);
+            });
+        } catch (e) {}
+    }
+
+    // Unlock AudioContext pada interaksi pertama user jika sempat tertahan autoplay browser
+    function unlockAudioOnGesture() {
+        var ctx = ensureAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(function () {});
+        }
+        if (pendingSound) {
+            pendingSound = false;
+            playNotifChime();
+        }
+    }
+    ['pointerdown', 'mousedown', 'click', 'keydown', 'touchstart'].forEach(function (evt) {
+        document.addEventListener(evt, unlockAudioOnGesture, { passive: true });
+    });
+
+    function updateSidebarBadge(totalMhs) {
+        var sbDot   = document.getElementById('sidebarPengelolaanBadge');
+        var sbBadge = document.getElementById('sidebarVerifikasiBadge');
+
+        if (sbDot) {
+            sbDot.classList.toggle('hidden', totalMhs === 0);
+        }
+        if (sbBadge) {
+            if (totalMhs > 0) {
+                sbBadge.textContent = totalMhs > 99 ? '99+' : String(totalMhs);
+                sbBadge.classList.remove('hidden');
+                sbBadge.classList.add('inline-flex');
+            } else {
+                sbBadge.classList.add('hidden');
+                sbBadge.classList.remove('inline-flex');
+            }
+        }
+    }
+
+    function getStoredState() {
+        try {
+            var raw = sessionStorage.getItem(SESSION_STATE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function saveStoredState(state) {
+        try {
+            sessionStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
+        } catch (e) {}
+    }
+
+    function isAnyModalOpen() {
+        var modals = document.querySelectorAll('.modal-overlay.show');
+        return modals && modals.length > 0;
+    }
+
+    function cekNotifikasiVerifikasi(silentAfterAction) {
+        if (isFetching) return;
+        isFetching = true;
+        lastCheckTs = Date.now();
+
+        var url = (typeof window.SIATEK_VERIFIKASI_PROSES_URL === 'string' && window.SIATEK_VERIFIKASI_PROSES_URL !== '')
+            ? window.SIATEK_VERIFIKASI_PROSES_URL
+            : '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/verifikasi/proses.php';
+
+        var formData = new FormData();
+        formData.append('cek-notifikasi', '1');
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (!res || !res.status) return;
+
+            var totalBerkas = parseInt(res.total_berkas, 10) || 0;
+            var totalMhs    = parseInt(res.total_mhs, 10) || 0;
+            var maxId       = parseInt(res.max_id, 10) || 0;
+            var maxFile     = String(res.max_file || '');
+            var fingerprint = String(res.fingerprint || '0');
+
+            // Tampilkan jumlah mahasiswa yang menunggu di samping menu sidebar
+            updateSidebarBadge(totalMhs);
+
+            var prev = getStoredState();
+            var isFirstCheckInSession = !prev;
+
+            var hasNewDocument = prev && totalMhs > 0 && (
+                totalMhs > (prev.total_mhs || 0) ||
+                totalBerkas > (prev.total_berkas || 0) ||
+                maxId > (prev.max_id || 0) ||
+                (maxFile !== '' && maxFile !== (prev.max_file || '')) ||
+                (fingerprint !== '0' && fingerprint !== (prev.fingerprint || '0'))
+            );
+
+            var countChanged = prev && (
+                totalMhs !== (prev.total_mhs || 0) ||
+                totalBerkas !== (prev.total_berkas || 0) ||
+                fingerprint !== (prev.fingerprint || '0')
+            );
+
+            saveStoredState({
+                total_berkas: totalBerkas,
+                total_mhs: totalMhs,
+                max_id: maxId,
+                max_file: maxFile,
+                fingerprint: fingerprint
+            });
+
+            if (silentAfterAction) return;
+
+            if (countChanged && typeof window.muatUlangTabel === 'function' && !isAnyModalOpen()) {
+                window.muatUlangTabel();
+            }
+
+            if (totalMhs > 0 && (hasNewDocument || isFirstCheckInSession)) {
+                playNotifChime();
+            }
+        })
+        .catch(function () {})
+        .finally(function () {
+            isFetching = false;
+        });
+    }
+
+    function scheduleNextPoll() {
+        if (pollTimer) clearTimeout(pollTimer);
+        var delay = document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS;
+        pollTimer = setTimeout(function () {
+            cekNotifikasiVerifikasi(false);
+            scheduleNextPoll();
+        }, delay);
+    }
+
+    window.cekNotifikasiVerifikasi = cekNotifikasiVerifikasi;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        cekNotifikasiVerifikasi(false);
+        scheduleNextPoll();
+
+        document.addEventListener('visibilitychange', function () {
+            scheduleNextPoll();
+            if (!document.hidden && (Date.now() - lastCheckTs > 2000)) {
+                cekNotifikasiVerifikasi(false);
+            }
+        });
+    });
+})();
+

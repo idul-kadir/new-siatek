@@ -10,6 +10,50 @@ if (!$sudahLogin) {
     exit;
 }
 
+// ================= CEK NOTIFIKASI RINGAN (POLLING) =================
+if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
+    // Lepas session lock segera agar request ringan & tidak memblokir navigasi
+    session_write_close();
+
+    $condVerifikasi = "ts.status = 'menunggu' 
+        AND pbs.progres IN (1, 4, 7, 12, 15, 20)
+        AND (
+            SELECT proses FROM progres_skripsi 
+            WHERE mahasiswa = ts.nim 
+            ORDER BY waktu DESC LIMIT 1
+        ) = (pbs.progres + 1)";
+
+    $sqlRingkas = "SELECT 
+                       COUNT(ts.id) AS total_berkas,
+                       COUNT(DISTINCT ts.nim) AS total_mhs,
+                       COALESCE(MAX(ts.id), 0) AS max_id,
+                       COALESCE(MAX(ts.file), '') AS max_file
+                   FROM temp_skripsi ts
+                   JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id
+                   WHERE $condVerifikasi";
+
+    $qRingkas = query($sqlRingkas);
+    $rowRingkas = ($qRingkas && mysqli_num_rows($qRingkas) > 0)
+        ? mysqli_fetch_assoc($qRingkas)
+        : ['total_berkas' => 0, 'total_mhs' => 0, 'max_id' => 0, 'max_file' => ''];
+
+    $totalBerkas = (int)($rowRingkas['total_berkas'] ?? 0);
+    $totalMhs    = (int)($rowRingkas['total_mhs'] ?? 0);
+    $maxId       = (int)($rowRingkas['max_id'] ?? 0);
+    $maxFile     = (string)($rowRingkas['max_file'] ?? '');
+    $fingerprint = $totalBerkas > 0 ? md5($totalBerkas . '|' . $totalMhs . '|' . $maxId . '|' . $maxFile) : '0';
+
+    echo json_encode([
+        'status'       => true,
+        'total_berkas' => $totalBerkas,
+        'total_mhs'    => $totalMhs,
+        'max_id'       => $maxId,
+        'max_file'     => $maxFile,
+        'fingerprint'  => $fingerprint,
+    ]);
+    exit;
+}
+
 // ================= AMBIL ANTRIAN VERIFIKASI =================
 if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
     $cari   = bersihkan($_POST['cari'] ?? '');

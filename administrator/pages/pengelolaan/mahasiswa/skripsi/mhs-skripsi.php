@@ -8,6 +8,12 @@ if (!$sudahLogin) {
     header('Location: ' . base_url() . '/');
     exit;
 }
+
+$userLevel = (int)($_SESSION['level'] ?? 0);
+
+// Jika level 3 atau 5, ambil program studi user
+$isFilterProdi = in_array($userLevel, [3, 5], true);
+$userProdi     = $isFilterProdi ? get_prodi_user() : '';
 ?>
 <style>
   .btn-circle {
@@ -149,16 +155,27 @@ if (!$sudahLogin) {
 
       <!-- Filter Prodi -->
       <select id="fProdi"
-        class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
-        <option value="">Semua Program Studi</option>
-        <?php
-        $qProdi = query("SELECT kode, nama FROM prodi ORDER BY nama ASC");
-        if($qProdi){
-            while($pr = mysqli_fetch_assoc($qProdi)){
-                echo '<option value="' . tampil($pr['kode']) . '">' . tampil($pr['nama']) . '</option>';
-            }
-        }
-        ?>
+        class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 <?= $isFilterProdi ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>" <?= $isFilterProdi ? 'disabled' : '' ?>>
+        <?php if (!$isFilterProdi): ?>
+          <option value="">Semua Program Studi</option>
+          <?php
+          $qProdi = query("SELECT kode, nama FROM prodi ORDER BY nama ASC");
+          if($qProdi){
+              while($pr = mysqli_fetch_assoc($qProdi)){
+                  echo '<option value="' . tampil($pr['kode']) . '">' . tampil($pr['nama']) . '</option>';
+              }
+          }
+          ?>
+        <?php else: ?>
+          <?php
+          $qProdi = query("SELECT kode, nama FROM prodi WHERE kode = '" . bersihkan($userProdi) . "' LIMIT 1");
+          $namaProdiUser = $userProdi;
+          if($qProdi && ($pr = mysqli_fetch_assoc($qProdi))){
+              $namaProdiUser = $pr['nama'];
+          }
+          echo '<option value="' . tampil($userProdi) . '" selected>' . tampil($namaProdiUser) . '</option>';
+          ?>
+        <?php endif; ?>
       </select>
 
       <!-- Filter Angkatan -->
@@ -166,7 +183,11 @@ if (!$sudahLogin) {
         class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
         <option value="">Semua Angkatan</option>
         <?php
-        $qAngkatan = query("SELECT DISTINCT m.angkatan FROM skripsi s JOIN mahasiswa m ON s.nim = m.nim WHERE m.angkatan IS NOT NULL AND m.angkatan != '' ORDER BY m.angkatan DESC");
+        $whereAngkatan = "WHERE m.angkatan IS NOT NULL AND m.angkatan != ''";
+        if ($isFilterProdi && $userProdi !== '') {
+            $whereAngkatan .= " AND m.prodi = '" . bersihkan($userProdi) . "'";
+        }
+        $qAngkatan = query("SELECT DISTINCT m.angkatan FROM skripsi s JOIN mahasiswa m ON s.nim = m.nim $whereAngkatan ORDER BY m.angkatan DESC");
         if($qAngkatan){
             while($ang = mysqli_fetch_assoc($qAngkatan)){
                 echo '<option value="' . tampil($ang['angkatan']) . '">Angkatan ' . tampil($ang['angkatan']) . '</option>';
@@ -192,7 +213,7 @@ if (!$sudahLogin) {
         $qSop = query("SELECT no, keterangan FROM sop_skripsi ORDER BY no ASC");
         if($qSop){
             while($sop = mysqli_fetch_assoc($qSop)){
-                echo '<option value="' . (int)$sop['no'] . '">' . (int)$sop['no'] . '. ' . tampil($sop['keterangan']) . '</option>';
+                echo '<option value="' . (int)$sop['no'] . '">' . tampil($sop['keterangan']) . '</option>';
             }
         }
         ?>
@@ -307,7 +328,7 @@ if (!$sudahLogin) {
         container.innerHTML = '<div class="acc-loading py-4 text-center"><div class="spinner-slate mx-auto"></div><p class="mt-3 text-muted" style="font-size: .85rem;">Memuat data...</p></div>';
 
         var cari = $('#fCari').val() || '';
-        var prodi = $('#fProdi').val() || '';
+        var prodi = '<?= $isFilterProdi ? addslashes($userProdi) : '' ?>' || $('#fProdi').val() || '';
         var angkatan = $('#fAngkatan').val() || '';
         var status = $('#fStatus').val() || '';
         var progres = $('#fProgres').val() || '';
@@ -353,7 +374,11 @@ if (!$sudahLogin) {
 
       $('#btnReset').on('click', function(){
           $('#fCari').val('');
+          <?php if (!$isFilterProdi): ?>
           $('#fProdi').val('');
+          <?php else: ?>
+          $('#fProdi').val('<?= addslashes($userProdi) ?>');
+          <?php endif; ?>
           $('#fAngkatan').val('');
           $('#fStatus').val('Aktif');
           $('#fProgres').val('');

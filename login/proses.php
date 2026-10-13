@@ -78,6 +78,14 @@ if (isset($_POST['masuk-login'])) {
         $_SESSION['peran']      = 'staf';
         $_SESSION['profil']     = $row['profil'] ?? '';
 
+        // jika bukan mahasiswa (staf) dan level 3 atau 5, wajib menambahkan session prodi
+        $levelStaf = (int)($row['level'] ?? 0);
+        if ($levelStaf === 3 || $levelStaf === 5) {
+            $_SESSION['prodi'] = ambil_prodi_staf($row, $levelStaf);
+        } else {
+            unset($_SESSION['prodi']);
+        }
+
         echo json_encode([
             'status' => true,
             'pesan'  => 'Login berhasil. Mengalihkan...',
@@ -270,6 +278,15 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
         $_SESSION['level']      = $akun['level'];
         $_SESSION['peran']      = 'staf';
         $_SESSION['profil']     = $akun['profil'] ?? '';
+
+        // jika bukan mahasiswa (staf) dan level 3 atau 5, wajib menambahkan session prodi
+        $levelStaf = (int)($akun['level'] ?? 0);
+        if ($levelStaf === 3 || $levelStaf === 5) {
+            $_SESSION['prodi'] = ambil_prodi_staf($akun, $levelStaf);
+        } else {
+            unset($_SESSION['prodi']);
+        }
+
         $key = $akun['nip'];
         // kolom foto di tabel dosen bernama `profil` (menyimpan id file dari tabel files)
         // hanya simpan foto Google jika user belum punya foto
@@ -350,4 +367,19 @@ function simpan_foto_google($url, $tabel_asal) {
     }
 
     return $id_file;
+}
+
+// ambil kode prodi untuk staf level 3 (operator -> dosen.prodi) atau level 5 (kaprodi -> prodi.kode, fallback dosen.prodi)
+function ambil_prodi_staf($akun, $level) {
+    $level = (int)$level;
+    if ($level === 5) {
+        $nip = bersihkan((string)($akun['nip'] ?? ''));
+        $id  = bersihkan((string)($akun['id'] ?? ''));
+        $q   = query("SELECT kode FROM prodi WHERE (kaprodi = '$nip' AND '$nip' != '') OR (kaprodi = '$id' AND '$id' != '') LIMIT 1");
+        $r   = $q ? mysqli_fetch_assoc($q) : null;
+        if (!empty($r['kode'])) {
+            return trim((string)$r['kode']);
+        }
+    }
+    return trim((string)($akun['prodi'] ?? ''));
 }

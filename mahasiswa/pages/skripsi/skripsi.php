@@ -46,12 +46,25 @@ if ($qMhs && mysqli_num_rows($qMhs) > 0) {
 
 // Ambil Data Skripsi & Pembimbing
 // Cek status pendaftaran di tabel skripsi
+$judulAsli = '';
 $statusSkripsiDb = null;
-$qSkr = query("SELECT judul, penunjukkan_pembimbing, status FROM skripsi WHERE nim = '$nim' LIMIT 1");
+$qSkr = query("SELECT * FROM skripsi WHERE nim = '$nim' LIMIT 1");
 if ($qSkr && mysqli_num_rows($qSkr) > 0) {
     $row = mysqli_fetch_assoc($qSkr);
     $statusSkripsiDb = strtolower(trim((string)$row['status']));
-    $dSkr['judul'] = $row['judul'] ?: 'Belum mengajukan judul skripsi';
+    $judulAsli = trim((string)($row['judul'] ?? ''));
+    $dSkr['judul'] = $judulAsli !== '' ? $judulAsli : 'Belum mengajukan judul skripsi';
+
+    // Ambil Jadwal Ujian dari kolom tabel skripsi (jika sudah terisi)
+    if (!empty($row['tanggal_proposal']) && $row['tanggal_proposal'] !== '0000-00-00') {
+        $jadwal['proposal'] = date('d M Y', strtotime($row['tanggal_proposal']));
+    }
+    if (!empty($row['tanggal_hasil']) && $row['tanggal_hasil'] !== '0000-00-00') {
+        $jadwal['hasil'] = date('d M Y', strtotime($row['tanggal_hasil']));
+    }
+    if (!empty($row['tanggal_tutup']) && $row['tanggal_tutup'] !== '0000-00-00') {
+        $jadwal['tutup'] = date('d M Y', strtotime($row['tanggal_tutup']));
+    }
     
     // Ambil Pembimbing dari tabel surat_penunjukkan (untuk skripsi)
     if (!empty($row['penunjukkan_pembimbing'])) {
@@ -95,14 +108,19 @@ if ($qSkr && mysqli_num_rows($qSkr) > 0) {
     $dSkr['judul'] = 'Belum mengajukan judul skripsi';
 }
 
-// Ambil Jadwal Proposal, Hasil, Tutup (kolom tgl_ujian ada di hasil & tutup, proposal cek bila ada)
+// Ambil Jadwal Proposal, Hasil, Tutup (fallback jika ada tabel terpisah)
 $tahapan = ['hasil' => 'tgl_ujian', 'tutup' => 'tgl_ujian'];
 foreach ($tahapan as $tabel => $kolomTgl) {
-    $qJadwal = query("SELECT $kolomTgl FROM $tabel WHERE nim = '$nim' LIMIT 1");
-    if ($qJadwal && mysqli_num_rows($qJadwal) > 0) {
-        $j = mysqli_fetch_assoc($qJadwal);
-        if (!empty($j[$kolomTgl]) && $j[$kolomTgl] != '0000-00-00') {
-            $jadwal[$tabel] = date('d M Y', strtotime($j[$kolomTgl]));
+    if ($jadwal[$tabel] !== 'Belum dijadwalkan') continue;
+    // Cek apakah tabel ada di database sebelum query
+    $cekTabel = query("SHOW TABLES LIKE '$tabel'");
+    if ($cekTabel && mysqli_num_rows($cekTabel) > 0) {
+        $qJadwal = query("SELECT $kolomTgl FROM $tabel WHERE nim = '$nim' LIMIT 1");
+        if ($qJadwal && mysqli_num_rows($qJadwal) > 0) {
+            $j = mysqli_fetch_assoc($qJadwal);
+            if (!empty($j[$kolomTgl]) && $j[$kolomTgl] != '0000-00-00') {
+                $jadwal[$tabel] = date('d M Y', strtotime($j[$kolomTgl]));
+            }
         }
     }
 }
@@ -110,6 +128,23 @@ foreach ($tahapan as $tabel => $kolomTgl) {
 // Ambil Status Proses SOP dari tabel progres_skripsi via helper
 $currentProgres = get_progres_skripsi($nim);
 $lastProsesId = ($currentProgres !== '-') ? (int) $currentProgres : 0;
+
+// Ambil Data Penguji (Ujian Hasil: step <= 12, atau Ujian Tutup: step > 12)
+$dPenguji = [];
+$jenisPenguji = ($lastProsesId <= 12) ? 'PENGUJI HASIL' : 'PENGUJI TUTUP';
+$qPenguji = query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%$jenisPenguji%' ORDER BY tanggal DESC LIMIT 1");
+if ($qPenguji && mysqli_num_rows($qPenguji) > 0) {
+    $rowPenguji = mysqli_fetch_assoc($qPenguji);
+    for ($i = 1; $i <= 5; $i++) {
+        $idPenguji = trim((string)$rowPenguji["penguji$i"]);
+        if ($idPenguji !== '') {
+            $qNamaDosen = query("SELECT nama FROM dosen WHERE id = '$idPenguji' OR nip = '$idPenguji' LIMIT 1");
+            $dPenguji[$i] = ($qNamaDosen && mysqli_num_rows($qNamaDosen) > 0) ? mysqli_fetch_assoc($qNamaDosen)['nama'] : $idPenguji;
+        } else {
+            $dPenguji[$i] = '-';
+        }
+    }
+}
 
 /* --- Susun Array Info Skripsi --- */
 $infoSkripsi = [
@@ -155,14 +190,16 @@ if ($querySop && mysqli_num_rows($querySop) > 0) {
             }
         }
 
+        $judulFormatted = ucfirst(trim((string)$row['keterangan']));
+
         if ($st === 'aktif') {
-            $progresSaatIni = $row['keterangan'];
+            $progresSaatIni = $judulFormatted;
         }
 
         $steps[] = [
             'id'       => $row['no'],
             'urutan'   => $noSop,
-            'judul'    => $row['keterangan'],
+            'judul'    => $judulFormatted,
             'desc'     => 'Eksekutor: ' . ucfirst(strtolower($row['eksekutor'])),
             'executor' => ucfirst(strtolower($row['eksekutor'])),
             'status'   => $st,
@@ -192,6 +229,7 @@ if (!$currentStep && !empty($steps)) {
 $hasSkripsiRecord  = ($statusSkripsiDb !== null);
 $isSkripsiInactive = ($statusSkripsiDb === 'tidak aktif' || $statusSkripsiDb === 'nonaktif');
 $hasProgres        = ($currentProgres !== '-');
+$canEditJudul      = ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 2);
 
 /* --- Ambil Persyaratan Berkas sesuai progres saat ini --- */
 $berkasDibutuhkan = [];
@@ -210,6 +248,44 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
     if ($qSudah && mysqli_num_rows($qSudah) > 0) {
         while ($t = mysqli_fetch_assoc($qSudah)) {
             $berkasSudahDunggah[] = (int) $t['id_persyaratan'];
+        }
+    }
+}
+
+/* --- Khusus Step 11 & 12: Load Berkas Persyaratan Lembar Koreksi --- */
+$berkasStep12 = [];
+$berkasStep12Sudah = [];
+if ($hasSkripsiRecord && !$isSkripsiInactive && ($lastProsesId == 11 || $lastProsesId == 12)) {
+    // Ambil berkas koreksi tepat pada progres = 12
+    $qB12 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 12 ORDER BY id ASC");
+    if ($qB12 && mysqli_num_rows($qB12) > 0) {
+        while ($b = mysqli_fetch_assoc($qB12)) {
+            $berkasStep12[] = $b;
+        }
+    }
+    $qSudah12 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12)");
+    if ($qSudah12 && mysqli_num_rows($qSudah12) > 0) {
+        while ($t = mysqli_fetch_assoc($qSudah12)) {
+            $berkasStep12Sudah[] = (int) $t['id_persyaratan'];
+        }
+    }
+}
+
+/* --- Khusus Step 19 & 20: Load Berkas Persyaratan Lembar Koreksi Ujian Tutup --- */
+$berkasStep20 = [];
+$berkasStep20Sudah = [];
+if ($hasSkripsiRecord && !$isSkripsiInactive && ($lastProsesId == 19 || $lastProsesId == 20)) {
+    // Ambil berkas koreksi tepat pada progres = 20
+    $qB20 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 20 ORDER BY id ASC");
+    if ($qB20 && mysqli_num_rows($qB20) > 0) {
+        while ($b = mysqli_fetch_assoc($qB20)) {
+            $berkasStep20[] = $b;
+        }
+    }
+    $qSudah20 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20)");
+    if ($qSudah20 && mysqli_num_rows($qSudah20) > 0) {
+        while ($t = mysqli_fetch_assoc($qSudah20)) {
+            $berkasStep20Sudah[] = (int) $t['id_persyaratan'];
         }
     }
 }
@@ -309,10 +385,33 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
 
                     <!-- Judul Skripsi -->
                     <div class="space-y-1">
-                        <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Judul Skripsi / Tugas Akhir</p>
-                        <h2 class="text-lg font-extrabold text-slate-800 leading-snug">
-                            <?= htmlspecialchars($infoSkripsi['judul']) ?>
-                        </h2>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Judul Skripsi / Tugas Akhir</p>
+                            <?php if ($canEditJudul): ?>
+                            <button type="button" id="btnToggleEditJudul" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 px-2.5 py-1 text-[11px] font-bold transition">
+                                <i class="fas fa-pen text-[10px]"></i>
+                                <span id="txtBtnEditJudul"><?= $judulAsli !== '' ? 'Ubah Judul' : 'Tulis Judul' ?></span>
+                            </button>
+                            <?php endif; ?>
+                        </div>
+                        <div id="tampilanJudulWrap">
+                            <h2 id="teksJudulSkripsi" class="text-lg font-extrabold text-slate-800 leading-snug">
+                                <?= htmlspecialchars($infoSkripsi['judul']) ?>
+                            </h2>
+                        </div>
+                        <?php if ($canEditJudul): ?>
+                        <form id="formUbahJudul" class="hidden pt-1 space-y-2.5">
+                            <textarea id="inputJudulSkripsi" name="judul" rows="2" required placeholder="Tuliskan judul skripsi / tugas akhir Anda di sini..." class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition"><?= htmlspecialchars($judulAsli) ?></textarea>
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" id="btnBatalJudul" class="rounded-lg bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition">
+                                    Batal
+                                </button>
+                                <button type="submit" id="btnSimpanJudul" data-text="Simpan Judul" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition">
+                                    Simpan Judul
+                                </button>
+                            </div>
+                        </form>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -454,13 +553,13 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold"><?= $currentStep['urutan'] ?></span>
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold"><i class="fas fa-clipboard-check"></i></span>
                             <h3 class="text-base font-bold text-slate-800"><?= htmlspecialchars($currentStep['judul']) ?></h3>
                         </div>
                         <p class="text-xs text-slate-500 mt-1">Eksekutor SOP: <strong class="text-orange-600"><?= htmlspecialchars($currentStep['executor']) ?></strong></p>
                     </div>
-                    <span class="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                        <i class="fas fa-pen"></i>Aktif
+                    <span class="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                        Aktif
                     </span>
                 </div>
 
@@ -474,6 +573,39 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
                     <?php endif; ?>
 
                     <?php if (strtolower($currentStep['executor']) !== 'mahasiswa'): ?>
+                        <?php if ((int)$currentStep['urutan'] == 22): ?>
+                        <!-- Card Khusus Tahap Akhir (Step 22: Berita Acara Yudisium) -->
+                        <div class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white text-2xl shadow-lg shadow-emerald-500/25">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <div class="space-y-2">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                                    <i class="fas fa-award text-emerald-600"></i> Tahap Akhir Skripsi
+                                </span>
+                                <h3 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">
+                                    Selamat! Anda Telah Berhasil Mencapai Tahap Akhir
+                                </h3>
+                                <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+                                    Terima kasih atas perjuangan, dedikasi, dan kerja keras luar biasa yang telah Anda curahkan dalam menyelesaikan tugas akhir skripsi ini. Perjalanan panjang ini adalah pencapaian istimewa yang patut Anda banggakan!
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border border-amber-200/90 bg-amber-50/90 p-4 max-w-md mx-auto text-left flex items-start gap-3">
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white text-sm shadow-sm">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div class="text-xs text-amber-950 leading-relaxed">
+                                    <strong class="font-bold block text-amber-900 mb-0.5">Pencetakan Berita Acara Yudisium (BAY):</strong>
+                                    Untuk mencetak dokumen <span class="font-semibold">Berita Acara Yudisium (BAY)</span>, silakan menghadap langsung ke <strong class="text-amber-900 underline decoration-amber-400 underline-offset-2">Operator Jurusan</strong>.
+                                </div>
+                            </div>
+
+                            <div class="pt-2 text-[11px] text-slate-400 font-medium">
+                                <i class="fas fa-check-circle text-emerald-500 mr-1"></i>Seluruh rangkaian bimbingan dan ujian telah berhasil diselesaikan dengan baik.
+                            </div>
+                        </div>
+                        <?php else: ?>
                         <div class="p-8 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
                             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-400 mb-3 text-xl">
                                 <i class="fas fa-user-clock"></i>
@@ -481,6 +613,207 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
                             <h4 class="text-sm font-bold text-slate-700">Menunggu Tindakan dari <?= htmlspecialchars($currentStep['executor']) ?></h4>
                             <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Anda tidak dapat melakukan tindakan pada tahapan ini. Harap menunggu hingga <?= htmlspecialchars($currentStep['executor']) ?> memproses tahapan ini.</p>
                         </div>
+                        <?php endif; ?>
+
+                        <?php if ((int)$currentStep['urutan'] == 11 && !empty($berkasStep12)): ?>
+                        <!-- Form Upload Lebih Awal Berkas Step 12 saat masih di Step 11 -->
+                        <div class="mt-6 border-t border-slate-100 pt-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Unggah Berkas Lembar Koreksi (Step 12)</h4>
+                                    <p class="text-[11px] text-slate-500">Anda dapat mencicil mengunggah lembar koreksi hasil penelitian terlebih dahulu.</p>
+                                </div>
+                                <span class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">Dapat Diunggah Lebih Awal</span>
+                            </div>
+
+                            <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                    <?php 
+                                    $semuaStep12Diunggah = true;
+                                    foreach ($berkasStep12 as $b): 
+                                        $sudahAda = in_array((int)$b['id'], $berkasStep12Sudah);
+                                        if (!$sudahAda) $semuaStep12Diunggah = false;
+                                        $urlFileLama = '';
+                                        $statusBerkas = 'menunggu';
+                                        $ketStatus = '';
+                                        
+                                        if ($sudahAda) {
+                                            $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                            if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                $dTemp = mysqli_fetch_assoc($qLama);
+                                                $urlFileLama = url_file($dTemp['file']);
+                                                $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                $ketStatus = trim((string)$dTemp['ket']);
+                                            }
+                                        }
+                                    ?>
+                                        <div>
+                                            <?php 
+                                            // Ekstrak angka penguji dari nama berkas (misal "Lembar Koreksi 1" -> 1)
+                                            preg_match('/(\d+)/', $b['nama_berkas'], $m);
+                                            $noPenguji = isset($m[1]) ? (int)$m[1] : 0;
+                                            $namaDosenPenguji = (!empty($dPenguji[$noPenguji]) && $dPenguji[$noPenguji] !== '-') ? $dPenguji[$noPenguji] : '';
+                                            ?>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <label class="block text-xs font-bold text-slate-700">
+                                                    <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                </label>
+                                                <?php if ($sudahAda): ?>
+                                                <div class="flex items-center gap-3">
+                                                    <?php if ($urlFileLama): ?>
+                                                    <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($statusBerkas === 'diterima'): ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                    <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                    <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php else: ?>
+                                                <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($namaDosenPenguji): ?>
+                                                    <p class="mt-1 text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                                                        <i class="fas fa-user-tie text-slate-400"></i>Dosen Penguji: <strong class="text-slate-700"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                    </p>
+                                                    <?php endif; ?>
+                                            
+                                            <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                            <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                            </p>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <!-- Tombol Naik Step 12 (Disabled saat masih di Step 11) -->
+                                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                    <p class="text-[11px] text-slate-400 italic">
+                                        <i class="fas fa-lock mr-1"></i>Tahapan ini milik Operator/Admin. Berkas yang Anda cicil di atas akan otomatis memproses kenaikan step begitu Anda resmi mencapai Step 12 dan semua berkas lengkap.
+                                    </p>
+                                    <button 
+                                        type="button" 
+                                        disabled 
+                                        class="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400 cursor-not-allowed transition"
+                                    >
+                                        <i class="fas fa-lock"></i>Menunggu Step 12
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ((int)$currentStep['urutan'] == 19 && !empty($berkasStep20)): ?>
+                        <!-- Form Upload Lebih Awal Berkas Step 20 saat masih di Step 19 -->
+                        <div class="mt-6 border-t border-slate-100 pt-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Unggah Berkas Persyaratan (Step 20)</h4>
+                                    <p class="text-[11px] text-slate-500">Anda dapat mencicil mengunggah berkas persyaratan tahap berikutnya terlebih dahulu.</p>
+                                </div>
+                                <span class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">Dapat Diunggah Lebih Awal</span>
+                            </div>
+
+                            <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                    <?php 
+                                    $semuaStep20Diunggah = true;
+                                    foreach ($berkasStep20 as $b): 
+                                        $sudahAda = in_array((int)$b['id'], $berkasStep20Sudah);
+                                        if (!$sudahAda) $semuaStep20Diunggah = false;
+                                        $urlFileLama = '';
+                                        $statusBerkas = 'menunggu';
+                                        $ketStatus = '';
+                                        
+                                        if ($sudahAda) {
+                                            $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                            if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                $dTemp = mysqli_fetch_assoc($qLama);
+                                                $urlFileLama = url_file($dTemp['file']);
+                                                $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                $ketStatus = trim((string)$dTemp['ket']);
+                                            }
+                                        }
+                                    ?>
+                                        <div>
+                                            <?php 
+                                            // Ekstrak angka penguji dari nama berkas (misal "Lembar Koreksi 1" -> 1)
+                                            preg_match('/(\d+)/', $b['nama_berkas'], $m);
+                                            $noPenguji = isset($m[1]) ? (int)$m[1] : 0;
+                                            $namaDosenPenguji = (!empty($dPenguji[$noPenguji]) && $dPenguji[$noPenguji] !== '-') ? $dPenguji[$noPenguji] : '';
+                                            ?>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <label class="block text-xs font-bold text-slate-700">
+                                                    <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                </label>
+                                                <?php if ($sudahAda): ?>
+                                                <div class="flex items-center gap-3">
+                                                    <?php if ($urlFileLama): ?>
+                                                    <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($statusBerkas === 'diterima'): ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                    <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                    <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php else: ?>
+                                                <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <input 
+                                                type="file" 
+                                                accept=".pdf" 
+                                                <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                data-id="<?= $b['id'] ?>"
+                                                data-field="<?= htmlspecialchars($b['field']) ?>"
+                                            >
+                                            
+                                            <?php if ($namaDosenPenguji): ?>
+                                            <p class="mt-1 text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                                                <i class="fas fa-user-tie text-slate-400"></i>Dosen Penguji: <strong class="text-slate-700"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                            </p>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                            <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                            </p>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <!-- Informasi Progres saat masih di Step 19 -->
+                                <div class="pt-2 border-t border-slate-100">
+                                    <p class="text-[11px] text-slate-400 italic">
+                                        <i class="fas fa-lock mr-1"></i>Tahapan ini milik Operator/Admin. Berkas yang Anda cicil di atas akan otomatis memproses kenaikan step begitu Anda resmi mencapai Step 20 dan semua berkas lengkap.
+                                    </p>
+                                </div>
+                            </form>
+                        </div>
+                        <?php endif; ?>
+
                     <?php else: ?>
 
                         <?php 
@@ -751,6 +1084,293 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
                             <?php 
                                 break;
 
+                            case 12:
+                                // Step 12: Upload lembar koreksi hasil penelitian
+                            ?>
+                                <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                    <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-800">
+                                        <i class="fas fa-info-circle mr-1 text-sky-600"></i>Silakan unggah lembar koreksi dari seluruh dosen penguji hasil penelitian. Setelah seluruh berkas diunggah, tahapan ini akan otomatis selesai.
+                                    </div>
+
+                                    <?php if (!empty($berkasStep12)): ?>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php 
+                                            $semuaStep12Diunggah = true;
+                                            foreach ($berkasStep12 as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasStep12Sudah);
+                                                if (!$sudahAda) $semuaStep12Diunggah = false;
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+                                                
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+
+                                                // Ekstrak angka penguji dari nama berkas (misal "Lembar Koreksi 1" -> 1)
+                                                preg_match('/(\d+)/', $b['nama_berkas'], $m);
+                                                $noPenguji = isset($m[1]) ? (int)$m[1] : 0;
+                                                $namaDosenPenguji = (!empty($dPenguji[$noPenguji]) && $dPenguji[$noPenguji] !== '-') ? $dPenguji[$noPenguji] : '';
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            <?php 
+                                break;
+
+                            case 14:
+                                // Step 14: Cetak lembar persetujuan Pembimbing
+                            ?>
+                                <div class="space-y-4">
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 flex-shrink-0 text-base">
+                                                <i class="fas fa-print"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-bold text-slate-800">Lembar Persetujuan Pembimbing</h4>
+                                                <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                                    Silakan cetak dokumen Lembar Persetujuan Pembimbing untuk ditandatangani oleh dosen pembimbing sebelum diunggah pada tahap berikutnya.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            id="btnCetakPersetujuanPembimbing" 
+                                            data-text="Cetak Persetujuan Pembimbing"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition flex-shrink-0"
+                                        >
+                                            <i class="fas fa-print"></i>Cetak Persetujuan Pembimbing
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 15:
+                                // Step 15: Upload lembar persetujuan pembimbing (+ tombol cetak ulang)
+                            ?>
+                                <div class="space-y-4">
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 flex-shrink-0 text-base">
+                                                <i class="fas fa-print"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-bold text-slate-800">Lembar Persetujuan Pembimbing</h4>
+                                                <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                                    Anda tetap dapat mencetak ulang dokumen Lembar Persetujuan Pembimbing jika diperlukan, lalu unggah berkas persyaratan di bawah ini.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            id="btnCetakPersetujuanPembimbing" 
+                                            data-text="Cetak Persetujuan Pembimbing"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition flex-shrink-0"
+                                        >
+                                            <i class="fas fa-print"></i>Cetak Persetujuan Pembimbing
+                                        </button>
+                                    </div>
+
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <?php if (!empty($berkasDibutuhkan)): ?>
+                                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                                <?php foreach ($berkasDibutuhkan as $b): 
+                                                    $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                    $urlFileLama = '';
+                                                    $statusBerkas = 'menunggu';
+                                                    $ketStatus = '';
+                                                    
+                                                    if ($sudahAda) {
+                                                        $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                        if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                            $dTemp = mysqli_fetch_assoc($qLama);
+                                                            $urlFileLama = url_file($dTemp['file']);
+                                                            $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                            $ketStatus = trim((string)$dTemp['ket']);
+                                                        }
+                                                    }
+                                                ?>
+                                                    <div>
+                                                        <div class="flex items-center justify-between mb-1">
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if ($sudahAda): ?>
+                                                            <div class="flex items-center gap-3">
+                                                                <?php if ($urlFileLama): ?>
+                                                                <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                                <?php endif; ?>
+                                                                
+                                                                <?php if ($statusBerkas === 'diterima'): ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                                <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                                <?php else: ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                            <?php else: ?>
+                                                            <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        
+                                                        <input 
+                                                            type="file" 
+                                                            accept=".pdf" 
+                                                            <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                            class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                            data-id="<?= $b['id'] ?>"
+                                                            data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                        >
+                                                        
+                                                        <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                        <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                            <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                        </p>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </form>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 20:
+                                // Step 20: Upload lembar koreksi ujian tutup
+                            ?>
+                                <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                    <div class="rounded-lg bg-sky-50 border border-sky-100 p-3 text-xs text-sky-800">
+                                        <i class="fas fa-info-circle mr-1 text-sky-600"></i>Silakan unggah lembar koreksi dari seluruh dosen penguji ujian tutup. Setelah seluruh berkas diunggah, tahapan ini akan otomatis selesai.
+                                    </div>
+
+                                    <?php if (!empty($berkasStep20)): ?>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php 
+                                            $semuaStep20Diunggah = true;
+                                            foreach ($berkasStep20 as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasStep20Sudah);
+                                                if (!$sudahAda) $semuaStep20Diunggah = false;
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+                                                
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+
+                                                // Ekstrak angka penguji dari nama berkas (misal "Lembar Koreksi 1" -> 1)
+                                                preg_match('/(\d+)/', $b['nama_berkas'], $m);
+                                                $noPenguji = isset($m[1]) ? (int)$m[1] : 0;
+                                                $namaDosenPenguji = (!empty($dPenguji[$noPenguji]) && $dPenguji[$noPenguji] !== '-') ? $dPenguji[$noPenguji] : '';
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field']) ?>"
+                                                    >
+                                                    
+                                                    <?php if ($namaDosenPenguji): ?>
+                                                    <p class="mt-1 text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                                                        <i class="fas fa-user-tie text-slate-400"></i>Dosen Penguji: <strong class="text-slate-700"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                    
+                                                    <?php if ($statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <p class="mt-1 text-[11px] text-rose-600 font-medium">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i>Alasan penolakan: <strong><?= htmlspecialchars($ketStatus) ?></strong>. Silakan unggah ulang.
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            <?php 
+                                break;
+
                             default: 
                                 // Wajib didefinisikan per step - tidak ada aksi jika belum terdaftar di case
                             ?>
@@ -852,11 +1472,11 @@ function setButtonLoading(btn, isLoading) {
     if (isLoading) {
         btn.classList.add('is-loading');
         btn.setAttribute('disabled', '');
-        btn.innerHTML = '<span class="spinner-slate"></span> Memproses...';
+        btn.innerHTML = '<span class="spinner-slate"></span> ' + (btn.getAttribute('data-text') || btn.textContent);
     } else {
         btn.classList.remove('is-loading');
         btn.removeAttribute('disabled');
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i>' + (btn.getAttribute('data-text') || 'Kirim & Tandai Selesai');
+        btn.innerHTML = btn.getAttribute('data-text') || btn.textContent;
     }
 }
 
@@ -919,6 +1539,41 @@ document.querySelectorAll('.auto-upload-input').forEach(function(input) {
             }
             fileInput.removeAttribute('disabled');
         });
+    });
+});
+
+// Event click tombol Lanjut ke Step 13 (dari step 12)
+document.getElementById('btnSelesaikanStep12')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+    
+    var btn = this;
+    var originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-slate"></span> Memproses...';
+    btn.setAttribute('disabled', 'disabled');
+
+    var formData = new FormData();
+    formData.append('tandai-selesai-step', '1');
+
+    fetch('pages/skripsi/proses.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status) {
+            toast('Berhasil melanjutkan ke step 13.', 'success');
+            setTimeout(function(){ location.reload(); }, 1000);
+        } else {
+            toast(data.pesan, 'error');
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+        }
+    })
+    .catch(err => {
+        toast('Terjadi kesalahan koneksi server.', 'error');
+        btn.innerHTML = originalText;
+        btn.removeAttribute('disabled');
     });
 });
 
@@ -1060,4 +1715,101 @@ if(chkSks && chkKrs) {
         }
     });
 }
+
+// Logika Ubah / Tulis Judul Skripsi (aktif setelah melewati Tahap 2)
+var nilaiJudulTersimpan = $('#inputJudulSkripsi').length ? $('#inputJudulSkripsi').val() : '';
+
+$('#btnToggleEditJudul').on('click', function() {
+    $('#tampilanJudulWrap').addClass('hidden');
+    $(this).addClass('hidden');
+    $('#formUbahJudul').removeClass('hidden');
+    $('#inputJudulSkripsi').trigger('focus');
+});
+
+$('#btnBatalJudul').on('click', function() {
+    $('#inputJudulSkripsi').val(nilaiJudulTersimpan);
+    $('#formUbahJudul').addClass('hidden');
+    $('#tampilanJudulWrap').removeClass('hidden');
+    $('#btnToggleEditJudul').removeClass('hidden');
+});
+
+$('#formUbahJudul').on('submit', function(e) {
+    e.preventDefault();
+    var judulBaru = $.trim($('#inputJudulSkripsi').val());
+    if (judulBaru === '') {
+        toast('Judul skripsi tidak boleh kosong', 'error');
+        return;
+    }
+
+    var btnSimpan = document.getElementById('btnSimpanJudul');
+    setButtonLoading(btnSimpan, true);
+
+    $.ajax({
+        url: '<?= base_url() ?>/mahasiswa/pages/skripsi/proses.php',
+        method: 'POST',
+        data: {
+            'ubah-judul-skripsi': 1,
+            'judul': judulBaru
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status) {
+                var judulTampil = respon.judul || judulBaru;
+                nilaiJudulTersimpan = judulTampil;
+                $('#inputJudulSkripsi').val(judulTampil);
+                $('#teksJudulSkripsi').text(judulTampil);
+                $('#txtBtnEditJudul').text('Ubah Judul');
+                $('#formUbahJudul').addClass('hidden');
+                $('#tampilanJudulWrap').removeClass('hidden');
+                $('#btnToggleEditJudul').removeClass('hidden');
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+        },
+        complete: function() {
+            setButtonLoading(btnSimpan, false);
+        }
+    });
+});
+
+// Logika Step 14: Cetak Lembar Persetujuan Pembimbing
+$('#btnCetakPersetujuanPembimbing').on('click', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    $.ajax({
+        url: '<?= base_url() ?>/mahasiswa/pages/skripsi/proses.php',
+        method: 'POST',
+        data: {
+            'cetak-persetujuan-pembimbing': 1
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status) {
+                if (respon.buka_tab) {
+                    window.open(respon.buka_tab, '_blank');
+                }
+                if (respon.naik_step) {
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    setButtonLoading(btn, false);
+                }
+            } else {
+                setButtonLoading(btn, false);
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+            setButtonLoading(btn, false);
+        }
+    });
+});
 </script>
