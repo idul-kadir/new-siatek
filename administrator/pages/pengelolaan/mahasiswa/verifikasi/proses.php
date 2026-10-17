@@ -10,10 +10,27 @@ if (!$sudahLogin) {
     exit;
 }
 
+$userLevel = (int)($_SESSION['level'] ?? 0);
+$isLevel3  = ($userLevel === 3);
+$userProdi = $isLevel3 ? get_prodi_user() : '';
+
 // ================= CEK NOTIFIKASI RINGAN (POLLING) =================
 if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
     // Lepas session lock segera agar request ringan & tidak memblokir navigasi
     session_write_close();
+
+    // Hanya level 3, 4, 6, dan 9 yang memiliki wewenang verifikasi
+    if (!in_array($userLevel, [3, 4, 6, 9], true)) {
+        echo json_encode([
+            'status'       => true,
+            'total_berkas' => 0,
+            'total_mhs'    => 0,
+            'max_id'       => 0,
+            'max_file'     => '',
+            'fingerprint'  => '0',
+        ]);
+        exit;
+    }
 
     $condVerifikasi = "ts.status = 'menunggu' 
         AND pbs.progres IN (1, 4, 7, 12, 15, 20)
@@ -23,6 +40,19 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
             ORDER BY waktu DESC LIMIT 1
         ) = (pbs.progres + 1)";
 
+    // Jika level 3, filter hanya mahasiswa program studinya sendiri
+    $joinMhs   = "";
+    $condProdi = "";
+    if ($isLevel3) {
+        if ($userProdi !== '') {
+            $joinMhs   = "JOIN mahasiswa m ON ts.nim = m.nim";
+            $condProdi = "AND m.prodi = '" . bersihkan($userProdi) . "'";
+        } else {
+            // Level 3 tanpa prodi tidak ada notifikasi
+            $condProdi = "AND 1=0";
+        }
+    }
+
     $sqlRingkas = "SELECT 
                        COUNT(ts.id) AS total_berkas,
                        COUNT(DISTINCT ts.nim) AS total_mhs,
@@ -30,7 +60,8 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
                        COALESCE(MAX(ts.file), '') AS max_file
                    FROM temp_skripsi ts
                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id
-                   WHERE $condVerifikasi";
+                   $joinMhs
+                   WHERE $condVerifikasi $condProdi";
 
     $qRingkas = query($sqlRingkas);
     $rowRingkas = ($qRingkas && mysqli_num_rows($qRingkas) > 0)
@@ -58,13 +89,29 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
 if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
     $cari   = bersihkan($_POST['cari'] ?? '');
     $status = bersihkan($_POST['status'] ?? '');
+    $prodi  = bersihkan($_POST['prodi'] ?? '');
     
     $where = ["1=1"];
+
+    // Jika level 3, paksa hanya prodi pengguna
+    if ($isLevel3) {
+        if ($userProdi !== '') {
+            $prodi = $userProdi;
+            $where[] = "m.prodi = '$prodi'";
+        } else {
+            $where[] = "1=0"; // Level 3 tanpa prodi tidak boleh melihat antrian apapun
+        }
+    } elseif ($prodi !== '') {
+        $where[] = "m.prodi = '$prodi'";
+    }
     if ($status !== '') {
         $where[] = "ts.status = '$status'";
     }
     if ($cari !== '') {
         $where[] = "(ts.nim LIKE '%$cari%' OR m.nama LIKE '%$cari%')";
+    }
+    if ($prodi !== '') {
+        $where[] = "m.prodi = '$prodi'";
     }
 
     // Hanya progres yang merupakan tugas "admin" (verifikasi) yang muncul
@@ -252,6 +299,15 @@ if (isset($_POST['verifikasi-berkas'])) {
     $aksi = bersihkan($_POST['aksi']);
     $ket  = bersihkan($_POST['ket'] ?? '');
 
+    // Proteksi level 3: pastikan berkas mahasiswa yang diverifikasi adalah dari prodi user
+    if ($isLevel3 && $userProdi !== '') {
+        $cekMhs = mysqli_fetch_assoc(query("SELECT m.prodi FROM temp_skripsi ts JOIN mahasiswa m ON ts.nim = m.nim WHERE ts.id = '$id' LIMIT 1"));
+        if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
+            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: mahasiswa bukan dari program studi Anda.']);
+            exit;
+        }
+    }
+
     if (!in_array($aksi, ['diterima', 'ditolak'])) {
         echo json_encode(['status' => false, 'pesan' => 'Aksi tidak valid']);
         exit;
@@ -377,6 +433,15 @@ if (isset($_POST['verifikasi-semua-mhs'])) {
     if (empty($nim)) {
         echo json_encode(['status' => false, 'pesan' => 'NIM tidak valid']);
         exit;
+    }
+
+    // Proteksi level 3: pastikan mahasiswa yang diverifikasi adalah dari prodi user
+    if ($isLevel3 && $userProdi !== '') {
+        $cekMhs = mysqli_fetch_assoc(query("SELECT prodi FROM mahasiswa WHERE nim = '$nim' LIMIT 1"));
+        if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
+            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: mahasiswa bukan dari program studi Anda.']);
+            exit;
+        }
     }
 
     $ket = "Berkas diverifikasi dan diterima sekaligus.";

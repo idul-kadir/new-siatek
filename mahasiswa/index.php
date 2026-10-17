@@ -66,6 +66,9 @@ if ($peran !== 'mahasiswa') {
     header('Location: /redesain-siatek/administrator/');
     exit;
 }
+if (empty($_SESSION['id']) && !empty($_SESSION['nim'])) {
+    $_SESSION['id'] = $_SESSION['nim'];
+}
 
 ?>
 <!doctype html>

@@ -120,6 +120,46 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
     padding: 0;
   }
   .toast-close:hover { opacity: 1; }
+
+  /* ===== Drawer Arsip & Riwayat Tahapan (Offcanvas) ===== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 1060;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  }
+  .drawer-overlay.show {
+    visibility: visible;
+    opacity: 1;
+  }
+  .drawer-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 660px;
+    background: #f8fafc;
+    box-shadow: -10px 0 35px rgba(0, 0, 0, 0.2);
+    z-index: 1065;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer-overlay.show .drawer-container {
+    transform: translateX(0);
+  }
+  .acc-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
+  .hidden {
+    display: none !important;
+  }
 </style>
 
 <main class="content-area content-scroll">
@@ -141,6 +181,16 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
       </div>
     </div>
   </section>
+
+  <?php if ($isFilterProdi && $userProdi === ''): ?>
+    <div class="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+      <i class="fas fa-exclamation-triangle text-xl text-amber-500 shrink-0"></i>
+      <div>
+        <p class="font-semibold">Program Studi Belum Tercatat</p>
+        <p class="text-xs text-amber-700">Akun Anda belum memiliki data program studi yang tercatat di sistem. Tidak ada data mahasiswa yang dapat ditampilkan.</p>
+      </div>
+    </div>
+  <?php endif; ?>
 
   <!-- ===== Filter Bar ===== -->
   <section class="mb-4">
@@ -168,12 +218,16 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
           ?>
         <?php else: ?>
           <?php
-          $qProdi = query("SELECT kode, nama FROM prodi WHERE kode = '" . bersihkan($userProdi) . "' LIMIT 1");
-          $namaProdiUser = $userProdi;
-          if($qProdi && ($pr = mysqli_fetch_assoc($qProdi))){
-              $namaProdiUser = $pr['nama'];
+          if ($userProdi !== '') {
+              $qProdi = query("SELECT kode, nama FROM prodi WHERE kode = '" . bersihkan($userProdi) . "' LIMIT 1");
+              $namaProdiUser = $userProdi;
+              if($qProdi && ($pr = mysqli_fetch_assoc($qProdi))){
+                  $namaProdiUser = $pr['nama'];
+              }
+              echo '<option value="' . tampil($userProdi) . '" selected>' . tampil($namaProdiUser) . '</option>';
+          } else {
+              echo '<option value="" selected disabled>Belum ada program studi</option>';
           }
-          echo '<option value="' . tampil($userProdi) . '" selected>' . tampil($namaProdiUser) . '</option>';
           ?>
         <?php endif; ?>
       </select>
@@ -184,8 +238,12 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
         <option value="">Semua Angkatan</option>
         <?php
         $whereAngkatan = "WHERE m.angkatan IS NOT NULL AND m.angkatan != ''";
-        if ($isFilterProdi && $userProdi !== '') {
-            $whereAngkatan .= " AND m.prodi = '" . bersihkan($userProdi) . "'";
+        if ($isFilterProdi) {
+            if ($userProdi !== '') {
+                $whereAngkatan .= " AND m.prodi = '" . bersihkan($userProdi) . "'";
+            } else {
+                $whereAngkatan .= " AND 1=0";
+            }
         }
         $qAngkatan = query("SELECT DISTINCT m.angkatan FROM skripsi s JOIN mahasiswa m ON s.nim = m.nim $whereAngkatan ORDER BY m.angkatan DESC");
         if($qAngkatan){
@@ -256,23 +314,66 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
     </div>
   </div>
 
-  <!-- ===== Modal Konfirmasi Hapus ===== -->
-  <div class="modal-overlay" id="modalKonfirmasiHapus" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 relative">
-      <button type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl leading-none" id="btnCloseKonfirmasiHapus">&times;</button>
-      <div class="text-center pt-2">
-        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-3xl text-rose-500 mb-4">
-          <i class="fas fa-exclamation-triangle"></i>
+  <?php if ($userLevel === 9): ?>
+  <!-- ===== Modal Hard Reset Skripsi (Khusus Super Admin Level 9 - Keamanan Berlapis) ===== -->
+  <div class="modal-overlay" id="modalHardReset" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative border border-rose-200">
+      <!-- Header Peringatan Bahaya -->
+      <div class="bg-rose-50 border-b border-rose-100 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 text-rose-700 font-bold text-sm">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-600 text-white shadow-xs">
+            <i class="fas fa-triangle-exclamation text-sm"></i>
+          </span>
+          <span>HARD RESET DATA SKRIPSI</span>
         </div>
-        <h3 class="mb-2 text-lg font-bold text-slate-800">Konfirmasi Penolakan</h3>
-        <p class="text-sm text-slate-500 mb-6">Apakah Anda yakin menolak pendaftaran ini? Mahasiswa akan Dihapus dari data pendaftaran skripsi!</p>
-        <div class="flex gap-3">
-          <button type="button" id="btnBatalHapus" class="flex-1 rounded-lg bg-slate-200 hover:bg-slate-300 py-2.5 text-sm font-semibold text-slate-700">Batal</button>
-          <button type="button" id="btnYaHapus" class="flex-1 rounded-lg bg-rose-600 hover:bg-rose-700 py-2.5 text-sm font-semibold text-white">Ya, Hapus</button>
+        <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none transition" data-modal-close>&times;</button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <!-- Callout Bahaya -->
+        <div class="rounded-xl bg-rose-50/70 border border-rose-200/80 p-3.5 text-xs text-rose-800 leading-relaxed">
+          <strong class="font-bold block mb-1 text-rose-900 flex items-center gap-1.5">
+            <i class="fas fa-radiation"></i> PERINGATAN TINGKAT TINGGI:
+          </strong>
+          Tindakan ini bersifat <span class="font-bold underline">PERMANEN</span> dan tidak dapat dibatalkan. Seluruh data skripsi, berkas (PDF), riwayat tahapan SOP, dan SK penunjukan mahasiswa bersangkutan akan dihapus total dari sistem.
+        </div>
+
+        <!-- Identitas Target Mahasiswa -->
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1">
+          <div class="flex justify-between">
+            <span class="text-slate-500 font-medium">Mahasiswa:</span>
+            <span class="font-bold text-slate-800" id="resetNamaMhs">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500 font-medium">NIM Target:</span>
+            <span class="font-mono font-bold text-rose-600" id="resetNimTarget">-</span>
+          </div>
+        </div>
+
+        <!-- Konfirmasi Teks Berlapis -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+            Ketik NIM <span class="font-mono font-bold text-rose-600" id="labelTargetNim">-</span> untuk membuka konfirmasi:
+          </label>
+          <input type="text" id="inputKonfirmasiNim" autocomplete="off" placeholder="Masukkan NIM persis sesuai target..." 
+                 class="w-full text-xs rounded-lg border border-slate-300 p-2.5 font-mono focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500 transition">
+          <p class="text-[11px] text-slate-400 mt-1">Tombol eksekusi hanya akan aktif jika NIM yang Anda ketik cocok sempurna.</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2.5 pt-2 border-t border-slate-100">
+          <button type="button" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" data-modal-close>
+            Batal
+          </button>
+          <button type="button" id="btnEksekusiHardReset" disabled 
+                  class="flex-1 py-2 text-xs font-semibold rounded-lg bg-rose-600 text-white opacity-40 cursor-not-allowed transition flex items-center justify-center gap-1.5 shadow-sm">
+            <i class="fas fa-trash-can"></i> <span id="textBtnReset">Hapus Permanen</span>
+          </button>
         </div>
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- ===== Modal Lembar Kerja ===== -->
   <div class="modal-overlay" id="modalLembarKerja" role="dialog" aria-modal="true">
@@ -288,6 +389,46 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
         <div class="acc-loading py-8 text-center">
             <div class="spinner-slate mx-auto"></div>
             <p class="mt-3 text-muted" style="font-size: .85rem;">Memuat lembar kerja...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Drawer Samping: Arsip & Riwayat Tahapan ===== -->
+  <div class="drawer-overlay" id="drawerArsip" role="dialog" aria-modal="true">
+    <div class="drawer-container">
+      <!-- Header Drawer (Sticky / Fixed di atas, nama, nim, & prodi tidak ikut ter-scroll) -->
+      <div class="px-5 py-3.5 border-b border-slate-200 bg-white shrink-0 shadow-2xs" id="drawerArsipHeader">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 font-bold shadow-xs">
+              <i class="fas fa-user-graduate text-lg"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-sm font-bold text-slate-800 leading-snug truncate" id="drawerHeaderNama">Memuat Nama...</h3>
+                <span id="drawerHeaderStatus" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full"></span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5 leading-tight">
+                NIM: <span class="font-mono font-semibold text-slate-700" id="drawerHeaderNim">-</span> &bull; 
+                <span class="font-medium text-slate-600" id="drawerHeaderProdi">-</span>
+              </p>
+              <p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                <i class="fas fa-box-archive text-emerald-500"></i> Arsip &amp; Riwayat Tahapan Skripsi
+              </p>
+            </div>
+          </div>
+          <button type="button" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 text-xl leading-none transition" data-drawer-close>
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <!-- Isi Drawer (Scrollable) -->
+      <div id="drawerArsipKonten" class="flex-1 overflow-y-auto p-6 content-scroll">
+        <div class="acc-loading py-12 text-center">
+          <div class="spinner-slate mx-auto"></div>
+          <p class="mt-3 text-muted" style="font-size: .85rem;">Memuat data arsip &amp; riwayat...</p>
         </div>
       </div>
     </div>
@@ -358,6 +499,51 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
         });
     }
 
+    // Toggle Mode Edit Data di Dalam Drawer (Fungsi Global)
+    function toggleEditBox(btn, isEdit) {
+        if (!btn) return;
+        var el = btn.jquery ? btn[0] : btn;
+        var box = el.closest ? (el.closest('.data-section-box') || el.closest('.acc-body')) : null;
+        if (!box) {
+            var $b = $(el).closest('.data-section-box');
+            if (!$b.length) $b = $(el).closest('.acc-body');
+            box = $b[0];
+        }
+        if (!box) return;
+
+        var viewBox = box.querySelector('.view-box');
+        var editBox = box.querySelector('.edit-box');
+        var editBtn = box.querySelector('.btn-toggle-edit');
+
+        if (isEdit) {
+            if (viewBox) {
+                viewBox.style.setProperty('display', 'none', 'important');
+                viewBox.classList.add('hidden');
+            }
+            if (editBox) {
+                editBox.style.setProperty('display', 'block', 'important');
+                editBox.classList.remove('hidden');
+            }
+            if (editBtn) {
+                editBtn.style.setProperty('display', 'none', 'important');
+            }
+        } else {
+            if (editBox) {
+                editBox.style.setProperty('display', 'none', 'important');
+                editBox.classList.add('hidden');
+            }
+            if (viewBox) {
+                viewBox.style.setProperty('display', 'block', 'important');
+                viewBox.classList.remove('hidden');
+            }
+            if (editBtn) {
+                editBtn.style.removeProperty('display');
+                editBtn.style.display = '';
+            }
+        }
+    }
+    window.toggleEditBox = toggleEditBox;
+
     $(document).ready(function(){
       muatUlangTabel();
 
@@ -385,10 +571,221 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
           muatUlangTabel();
       });
 
-      // Tombol Aksi Handlers
+      // ===== Drawer Arsip & Riwayat Handlers =====
+      function bukaDrawerArsip(nim, stageToOpen, infoMhs) {
+          var drawer = $('#drawerArsip');
+          var konten = $('#drawerArsipKonten');
+          drawer.addClass('show');
+
+          // Tampilkan segera identitas mahasiswa di sticky header
+          if (infoMhs) {
+              if (infoMhs.nama) $('#drawerHeaderNama').text(infoMhs.nama);
+              $('#drawerHeaderNim').text(nim);
+              if (infoMhs.prodi) $('#drawerHeaderProdi').text(infoMhs.prodi);
+          } else {
+              $('#drawerHeaderNama').text('Memuat Nama...');
+              $('#drawerHeaderNim').text(nim);
+              $('#drawerHeaderProdi').text('-');
+          }
+          $('#drawerHeaderStatus').addClass('hidden');
+
+          if (!stageToOpen) {
+              konten.html('<div class="acc-loading py-12 text-center"><div class="spinner-slate mx-auto"></div><p class="mt-3 text-muted" style="font-size: .85rem;">Memuat data arsip &amp; riwayat tahapan...</p></div>');
+          }
+
+          $.ajax({
+              url: PROSES_URL,
+              method: 'POST',
+              data: {
+                  'ambil-arsip-riwayat': 1,
+                  'nim': nim
+              },
+              dataType: 'json',
+              success: function(respon) {
+                  if(respon.status) {
+                      // Perbarui identitas lengkap di sticky header
+                      if (respon.mhs) {
+                          $('#drawerHeaderNama').text(respon.mhs.nama);
+                          $('#drawerHeaderNim').text(respon.mhs.nim);
+                          $('#drawerHeaderProdi').text(respon.mhs.prodi + (respon.mhs.angkatan ? ' (' + respon.mhs.angkatan + ')' : ''));
+                          if (respon.mhs.status) {
+                              $('#drawerHeaderStatus').text(respon.mhs.status)
+                                                     .removeClass('hidden')
+                                                     .attr('class', 'inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full ' + (respon.mhs.badge_class || 'bg-slate-100 text-slate-700'));
+                          }
+                      }
+                      konten.html(respon.data);
+                      if (stageToOpen) {
+                          var targetCard = $('[data-card-stage="' + stageToOpen + '"].card-completed');
+                          if (targetCard.length) {
+                              targetCard.find('.acc-body').first().show().removeClass('hidden');
+                              targetCard.find('.acc-chevron').first().addClass('rotate-180');
+                              targetCard[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                          }
+                      }
+                  } else {
+                      konten.html('<div class="text-center py-12 text-rose-500"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><p class="font-medium">' + respon.pesan + '</p></div>');
+                  }
+              },
+              error: function(xhr, status, err) {
+                  var detail = xhr.responseText ? xhr.responseText.substring(0, 300) : (err || 'Terjadi kesalahan pada server');
+                  konten.html('<div class="text-center py-12 text-rose-500"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><p class="font-medium">Gagal memuat arsip mahasiswa dari server:</p><p class="text-xs text-slate-500 mt-2 font-mono bg-slate-50 p-3 rounded border border-slate-200 max-w-md mx-auto text-left whitespace-pre-wrap">' + detail + '</p></div>');
+              }
+          });
+      }
+
+      // Tombol Arsip di Tabel (Meneruskan data mahasiswa ke sticky header drawer)
       $(document).on('click', '.btnArsip', function(){
           var nim = $(this).data('nim');
-          toast('Membuka arsip mahasiswa NIK/NIM: ' + nim, 'info');
+          var nama = $(this).data('nama') || '';
+          var prodi = $(this).data('prodi') || '';
+          bukaDrawerArsip(nim, null, { nama: nama, prodi: prodi });
+      });
+
+      // Tutup Drawer
+      $(document).on('click', '[data-drawer-close]', function(e){
+          e.stopPropagation();
+          $('#drawerArsip').removeClass('show');
+      });
+
+      $('#drawerArsip').on('click', function(e){
+          if (e.target === this) {
+              $(this).removeClass('show');
+          }
+      });
+
+      // Buka & Tutup Semua Accordion di Dalam Drawer (Hanya untuk Kartu yang Sudah Selesai)
+      $(document).on('click', '#btnBukaSemuaAcc', function(){
+          $('#accordionArsip .card-completed .acc-body').show().removeClass('hidden');
+          $('#accordionArsip .card-completed .acc-chevron').addClass('rotate-180');
+      });
+
+      $(document).on('click', '#btnTutupSemuaAcc', function(){
+          $('#accordionArsip .card-completed .acc-body').hide().addClass('hidden');
+          $('#accordionArsip .card-completed .acc-chevron').removeClass('rotate-180');
+      });
+
+      // Toggle Accordion per Stage di Dalam Drawer (Hanya kartu selesai yang memiliki .btn-toggle-accordion)
+      $(document).on('click', '.btn-toggle-accordion', function(e){
+          if ($(e.target).closest('button, a, input, select, textarea').length) return;
+          var card = $(this).closest('.card-completed');
+          if (!card.length) return;
+          var body = card.find('.acc-body');
+          var chevron = $(this).find('.acc-chevron');
+          if (body.is(':visible')) {
+              body.hide().addClass('hidden');
+              chevron.removeClass('rotate-180');
+          } else {
+              body.show().removeClass('hidden');
+              chevron.addClass('rotate-180');
+          }
+      });
+
+      // Delegasi Klik Tombol Koreksi & Batal di Dalam Drawer (Memanggil Fungsi Global toggleEditBox)
+      $(document).on('click', '.btn-toggle-edit', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          toggleEditBox(this, true);
+      });
+
+      $(document).on('click', '.btn-cancel-edit', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          toggleEditBox(this, false);
+      });
+
+      // Submit Form Koreksi Data Tahap Lampau
+      $(document).on('submit', '.form-koreksi-arsip', function(e){
+          e.preventDefault();
+          var form = this;
+          var btn = $(form).find('button[type="submit"]');
+          var nim = $(form).find('input[name="nim"]').val();
+          var stageNum = $(form).closest('[data-card-stage]').data('card-stage');
+          var oriText = btn.text();
+
+          btn.prop('disabled', true).html('<span class="spinner-slate" style="border-top-color:#fff; width:0.75rem; height:0.75rem;"></span> Menyimpan...');
+
+          var formData = new FormData(form);
+          formData.append('koreksi-arsip-step', '1');
+
+          $.ajax({
+              url: PROSES_URL,
+              method: 'POST',
+              data: formData,
+              processData: false,
+              contentType: false,
+              dataType: 'json',
+              success: function(res) {
+                  toast(res.pesan, res.status ? 'success' : 'error');
+                  if(res.status) {
+                      // Refresh isi drawer agar data terbaru langsung tampil dan tetap buka stage terkait
+                      bukaDrawerArsip(nim, stageNum);
+                      // Update tabel utama agar judul/status tetap sinkron
+                      muatUlangTabel();
+                  }
+              },
+              error: function(xhr, status, err) {
+                  var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : err;
+                  toast('Gagal menyimpan koreksi: ' + detail, 'error');
+              },
+              complete: function() {
+                  btn.prop('disabled', false).text(oriText);
+              }
+          });
+      });
+
+      // Unggah Ulang / Ganti Berkas Mahasiswa atau Operator dari Drawer
+      $(document).on('change', '.input-ganti-berkas', function(){
+          var fileInput = this;
+          if(!fileInput.files || fileInput.files.length === 0) return;
+
+          var idSyarat = $(fileInput).data('id-syarat');
+          var nim = $(fileInput).data('nim');
+          var row = $(fileInput).closest('.item-berkas-row');
+          var labelBtn = $(fileInput).closest('.btn-upload-ulang-label');
+          var statusTag = row.find('.status-berkas-tag');
+          var linkLihat = row.find('.link-lihat-file');
+
+          var oriLabel = labelBtn.find('.label-txt').text();
+          labelBtn.find('.label-txt').text('Mengunggah...');
+          $(fileInput).prop('disabled', true);
+
+          var formData = new FormData();
+          formData.append('ganti-berkas-skripsi', '1');
+          formData.append('nim', nim);
+          formData.append('id_persyaratan', idSyarat);
+          formData.append('file', fileInput.files[0]);
+
+          $.ajax({
+              url: PROSES_URL,
+              method: 'POST',
+              data: formData,
+              processData: false,
+              contentType: false,
+              dataType: 'json',
+              success: function(res) {
+                  toast(res.pesan, res.status ? 'success' : 'error');
+                  if(res.status) {
+                      statusTag.removeClass('bg-slate-100 bg-amber-100 bg-rose-100 text-slate-500 text-amber-700 text-rose-700')
+                               .addClass('bg-emerald-100 text-emerald-700')
+                               .text('Tersimpan');
+                      if(res.url_file) {
+                          linkLihat.attr('href', res.url_file).removeClass('hidden');
+                      }
+                      labelBtn.find('.label-txt').text('Unggah Ulang');
+                  } else {
+                      labelBtn.find('.label-txt').text(oriLabel);
+                  }
+              },
+              error: function(xhr, status, err) {
+                  var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : err;
+                  toast('Gagal mengunggah file: ' + detail, 'error');
+                  labelBtn.find('.label-txt').text(oriLabel);
+              },
+              complete: function() {
+                  $(fileInput).prop('disabled', false).val('');
+              }
+          });
       });
 
       $(document).on('click', '.btnLembarKerja', function(){
@@ -435,25 +832,87 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
           $(this).closest('.modal-overlay').removeClass('show');
       });
 
+      <?php if ($userLevel === 9): ?>
+      var targetNimReset = '';
+      var targetNamaReset = '';
+
+      // Buka Modal Hard Reset
       $(document).on('click', '.btnHapus', function(){
-          var nim = $(this).data('nim');
-          var tr = $(this).closest('tr');
-          var nama = tr.find('.font-semibold').text() || 'Mahasiswa ini';
-          if(typeof konfirmasiHapus === 'function') {
-              konfirmasiHapus('Data skripsi ' + nama, function() {
-                  $.ajax({
-                      url: PROSES_URL,
-                      method: 'POST',
-                      data: { 'hapus-data-skripsi': 1, 'nim': nim },
-                      dataType: 'json',
-                      success: function(respon) {
-                          toast(respon.pesan, respon.status ? 'success' : 'error');
-                          if(respon.status) muatUlangTabel();
-                      }
-                  });
-              });
+          targetNimReset = ($(this).data('nim') || '').toString().trim();
+          targetNamaReset = ($(this).data('nama') || '').toString().trim();
+          if (!targetNamaReset) {
+              var tr = $(this).closest('tr');
+              targetNamaReset = tr.find('.font-semibold').text() || 'Mahasiswa ini';
+          }
+
+          $('#resetNamaMhs').text(targetNamaReset);
+          $('#resetNimTarget').text(targetNimReset);
+          $('#labelTargetNim').text(targetNimReset);
+          $('#inputKonfirmasiNim').val('').prop('disabled', false);
+          $('#btnEksekusiHardReset').prop('disabled', true)
+                                   .addClass('opacity-40 cursor-not-allowed')
+                                   .removeClass('hover:bg-rose-700 shadow-rose-500/20')
+                                   .html('<i class="fas fa-trash-can"></i> <span id="textBtnReset">Hapus Permanen</span>');
+          $('#modalHardReset').addClass('show');
+          setTimeout(function(){ $('#inputKonfirmasiNim').focus(); }, 150);
+      });
+
+      // Validasi pengetikan NIM secara real-time
+      $(document).on('input keyup paste', '#inputKonfirmasiNim', function(){
+          var typed = $(this).val().trim();
+          var btn = $('#btnEksekusiHardReset');
+          if (typed === targetNimReset && targetNimReset !== '') {
+              btn.prop('disabled', false)
+                 .removeClass('opacity-40 cursor-not-allowed')
+                 .addClass('hover:bg-rose-700 shadow-rose-500/20');
+          } else {
+              btn.prop('disabled', true)
+                 .addClass('opacity-40 cursor-not-allowed')
+                 .removeClass('hover:bg-rose-700 shadow-rose-500/20');
           }
       });
+
+      // Eksekusi Hard Reset
+      $(document).on('click', '#btnEksekusiHardReset', function(){
+          var btn = $(this);
+          var typed = $('#inputKonfirmasiNim').val().trim();
+          if (typed !== targetNimReset || targetNimReset === '') {
+              toast('NIM konfirmasi tidak sesuai!', 'error');
+              return;
+          }
+
+          btn.prop('disabled', true).html('<i class="fas fa-spinner animate-spin mr-1"></i> Menghapus permanen...');
+          $('#inputKonfirmasiNim').prop('disabled', true);
+
+          $.ajax({
+              url: PROSES_URL,
+              method: 'POST',
+              data: {
+                  'hapus-data-skripsi': 1,
+                  'nim': targetNimReset,
+                  'konfirmasi_nim': typed
+              },
+              dataType: 'json',
+              success: function(respon) {
+                  if (respon.status) {
+                      toast(respon.pesan, 'success');
+                      $('#modalHardReset').removeClass('show');
+                      muatUlangTabel();
+                  } else {
+                      toast(respon.pesan, 'error');
+                      btn.prop('disabled', false).html('<i class="fas fa-trash-can"></i> Hapus Permanen');
+                      $('#inputKonfirmasiNim').prop('disabled', false);
+                  }
+              },
+              error: function(xhr, status, err) {
+                  var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : (err || 'Terjadi kesalahan pada server');
+                  toast('Gagal melakukan reset: ' + detail, 'error');
+                  btn.prop('disabled', false).html('<i class="fas fa-trash-can"></i> Hapus Permanen');
+                  $('#inputKonfirmasiNim').prop('disabled', false);
+              }
+          });
+      });
+      <?php endif; ?>
     });
   </script>
 

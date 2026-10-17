@@ -7,6 +7,17 @@ if (!$sudahLogin) {
     header('Location: ' . base_url() . '/');
     exit;
 }
+
+$userLevel = (int)($_SESSION['level'] ?? 0);
+$isLevel3  = ($userLevel === 3);
+$userProdi = $isLevel3 ? get_prodi_user() : '';
+$namaProdiUser = '';
+if ($isLevel3 && $userProdi !== '') {
+    $qPr = query("SELECT nama FROM prodi WHERE kode = '" . bersihkan($userProdi) . "' LIMIT 1");
+    if ($qPr && ($rP = mysqli_fetch_assoc($qPr))) {
+        $namaProdiUser = $rP['nama'];
+    }
+}
 ?>
 <style>
   .btn-circle {
@@ -121,9 +132,19 @@ if (!$sudahLogin) {
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Verifikasi Berkas</h1>
-                    <p class="text-xs text-slate-500">Verifikasi berkas persyaratan skripsi mahasiswa</p>
+                    <p class="text-xs text-slate-500">
+                        Verifikasi berkas persyaratan skripsi mahasiswa
+                        <?php if ($isLevel3 && $namaProdiUser !== ''): ?>
+                            &bull; <span class="font-semibold text-orange-600"><?= tampil($namaProdiUser) ?></span>
+                        <?php endif; ?>
+                    </p>
                 </div>
             </div>
+            <?php if ($isLevel3 && $namaProdiUser !== ''): ?>
+                <span class="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 border border-orange-200 px-3 py-1.5 text-xs font-semibold text-orange-700">
+                    <i class="fas fa-building-columns text-[11px]"></i> Program Studi: <?= tampil($namaProdiUser) ?>
+                </span>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -135,6 +156,23 @@ if (!$sudahLogin) {
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                 <input type="search" id="fCari" placeholder="Cari nama atau NIM mahasiswa..." class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white">
             </div>
+
+            <!-- Filter Prodi -->
+            <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 <?= $isLevel3 ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>" <?= $isLevel3 ? 'disabled' : '' ?>>
+                <?php if (!$isLevel3): ?>
+                    <option value="" selected>Semua Program Studi</option>
+                    <?php
+                    $qProdi = query("SELECT kode, nama FROM prodi ORDER BY nama ASC");
+                    if($qProdi){
+                        while($pr = mysqli_fetch_assoc($qProdi)){
+                            echo '<option value="' . tampil($pr['kode']) . '">' . tampil($pr['nama']) . '</option>';
+                        }
+                    }
+                    ?>
+                <?php else: ?>
+                    <option value="<?= tampil($userProdi) ?>" selected><?= tampil($namaProdiUser ?: $userProdi) ?></option>
+                <?php endif; ?>
+            </select>
 
             <!-- Filter Status -->
             <select id="fStatus" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
@@ -266,7 +304,8 @@ if (!$sudahLogin) {
         container.innerHTML = '<div class="acc-loading py-4 text-center"><div class="spinner-slate mx-auto"></div><p class="mt-3 text-muted" style="font-size: .85rem;">Memuat data...</p></div>';
 
         var cari = $('#fCari').val() || '';
-        var status = $('#fStatus').val();
+        var status = $('#fStatus').val() || '';
+        var prodi = '<?= $isLevel3 ? addslashes($userProdi) : '' ?>' || $('#fProdi').val() || '';
 
         $.ajax({
             url: PROSES_URL,
@@ -274,7 +313,8 @@ if (!$sudahLogin) {
             data: { 
                 'ambil-tabel': 1,
                 'cari': cari,
-                'status': status
+                'status': status,
+                'prodi': prodi
             },
             dataType: 'json',
             success: function(respon) {
@@ -299,13 +339,18 @@ if (!$sudahLogin) {
             delayTimer = setTimeout(muatUlangTabel, 300);
         });
 
-        $('#fStatus').on('change', function(){
+        $('#fStatus, #fProdi').on('change', function(){
             muatUlangTabel();
         });
 
         $('#btnReset').on('click', function(){
             $('#fCari').val('');
             $('#fStatus').val('');
+            <?php if (!$isLevel3): ?>
+            $('#fProdi').val('');
+            <?php else: ?>
+            $('#fProdi').val('<?= addslashes($userProdi) ?>');
+            <?php endif; ?>
             muatUlangTabel();
         });
 

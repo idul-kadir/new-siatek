@@ -1,5 +1,10 @@
 <?php
-require __DIR__ . '/koneksi.php';
+if (defined('SIATEK_FUNGSI_LOADED')) {
+    return;
+}
+define('SIATEK_FUNGSI_LOADED', true);
+
+require_once __DIR__ . '/koneksi.php';
 
 function query($sql){
   global $koneksi;
@@ -41,7 +46,7 @@ function catat_file($id_file, $nama_file, $ekstensi, $tabel_asal){
   $ekstensi_b     = bersihkan($ekstensi);
   $tabel_asal_b   = bersihkan($tabel_asal);
   $waktu          = time();
-  $pengunggah     = bersihkan($_SESSION['id'] ?? '');
+  $pengunggah     = bersihkan($_SESSION['id'] ?? $_SESSION['nim'] ?? $_SESSION['user_id'] ?? $_SESSION['username'] ?? $_SESSION['nip'] ?? '');
   // lokasi = path relatif file (mis. file/1787809027_d9cb8a4f0d18388e.jpg)
   $lokasi_b       = bersihkan('file/' . $nama_file);
   return query("INSERT INTO files (id, nama_file, format_file, waktu_unggah, tabel_asal, lokasi, pengunggah) VALUES ('$id_file_b', '$nama_file_b', '$ekstensi_b', $waktu, '$tabel_asal_b', '$lokasi_b', '$pengunggah')");
@@ -106,10 +111,12 @@ function upload_file($file, $tabel_asal, $id_file = ''){
   }
 
   if($ganti){
-    // ubah HANYA nama_file, format_file, waktu & lokasi (id & tabel_asal tetap)
+    // ubah nama_file, format_file, waktu, lokasi, dan pastikan pengunggah tercatat
+    $pengunggah = bersihkan($_SESSION['id'] ?? $_SESSION['nim'] ?? $_SESSION['user_id'] ?? $_SESSION['username'] ?? $_SESSION['nip'] ?? '');
+    $setPengunggah = ($pengunggah !== '') ? ", pengunggah='" . $pengunggah . "'" : "";
     $ok = query(
       "UPDATE files SET nama_file='" . bersihkan($nama_file) . "', format_file='" . bersihkan($ekstensi) . "', "
-      . "waktu_unggah=" . (int)$waktu . ", lokasi='" . bersihkan($lokasi) . "' "
+      . "waktu_unggah=" . (int)$waktu . ", lokasi='" . bersihkan($lokasi) . "'$setPengunggah "
       . "WHERE id='" . bersihkan($id_file) . "'"
     );
   } else {
@@ -219,6 +226,80 @@ function get_progres_skripsi($nim) {
         return (int) $row['proses'];
     }
     return '-';
+}
+
+// ================= FUNCTION CEK PROGRES KP MAHASISWA =================
+// Mengambil nomor proses/step KP terakhir yang dicatat untuk mahasiswa tertentu.
+// Return: integer nomor proses (jika ada), atau '-' (jika belum ada).
+function get_progres_kp($nim) {
+    $nim_clean = bersihkan($nim);
+    $q = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $row = mysqli_fetch_assoc($q);
+        return (int) $row['proses'];
+    }
+    return '-';
+}
+
+// ================= FUNCTION MAJUKAN / SIMPAN PROGRES KP =================
+function set_progres_kp($nim, $stepBaru) {
+    $nim_clean = bersihkan($nim);
+    $stepBaru  = (int)$stepBaru;
+    $waktu     = time();
+    return query("INSERT INTO progres_kp (waktu, proses, mahasiswa) VALUES ($waktu, $stepBaru, '$nim_clean')");
+}
+
+// ================= KONFIGURASI & HELPER DURASI KERJA PRAKTEK (KP) =================
+// Standar durasi pelaksanaan Kerja Praktek (dalam satuan bulan).
+// Silakan ubah angka ini (misalkan menjadi 3 atau lainnya) jika ada perubahan kebijakan durasi KP.
+define('DURASI_DEFAULT_KP_BULAN', 2);
+
+/**
+ * Menghitung estimasi tanggal selesai Kerja Praktek secara otomatis berdasarkan tanggal mulai.
+ * @param string $tanggalMulai Format: Y-m-d (contoh: '2026-10-15')
+ * @param int|null $durasiBulan Jumlah bulan durasi (default mengacu ke DURASI_DEFAULT_KP_BULAN)
+ * @return string Tanggal selesai dalam format 'Y-m-d'
+ */
+function hitung_tanggal_selesai_kp($tanggalMulai, $durasiBulan = null) {
+    if (empty($tanggalMulai) || $tanggalMulai === '0000-00-00') {
+        return '';
+    }
+    $bulan = ($durasiBulan !== null) ? (int)$durasiBulan : DURASI_DEFAULT_KP_BULAN;
+    try {
+        $dt = new DateTime($tanggalMulai);
+        $dt->modify("+{$bulan} month");
+        return $dt->format('Y-m-d');
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
+// ================= FUNCTION AMBIL DAFTAR SOP KP =================
+function get_sop_kp_list() {
+    $qSop = query("SELECT * FROM sop_kp");
+    $list = [];
+    if ($qSop) {
+        while ($r = mysqli_fetch_assoc($qSop)) {
+            $noVal  = $r['no'] ?? $r['id'] ?? $r['proses'] ?? $r['nomor'] ?? reset($r);
+            $ketVal = $r['keterangan'] ?? $r['nama'] ?? $r['tahapan'] ?? $r['deskripsi'] ?? $r['judul'] ?? '';
+            if ($ketVal === '') {
+                foreach ($r as $k => $v) {
+                    if (!in_array(strtolower($k), ['id', 'no', 'nomor', 'proses', 'waktu']) && !is_numeric($v) && trim((string)$v) !== '') {
+                        $ketVal = $v;
+                        break;
+                    }
+                }
+            }
+            $eksVal = $r['eksekutor'] ?? $r['aktor'] ?? $r['role'] ?? 'mahasiswa';
+            $list[] = [
+                'no'         => (int)$noVal,
+                'keterangan' => trim((string)$ketVal),
+                'eksekutor'  => strtolower(trim((string)$eksVal))
+            ];
+        }
+        usort($list, fn($a, $b) => $a['no'] <=> $b['no']);
+    }
+    return $list;
 }
 
 // ================= FUNCTION AMBIL PRODI USER LOGIN =================

@@ -56,16 +56,32 @@ $activePage = $activePage ?? '';
                 <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
             </button>
             <div class="nav-submenu <?= $pengelolaanActive ? 'open' : '' ?>" id="sub-pengelolaan">
+                <?php
+                $userLevel = (int)($_SESSION['level'] ?? 0);
+                $userProdi = function_exists('get_prodi_user') ? get_prodi_user() : trim((string)($_SESSION['prodi'] ?? ''));
+
+                $showMenuSkripsi = in_array($userLevel, [3, 4, 5, 6, 9], true);
+                if ($userLevel === 3 && $userProdi === '') {
+                    $showMenuSkripsi = false;
+                }
+
+                $showMenuVerifikasi = in_array($userLevel, [3, 4, 6, 9], true);
+                if ($userLevel === 3 && $userProdi === '') {
+                    $showMenuVerifikasi = false;
+                }
+                ?>
                 <div class="nav-section-header">Data Mahasiswa &amp; Alumni</div>
-                <?php if (in_array((int)($_SESSION['level'] ?? 0), [3, 4, 5, 6, 9], true)): ?>
+                <?php if ($showMenuSkripsi): ?>
                 <a href="/redesain-siatek/administrator/mhs-skripsi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-skripsi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Skripsi</span></a>
                 <?php endif; ?>
                 <a href="/redesain-siatek/administrator/mhs-kp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-briefcase w-5 text-center text-sm opacity-70"></i><span>Kerja Praktek</span></a>
+                <?php if ($showMenuVerifikasi): ?>
                 <a href="/redesain-siatek/administrator/mhs-verifikasi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-verifikasi' ? 'nav-active' : 'nav-item' ?>">
                     <i class="fas fa-clipboard w-5 text-center text-sm opacity-70"></i>
                     <span class="flex-1">Verifikasi Berkas</span>
                     <span id="sidebarVerifikasiBadge" class="hidden items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">0</span>
                 </a>
+                <?php endif; ?>
                 <a href="/redesain-siatek/administrator/mhs-alumni" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-alumni' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-graduation-cap w-5 text-center text-sm opacity-70"></i><span>Data Alumni</span></a>
                 <a href="/redesain-siatek/administrator/mhs-kegiatan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kegiatan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-calendar w-5 text-center text-sm opacity-70"></i><span>Kegiatan</span></a>
 

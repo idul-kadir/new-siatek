@@ -17,6 +17,7 @@ Skill ini mendefinisikan gaya coding PHP native (tanpa framework) yang harus sel
 - Jangan menjelajah/membaca banyak file lain di luar yang relevan dengan persoalan yang diminta, kecuali memang dibutuhkan untuk memahami konteks bug tersebut (misal: perlu cek `function.php` karena error terkait fungsi yang di-require).
 - Kalau ada beberapa kemungkinan penyebab masalah, langsung pilih yang paling masuk akal berdasarkan konteks yang ada dan kerjakan — jangan menghabiskan waktu bertanya balik hal-hal kecil yang bisa diasumsikan wajar.
 - Ringkas di respons: langsung ke perbaikan/kode, tidak perlu muter-muter menjelaskan hal yang sudah jelas dari kode yang ada.
+- **DILARANG KERAS MENGUBAH, MENAMBAH, ATAU MENGHAPUS DATA LANGSUNG DI MYSQL DENGAN ALASAN APAPUN.** AI tidak boleh mengisi data dummy/palsu, manipulasi data langsung di MySQL, atau menjalankan DDL (`ALTER`/`DROP`/`CREATE`). Jika terdapat ketidaksesuaian skema tabel atau panjang kolom (`Data too long`), AI WAJIB MEMINTA USER untuk menyesuaikan struktur tabelnya secara manual.
 
 ## Struktur file per halaman
 

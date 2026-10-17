@@ -118,6 +118,7 @@ if (isset($_POST['masuk-login'])) {
         }
 
         session_regenerate_id(true);
+        $_SESSION['id']       = $m['id'] ?? $m['nim'];
         $_SESSION['user_id']  = $m['nim'];
         $_SESSION['username'] = $m['nim'];
         $_SESSION['nim']      = $m['nim'];
@@ -299,6 +300,7 @@ function login_sukses($akun, $tipe, $fotoGoogle = '') {
         }
         $target = '/administrator';
     } else {
+        $_SESSION['id']       = $akun['id'] ?? $akun['nim'];
         $_SESSION['user_id']  = $akun['nim'];
         $_SESSION['username'] = $akun['nim'];
         $_SESSION['nim']      = $akun['nim'];

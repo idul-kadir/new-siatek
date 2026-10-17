@@ -9,6 +9,9 @@ require_once __DIR__ . '/../../../fungsi.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 $nim_login = $_SESSION['nim'] ?? '';
+if (empty($_SESSION['id']) && !empty($nim_login)) {
+    $_SESSION['id'] = $nim_login;
+}
 
 // ================= UNGGAH BERKAS (SATUAN) KE TEMP_SKRIPSI =================
 if (isset($_POST['unggah-berkas-skripsi'])) {
