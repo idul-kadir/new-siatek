@@ -44,6 +44,7 @@ $activePage = $activePage ?? '';
         <!-- 2. Pengelolaan -->
         <?php
         $pengelolaanPages = ['mhs-skripsi','mhs-kp','mhs-verifikasi','mhs-alumni','mhs-kegiatan',
+                             'mhs-ujian','ujian','mhs-penunjukkan','penunjukkan',
                              'bimbingan-skripsi','bimbingan-kp','bimbingan-pa',
                              'pengguna-mahasiswa','pengguna-dosen','pengelolaan-broadcast'];
         $pengelolaanActive = in_array($activePage, $pengelolaanPages, true);
@@ -69,12 +70,31 @@ $activePage = $activePage ?? '';
                 if ($userLevel === 3 && $userProdi === '') {
                     $showMenuVerifikasi = false;
                 }
+
+                $showMenuUjian = in_array($userLevel, [3, 4, 5, 6, 9], true);
+                if (in_array($userLevel, [3, 5], true) && $userProdi === '') {
+                    $showMenuUjian = false;
+                }
+                $showMenuPenunjukkan = in_array($userLevel, [3, 4, 5, 6, 9], true);
+                if (in_array($userLevel, [3, 5], true) && $userProdi === '') {
+                    $showMenuPenunjukkan = false;
+                }
                 ?>
                 <div class="nav-section-header">Data Mahasiswa &amp; Alumni</div>
                 <?php if ($showMenuSkripsi): ?>
                 <a href="/redesain-siatek/administrator/mhs-skripsi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-skripsi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Skripsi</span></a>
                 <?php endif; ?>
                 <a href="/redesain-siatek/administrator/mhs-kp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-briefcase w-5 text-center text-sm opacity-70"></i><span>Kerja Praktek</span></a>
+                <?php if ($showMenuUjian): ?>
+                <a href="/redesain-siatek/administrator/mhs-ujian" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= in_array($activePage, ['mhs-ujian', 'ujian'], true) ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-clipboard-check w-5 text-center text-sm opacity-70"></i><span>Ujian</span></a>
+                <?php endif; ?>
+                <?php if ($showMenuPenunjukkan): ?>
+                <a href="/redesain-siatek/administrator/mhs-penunjukkan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= in_array($activePage, ['mhs-penunjukkan', 'penunjukkan'], true) ? 'nav-active' : 'nav-item' ?>">
+                    <i class="fas fa-file-signature w-5 text-center text-sm opacity-70"></i>
+                    <span class="flex-1">Penunjukkan</span>
+                    <span id="sidebarPenunjukkanBadge" class="hidden items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">0</span>
+                </a>
+                <?php endif; ?>
                 <?php if ($showMenuVerifikasi): ?>
                 <a href="/redesain-siatek/administrator/mhs-verifikasi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-verifikasi' ? 'nav-active' : 'nav-item' ?>">
                     <i class="fas fa-clipboard w-5 text-center text-sm opacity-70"></i>

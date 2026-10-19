@@ -306,30 +306,32 @@ if (isset($_POST['muat-lembar-kerja'])) {
 
         <?php else:
             $namaTugasSop = 'Tahapan Kerja Praktek';
-            $ketLower = '';
             $rawSop = get_sop_kp_list();
             foreach ($rawSop as $sp) {
-                if ($sp['no'] === $progres) {
+                if ((int)$sp['no'] === (int)$progres) {
                     $namaTugasSop = $sp['keterangan'];
-                    $ketLower = strtolower($sp['keterangan']);
                     break;
                 }
             }
+
+            // Ambil data detail KP mahasiswa untuk prefill formulir
+            $kpDetail = mysqli_fetch_assoc(query("SELECT * FROM kp WHERE nim = '$nim' LIMIT 1"));
         ?>
 
         <!-- CASE 2: PROSES BERJALAN SESUAI SOP KP -->
         <h5 class="font-bold text-slate-800 text-[14px] border-b border-slate-200 pb-2"><i class="fas fa-tasks mr-1.5 text-slate-400"></i>Tugas: <?= tampil($namaTugasSop) ?></h5>
         <div class="py-3">
             <?php
-            // Cek apakah tahapan ini adalah verifikasi berkas di menu verifikasi
-            if (strpos($ketLower, 'verifikasi berkas') !== false || strpos($ketLower, 'verifikasi dokumen') !== false):
+            // Progres Verifikasi Berkas yang harus diproses di antrian halaman mhs-verifikasi
+            $progresVerifikasi = [3, 5, 9, 11, 15];
+            if (in_array((int)$progres, $progresVerifikasi, true)):
             ?>
                 <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 text-center">
                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 mb-3 text-xl">
                         <i class="fas fa-clipboard-list"></i>
                     </div>
                     <h6 class="font-bold text-blue-800 text-sm mb-2">Verifikasi Berkas Mahasiswa</h6>
-                    <p class="text-xs text-blue-600 mb-4">Tugas pada tahapan ini adalah melakukan verifikasi terhadap berkas mahasiswa di antrian verifikasi.</p>
+                    <p class="text-xs text-blue-600 mb-4">Tugas pada tahapan ini adalah melakukan verifikasi terhadap berkas mahasiswa di antrian verifikasi. Proses ini tidak dilakukan di halaman ini.</p>
                     <a href="<?= base_url() ?>/administrator/mhs-verifikasi" class="inline-block px-4 py-2 text-xs rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition">
                         Buka Halaman Verifikasi Berkas
                     </a>
@@ -342,121 +344,169 @@ if (isset($_POST['muat-lembar-kerja'])) {
                     <input type="hidden" name="progres_sekarang" value="<?= tampil($progres) ?>">
 
                     <?php
-                    // Deteksi form berdasarkan tipe SOP KP
-                    $isFormPembimbing = (strpos($ketLower, 'pembimbing') !== false && (strpos($ketLower, 'penunjukkan') !== false || strpos($ketLower, 'surat') !== false || strpos($ketLower, 'buat') !== false));
-                    $isFormPenguji    = (strpos($ketLower, 'penguji') !== false && (strpos($ketLower, 'penunjukkan') !== false || strpos($ketLower, 'surat') !== false || strpos($ketLower, 'buat') !== false));
-                    $isFormJadwal     = (strpos($ketLower, 'jadwal') !== false || strpos($ketLower, 'undangan') !== false || (strpos($ketLower, 'seminar') !== false && strpos($ketLower, 'siap') !== false));
-
-                    if ($isFormPembimbing):
-                        // Form Surat Penunjukkan Pembimbing KP (1 Pembimbing)
-                    ?>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Pembimbing KP</label>
-                            <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan..." required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">Dosen Pembimbing KP</label>
-                            <select name="pembimbing1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                <option value="">-- Pilih Dosen Pembimbing --</option>
-                                <?php
-                                $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
-                                if ($qDosen) {
-                                    while ($dsn = mysqli_fetch_assoc($qDosen)) {
-                                        echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
-                                    }
+                    switch ((int)$progres):
+                        case 6:
+                            // Form Khusus: SOP 6 (Penunjukkan Pembimbing KP - 1 Pembimbing)
+                            $suratBimbLembar = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
+                            if (!$suratBimbLembar) {
+                                $sKp = mysqli_fetch_assoc(query("SELECT surat_penunjukkan_pembimbing FROM kp WHERE nim = '$nim' LIMIT 1"));
+                                $idS = $sKp['surat_penunjukkan_pembimbing'] ?? 0;
+                                if ($idS) {
+                                    $suratBimbLembar = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE id = '$idS' LIMIT 1"));
                                 }
-                                ?>
-                            </select>
-                        </div>
-                        <input type="hidden" name="jenis_aksi" value="simpan-pembimbing">
-                    <?php
-                    elseif ($isFormPenguji):
-                        // Form Surat Penunjukkan Penguji Seminar KP (Penguji 1 & 2)
-                        // Ambil pembimbing KP sebelumnya untuk saran
-                        $suratBimb = mysqli_fetch_assoc(query("SELECT pembimbing1 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
-                        $saranPenguji1 = $suratBimb ? (string)$suratBimb['pembimbing1'] : '';
-                    ?>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji Seminar KP</label>
-                            <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
-                        </div>
-                        <div class="space-y-3 mb-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">Dosen Penguji 1 <?= $saranPenguji1 ? '<span class="text-orange-600 font-normal">(Disarankan: Pembimbing KP)</span>' : '' ?></label>
-                                <select name="penguji1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                    <option value="">-- Pilih Dosen Penguji 1 --</option>
+                            }
+                            $saranP1 = $suratBimbLembar['pembimbing1'] ?? '';
+                            $saranNoSurat = $suratBimbLembar['no_surat'] ?? '';
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Pembimbing KP</label>
+                                <input type="text" name="no_surat" value="<?= tampil($saranNoSurat) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Contoh: 123/UN47.B5/TU/2026" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">Dosen Pembimbing KP</label>
+                                <select name="pembimbing1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                    <option value="">-- Pilih Dosen Pembimbing --</option>
                                     <?php
                                     $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
                                     if ($qDosen) {
                                         while ($dsn = mysqli_fetch_assoc($qDosen)) {
-                                            $sel = ($dsn['id'] == $saranPenguji1) ? 'selected' : '';
+                                            $sel = ($dsn['id'] == $saranP1) ? 'selected' : '';
                                             echo '<option value="' . tampil($dsn['id']) . '" ' . $sel . '>' . tampil($dsn['nama']) . '</option>';
                                         }
                                     }
                                     ?>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">Dosen Penguji 2</label>
-                                <select name="penguji2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                    <option value="">-- Pilih Dosen Penguji 2 --</option>
-                                    <?php
-                                    if ($qDosen) mysqli_data_seek($qDosen, 0);
-                                    if ($qDosen) {
-                                        while ($dsn = mysqli_fetch_assoc($qDosen)) {
-                                            echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
-                                        }
-                                    }
-                                    ?>
-                                </select>
+                            <input type="hidden" name="jenis_aksi" value="simpan-pembimbing">
+                            <?php
+                            break;
+
+                        case 7:
+                            // Form Khusus: SOP 7 (Mencetak Surat Pengantar untuk Penarikan KP)
+                            $tempatKpDisplay = !empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : ''));
+                            $noSuratDummy = '145/UN47.B5.5/PK.01/' . date('Y');
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Pengantar Penarikan</label>
+                                <input type="text" name="no_surat" value="<?= tampil($noSuratDummy) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Contoh: 145/UN47.B5.5/PK.01/<?= date('Y') ?>" required>
                             </div>
-                        </div>
-                        <input type="hidden" name="jenis_aksi" value="simpan-penguji">
-                    <?php
-                    elseif ($isFormJadwal):
-                        // Form Jadwal Seminar KP
-                    ?>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Undangan Seminar KP</label>
-                            <input type="text" name="no_undangan" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat undangan seminar..." required>
-                        </div>
-                        <div class="mb-4 grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Seminar</label>
-                                <input type="date" name="tanggal_seminar" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">Instansi / Perusahaan Tujuan</label>
+                                <input type="text" name="instansi" value="<?= tampil($tempatKpDisplay) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Nama instansi atau perusahaan tempat KP..." required>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Seminar</label>
-                                <input type="text" name="jam_seminar" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: 09:00 - Selesai" required>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">Tanggal Surat</label>
+                                <input type="date" name="tanggal_surat" value="<?= date('Y-m-d') ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
                             </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Ruangan / Tempat Seminar</label>
-                            <input type="text" name="ruangan" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: Ruang Sidang Jurusan" required>
-                        </div>
-                        <input type="hidden" name="jenis_aksi" value="simpan-jadwal">
-                    <?php
-                    else:
-                        // Default form tahapan: konfirmasi penyelesaian tahap
-                    ?>
-                        <div class="rounded-lg bg-white border border-slate-200 p-4 mb-4">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600 font-bold">
-                                    <i class="fas fa-check"></i>
-                                </span>
+                            <input type="hidden" name="jenis_aksi" value="cetak-surat-penarikan">
+                            <?php
+                            break;
+
+                        case 12:
+                            // Form Khusus: SOP 12 (Penunjukkan Penguji Seminar KP - Penguji 1 & 2)
+                            $suratBimb = mysqli_fetch_assoc(query("SELECT pembimbing1 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
+                            $saranPenguji1 = $suratBimb ? (string)$suratBimb['pembimbing1'] : '';
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji Seminar KP</label>
+                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
+                            </div>
+                            <div class="space-y-3 mb-4">
                                 <div>
-                                    <p class="text-xs font-bold text-slate-700">Konfirmasi Penyelesaian Tahapan</p>
-                                    <p class="text-xs text-slate-500 mt-0.5">Tandai tahapan ini telah selesai dikerjakan dan majukan mahasiswa ke tahapan SOP selanjutnya.</p>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Dosen Penguji 1 <?= $saranPenguji1 ? '<span class="text-orange-600 font-normal">(Disarankan: Pembimbing KP)</span>' : '' ?></label>
+                                    <select name="penguji1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen Penguji 1 --</option>
+                                        <?php
+                                        $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
+                                        if ($qDosen) {
+                                            while ($dsn = mysqli_fetch_assoc($qDosen)) {
+                                                $sel = ($dsn['id'] == $saranPenguji1) ? 'selected' : '';
+                                                echo '<option value="' . tampil($dsn['id']) . '" ' . $sel . '>' . tampil($dsn['nama']) . '</option>';
+                                            }
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Dosen Penguji 2</label>
+                                    <select name="penguji2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                        <option value="">-- Pilih Dosen Penguji 2 --</option>
+                                        <?php
+                                        if ($qDosen) mysqli_data_seek($qDosen, 0);
+                                        if ($qDosen) {
+                                            while ($dsn = mysqli_fetch_assoc($qDosen)) {
+                                                echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
+                                            }
+                                        }
+                                        ?>
+                                    </select>
                                 </div>
                             </div>
-                        </div>
-                        <input type="hidden" name="jenis_aksi" value="lanjut-tahap">
-                    <?php
-                    endif;
+                            <input type="hidden" name="jenis_aksi" value="simpan-penguji">
+                            <?php
+                            break;
+
+                        case 13:
+                            // Form Khusus: SOP 13 (Pengaturan Jadwal Seminar KP)
+                            $tglSem = !empty($kpDetail['tanggal_seminar']) ? $kpDetail['tanggal_seminar'] : ($kpDetail['tanggal'] ?? '');
+                            $jamSem = !empty($kpDetail['jam_seminar']) ? $kpDetail['jam_seminar'] : ($kpDetail['jam'] ?? '');
+                            $ruangSem = $kpDetail['ruangan'] ?? '';
+                            $noUnd = $kpDetail['no_undangan'] ?? '';
+                            ?>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Undangan Seminar KP</label>
+                                <input type="text" name="no_undangan" value="<?= tampil($noUnd) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat undangan seminar..." required>
+                            </div>
+                            <div class="mb-4 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Seminar</label>
+                                    <input type="date" name="tanggal_seminar" value="<?= tampil($tglSem) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jam Seminar</label>
+                                    <input type="text" name="jam_seminar" value="<?= tampil($jamSem) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: 09:00 - Selesai" required>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Ruangan / Tempat Seminar</label>
+                                <input type="text" name="ruangan" value="<?= tampil($ruangSem) ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="contoh: Ruang Sidang Jurusan" required>
+                            </div>
+                            <input type="hidden" name="jenis_aksi" value="simpan-jadwal">
+                            <?php
+                            break;
+
+                        default:
+                            // Form Default: Konfirmasi Penyelesaian Tahapan
+                            ?>
+                            <div class="rounded-lg bg-white border border-slate-200 p-4 mb-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600 font-bold">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-700">Konfirmasi Penyelesaian Tahapan</p>
+                                        <p class="text-xs text-slate-500 mt-0.5">Tandai tahapan ini telah selesai dikerjakan dan majukan mahasiswa ke tahapan SOP selanjutnya.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="jenis_aksi" value="lanjut-tahap">
+                            <?php
+                            break;
+                    endswitch;
+
+                    // Label tombol submit dinamis
+                    $labelTombol = 'Simpan & Lanjutkan';
+                    if (in_array((int)$progres, [6, 12], true)) {
+                        $labelTombol = 'Buat Surat';
+                    } elseif ((int)$progres === 7) {
+                        $labelTombol = 'Cetak Surat';
+                    } elseif ((int)$progres === 13) {
+                        $labelTombol = 'Simpan Jadwal';
+                    }
                     ?>
 
                     <div class="flex justify-end mt-4">
-                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm transition" data-text="Simpan &amp; Lanjutkan">Simpan &amp; Lanjutkan</button>
+                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm transition" data-text="<?= $labelTombol ?>"><?= $labelTombol ?></button>
                     </div>
                 </form>
             <?php endif; ?>
@@ -575,7 +625,7 @@ if (isset($_POST['proses-lembar-kerja'])) {
         $tanggalSekarang = date('Y-m-d');
         $progresBaru = $progresSekarang + 1;
 
-        if ($jenisAksi === 'simpan-pembimbing') {
+        if ($progresSekarang === 6 || $jenisAksi === 'simpan-pembimbing') {
             $noSurat = bersihkan($_POST['no_surat'] ?? '');
             $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
 
@@ -584,17 +634,38 @@ if (isset($_POST['proses-lembar-kerja'])) {
                 exit;
             }
 
-            $idSurat = $waktuSistem;
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$tanggalSekarang', 'PEMBIMBING KP')");
+            $suratBimb = mysqli_fetch_assoc(query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
+            if ($suratBimb && !empty($suratBimb['id'])) {
+                $idSurat = $suratBimb['id'];
+                $ins = query("UPDATE surat_penunjukkan SET no_surat = '$noSurat', pembimbing1 = '$pembimbing1', tanggal = '$tanggalSekarang' WHERE id = '$idSurat'");
+            } else {
+                $idSurat = $waktuSistem;
+                $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$tanggalSekarang', 'PEMBIMBING KP')");
+            }
 
-            // Update kolom di kp jika ada
-            query("UPDATE kp SET penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
-            query("UPDATE kp SET pembimbing = '$pembimbing1' WHERE nim = '$nim'");
-
+            query("UPDATE kp SET surat_penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
             set_progres_kp($nim, $progresBaru);
-            echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan pembimbing KP berhasil dibuat']);
+            echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan pembimbing KP berhasil disimpan dan tahapan dilanjutkan']);
             exit;
-        } elseif ($jenisAksi === 'simpan-penguji') {
+        } elseif ($progresSekarang === 7 || $jenisAksi === 'cetak-surat-penarikan') {
+            $instansi = bersihkan($_POST['instansi'] ?? '');
+            if ($instansi !== '') {
+                query("UPDATE kp SET instansi = '$instansi' WHERE nim = '$nim'");
+            }
+
+            // Majukan tahapan mahasiswa (step naik)
+            set_progres_kp($nim, $progresBaru);
+
+            // Buka dokumen surat penarikan KP di tab baru
+            $urlSuratPenarikan = base_url() . "/administrator/dokumen/surat-penarikan-kp/" . $nim;
+
+            echo json_encode([
+                'status'   => true,
+                'pesan'    => 'Surat penarikan KP berhasil dicetak dan tahapan dimajukan',
+                'buka_tab' => $urlSuratPenarikan
+            ]);
+            exit;
+        } elseif ($progresSekarang === 12 || $jenisAksi === 'simpan-penguji') {
             $noSurat  = bersihkan($_POST['no_surat'] ?? '');
             $penguji1 = bersihkan($_POST['penguji1'] ?? '');
             $penguji2 = bersihkan($_POST['penguji2'] ?? '');
@@ -607,11 +678,11 @@ if (isset($_POST['proses-lembar-kerja'])) {
             $idSurat = $waktuSistem;
             $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$tanggalSekarang', 'PENGUJI KP')");
 
-            query("UPDATE kp SET penunjukkan_penguji = '$idSurat' WHERE nim = '$nim'");
+            query("UPDATE kp SET surat_penunjukkan_penguji = '$idSurat' WHERE nim = '$nim'");
             set_progres_kp($nim, $progresBaru);
             echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan penguji seminar KP berhasil dibuat']);
             exit;
-        } elseif ($jenisAksi === 'simpan-jadwal') {
+        } elseif ($progresSekarang === 13 || $jenisAksi === 'simpan-jadwal') {
             $noUndangan = bersihkan($_POST['no_undangan'] ?? '');
             $tgl        = bersihkan($_POST['tanggal_seminar'] ?? '');
             $jam        = bersihkan($_POST['jam_seminar'] ?? '');
@@ -623,7 +694,6 @@ if (isset($_POST['proses-lembar-kerja'])) {
             }
 
             query("UPDATE kp SET no_undangan = '$noUndangan', tanggal_seminar = '$tgl', jam_seminar = '$jam', ruangan = '$ruangan' WHERE nim = '$nim'");
-            query("UPDATE kp SET tanggal = '$tgl', jam = '$jam' WHERE nim = '$nim'");
             set_progres_kp($nim, $progresBaru);
 
             echo json_encode([
@@ -668,13 +738,92 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
     }
 
     $currentStage = get_progres_kp($nim);
+    if ($currentStage === '-' || $currentStage === '' || $currentStage === null) $currentStage = 1;
+    $currentStage = (int)$currentStage;
 
     // Ambil list SOP KP
     $sopList = get_sop_kp_list();
+    $sopMap = [];
+    foreach ($sopList as $sp) {
+        $sopMap[(int)$sp['no']] = $sp['keterangan'];
+    }
+    $labelProgresAktif = $sopMap[$currentStage] ?? 'Tahapan Kerja Praktek';
+
+    // Ambil riwayat penyelesaian tahapan dari tabel progres_kp
+    $riwayatWaktuSop = [];
+    try {
+        $qProg = query("SELECT * FROM progres_kp WHERE mahasiswa = '$nim'");
+        if ($qProg) {
+            while ($pr = mysqli_fetch_assoc($qProg)) {
+                $pNo = (int)($pr['proses'] ?? $pr['progres'] ?? 0);
+                $tUnix = 0;
+                if (!empty($pr['waktu']) && is_numeric($pr['waktu']) && (int)$pr['waktu'] > 0) {
+                    $tUnix = (int)$pr['waktu'];
+                } elseif (!empty($pr['id']) && is_numeric($pr['id']) && (int)$pr['id'] > 1000000000) {
+                    $tUnix = (int)$pr['id'];
+                }
+                if ($pNo > 0 && $tUnix > 0) {
+                    $riwayatWaktuSop[$pNo] = $tUnix;
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    $formatWaktuSop = function($timeUnix) {
+        if (!$timeUnix || !is_numeric($timeUnix) || (int)$timeUnix <= 0) return '-';
+        $bulanIndo = [
+            1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
+            7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
+        ];
+        $t = (int)$timeUnix;
+        $d = date('d', $t);
+        $m = (int)date('n', $t);
+        $y = date('Y', $t);
+        $jam = date('H:i', $t);
+        $b = $bulanIndo[$m] ?? date('M', $t);
+        return "$d $b $y, $jam";
+    };
+
+    $getWaktuSelesaiSop = function($noSop, $riwayatWaktuSop, $currentStage) {
+        // 1. Cek waktu transisi ke tahap berikutnya jika ada (misal selesai SOP 3 saat masuk SOP 4)
+        if (isset($riwayatWaktuSop[$noSop + 1]) && $riwayatWaktuSop[$noSop + 1] > 0) {
+            return $riwayatWaktuSop[$noSop + 1];
+        }
+        // 2. Cek waktu tercatat pada tahap tersebut
+        if (isset($riwayatWaktuSop[$noSop]) && $riwayatWaktuSop[$noSop] > 0) {
+            return $riwayatWaktuSop[$noSop];
+        }
+        // 3. Cari catatan proses berikutnya yang terdekat
+        foreach ($riwayatWaktuSop as $p => $w) {
+            if ($p >= $noSop && $w > 0) {
+                return $w;
+            }
+        }
+        if (!empty($riwayatWaktuSop)) {
+            return reset($riwayatWaktuSop);
+        }
+        return 0;
+    };
+
+    // Ambil detail data KP mahasiswa
+    $kpDetail = mysqli_fetch_assoc(query("SELECT * FROM kp WHERE nim = '$nim' LIMIT 1"));
 
     // Ambil surat-surat penunjukkan KP mahasiswa ini
-    $suratBimb = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
-    $suratPeng = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI KP' ORDER BY id DESC LIMIT 1"));
+    $suratBimb = null;
+    if (!empty($kpDetail['surat_penunjukkan_pembimbing'])) {
+        $suratBimb = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE id = '{$kpDetail['surat_penunjukkan_pembimbing']}' LIMIT 1"));
+    }
+    if (!$suratBimb) {
+        $suratBimb = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
+    }
+
+    $suratPeng = null;
+    if (!empty($kpDetail['surat_penunjukkan_penguji'])) {
+        $suratPeng = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE id = '{$kpDetail['surat_penunjukkan_penguji']}' LIMIT 1"));
+    }
+    if (!$suratPeng) {
+        $suratPeng = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI KP' ORDER BY id DESC LIMIT 1"));
+    }
 
     // Ambil dosen names
     $dosenListQ = query("SELECT id, nama FROM dosen");
@@ -685,225 +834,635 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
         }
     }
 
-    // Ambil detail data KP mahasiswa
-    $kpDetail = mysqli_fetch_assoc(query("SELECT * FROM kp WHERE nim = '$nim' LIMIT 1"));
+    // Ambil master seluruh persyaratan berkas KP dikelompokkan berdasarkan nomor progres (SOP)
+    $masterSyarat = [];
+    $qMs = query("SELECT id, nama_berkas, progres FROM persyaratan_berkas_kp ORDER BY progres ASC, id ASC");
+    if ($qMs) {
+        while ($ms = mysqli_fetch_assoc($qMs)) {
+            $masterSyarat[(int)$ms['progres']][] = $ms;
+        }
+    }
+
+    // Ambil berkas mahasiswa dari tabel berkas_kp (Tabel UTAMA berkas tersimpan)
+    $berkasMap = [];
+    $qBk = query("SELECT bk.id AS id_berkas, bk.id_persyaratan, bk.file, f.nama_file 
+                  FROM berkas_kp bk 
+                  LEFT JOIN files f ON bk.file = f.id 
+                  WHERE bk.nim = '$nim'");
+    if ($qBk) {
+        while ($br = mysqli_fetch_assoc($qBk)) {
+            $berkasMap[(int)$br['id_persyaratan']] = [
+                'id'        => (int)$br['id_berkas'],
+                'file'      => $br['file'],
+                'nama_file' => $br['nama_file'],
+                'status'    => 'tersimpan',
+                'ket'       => 'Tersimpan di berkas KP'
+            ];
+        }
+    }
+
+    // Lengkapi dengan berkas dari temp_kp
+    $qTemp = query("SELECT tk.id AS id_temp, tk.id_persyaratan, tk.file, tk.status, tk.ket, f.nama_file 
+                    FROM temp_kp tk 
+                    LEFT JOIN files f ON tk.file = f.id 
+                    WHERE tk.nim = '$nim'");
+    if ($qTemp) {
+        while ($tr = mysqli_fetch_assoc($qTemp)) {
+            $idP = (int)$tr['id_persyaratan'];
+            if (!isset($berkasMap[$idP]) || empty($berkasMap[$idP]['file'])) {
+                $berkasMap[$idP] = [
+                    'id'        => (int)$tr['id_temp'],
+                    'file'      => $tr['file'],
+                    'nama_file' => $tr['nama_file'],
+                    'status'    => $tr['status'],
+                    'ket'       => $tr['ket']
+                ];
+            }
+        }
+    }
+
+    // Otoritas wewenang unggah ulang berkas: Level 5 (Kaprodi), 6 (Pimpinan/KTU), 9 (Super Admin) - sesuai hirarki Skripsi
+    $canUploadBerkas = in_array($userLevel, [5, 6, 9], true);
+
+    // Helper render daftar berkas mahasiswa/operator + fitur lihat & unggah ulang
+    $renderListBerkas = function($listSyarat, $berkasMap, $nim, $labelSection = 'Berkas Persyaratan') use ($canUploadBerkas) {
+        if (empty($listSyarat)) return '';
+        ob_start();
+        ?>
+        <div class="mt-3.5 pt-3 border-t border-slate-200">
+            <div class="flex items-center justify-between mb-2">
+                <h5 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <i class="fas fa-folder-open text-amber-500"></i> <?= tampil($labelSection) ?>
+                </h5>
+                <span class="text-[10px] text-slate-400 font-medium">Format: PDF</span>
+            </div>
+            <div class="space-y-2">
+                <?php foreach ($listSyarat as $syarat): 
+                    $idSyarat = (int)$syarat['id'];
+                    $itemUploaded = $berkasMap[$idSyarat] ?? null;
+                    $hasFile = ($itemUploaded && !empty($itemUploaded['file']));
+                    $fileUrl = $hasFile ? url_file($itemUploaded['file']) : '';
+                    $rawStatus = strtolower(trim((string)($itemUploaded['status'] ?? ($hasFile ? 'tersimpan' : 'belum ada'))));
+                    
+                    $statusBadgeClass = 'bg-slate-100 text-slate-500';
+                    $statusLabel = 'Belum Diunggah';
+                    if ($rawStatus === 'diterima' || $rawStatus === 'tersimpan') {
+                        $statusBadgeClass = 'bg-emerald-100 text-emerald-700';
+                        $statusLabel = 'Tersimpan';
+                    } elseif ($rawStatus === 'menunggu') {
+                        $statusBadgeClass = 'bg-amber-100 text-amber-700';
+                        $statusLabel = 'Menunggu';
+                    } elseif ($rawStatus === 'ditolak') {
+                        $statusBadgeClass = 'bg-rose-100 text-rose-700';
+                        $statusLabel = 'Ditolak';
+                    }
+                ?>
+                <div class="p-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition shadow-2xs item-berkas-row" data-syarat-id="<?= $idSyarat ?>">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold text-slate-800 leading-snug">
+                                <i class="fas fa-file-pdf mr-1.5 <?= $hasFile ? 'text-rose-500' : 'text-slate-300' ?>"></i>
+                                <?= tampil($syarat['nama_berkas']) ?>
+                            </p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold <?= $statusBadgeClass ?> status-berkas-tag">
+                                    <?= $statusLabel ?>
+                                </span>
+                                <?php if (!empty($itemUploaded['ket'])): ?>
+                                    <span class="text-[10px] text-slate-500 italic truncate max-w-[240px]" title="<?= tampil($itemUploaded['ket']) ?>">
+                                        "<?= tampil($itemUploaded['ket']) ?>"
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 shrink-0">
+                            <a href="<?= $fileUrl ?>" target="_blank" class="link-lihat-file inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition <?= $hasFile ? '' : 'hidden' ?>">
+                                <i class="fas fa-eye text-orange-500"></i> Lihat ↗
+                            </a>
+
+                            <?php if ($canUploadBerkas): ?>
+                            <label class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs btn-upload-ulang-label">
+                                <i class="fas fa-cloud-arrow-up"></i> <span class="label-txt"><?= $hasFile ? 'Unggah Ulang' : 'Unggah File' ?></span>
+                                <input type="file" accept=".pdf" class="hidden input-ganti-berkas" 
+                                       data-id-syarat="<?= $idSyarat ?>" 
+                                       data-nim="<?= tampil($nim) ?>">
+                            </label>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    };
 
     ob_start();
     ?>
-    <div class="mb-4 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Alur &amp; Arsip KP</span>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <button type="button" id="btnBukaSemuaAcc" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-          <i class="fas fa-angles-down mr-1 text-slate-400"></i>Buka Semua
-        </button>
-        <button type="button" id="btnTutupSemuaAcc" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-          <i class="fas fa-angles-up mr-1 text-slate-400"></i>Tutup Semua
-        </button>
-      </div>
-    </div>
-
-    <div class="space-y-3" id="accordionArsip">
-      <?php foreach ($sopList as $idx => $sop):
-        $stepNum = (int)$sop['no'];
-        $isCompleted = ($stepNum < $currentStage);
-        $isCurrent   = ($stepNum === $currentStage);
-        $isFuture    = ($stepNum > $currentStage);
-        $ketLower    = strtolower($sop['keterangan']);
-
-        $cardClass = 'border-slate-200 bg-white';
-        $iconClass = 'bg-slate-100 text-slate-400';
-        $statusLabel = 'Belum Tercapai';
-        $badgeClass = 'bg-slate-100 text-slate-500';
-
-        if ($isCompleted) {
-            $cardClass = 'card-completed border-emerald-200 bg-white hover:border-emerald-300';
-            $iconClass = 'bg-emerald-100 text-emerald-600';
-            $statusLabel = 'Selesai';
-            $badgeClass = 'bg-emerald-100 text-emerald-700';
-        } elseif ($isCurrent) {
-            $cardClass = 'card-current border-orange-300 bg-orange-50/30 ring-1 ring-orange-200';
-            $iconClass = 'bg-orange-100 text-orange-600 animate-pulse';
-            $statusLabel = 'Sedang Berlangsung';
-            $badgeClass = 'bg-orange-100 text-orange-700 font-bold';
-        }
-      ?>
-      <div class="rounded-xl border shadow-xs overflow-hidden transition-all <?= $cardClass ?>" data-card-stage="<?= $stepNum ?>">
-        
-        <!-- Accordion Header -->
-        <div class="flex items-center justify-between p-3.5 <?= $isCompleted ? 'btn-toggle-accordion cursor-pointer hover:bg-slate-50/80 select-none' : '' ?>">
-          <div class="flex items-center gap-3 min-w-0">
-            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold <?= $iconClass ?>">
-              <?php if ($isCompleted): ?>
-                <i class="fas fa-check text-[11px]"></i>
-              <?php else: ?>
-                <?= $stepNum ?>
-              <?php endif; ?>
+    <!-- Indikator Tahap Aktif Mahasiswa Saat Ini -->
+    <div class="flex items-center justify-between p-3.5 rounded-xl bg-orange-50 border border-orange-200/90 mb-4 text-xs shadow-2xs">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white text-xs font-bold shadow-xs">
+                <i class="fas fa-play text-[10px]"></i>
             </span>
             <div class="min-w-0">
-              <h4 class="text-xs font-bold text-slate-800 leading-snug truncate"><?= tampil($sop['keterangan']) ?></h4>
-              <p class="text-[11px] text-slate-400 mt-0.5">Eksekutor: <span class="font-medium text-slate-600 uppercase"><?= tampil($sop['eksekutor'] ?? 'MAHASISWA') ?></span></p>
+                <span class="text-[11px] text-slate-500 block leading-tight">Tahapan Sedang Berjalan:</span>
+                <p class="font-bold text-orange-800 leading-snug truncate">
+                    SOP <?= $currentStage ?>: <?= tampil($labelProgresAktif) ?>
+                </p>
             </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold <?= $badgeClass ?>"><?= $statusLabel ?></span>
-            <?php if ($isCompleted): ?>
-              <i class="fas fa-chevron-down text-slate-400 text-xs acc-chevron transition-transform duration-200"></i>
+        </div>
+        <span class="shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-200/70 text-orange-800 border border-orange-300/60">
+            Sedang Berlangsung
+        </span>
+    </div>
+
+    <!-- ===== Toolbar Kontrol Accordion ===== -->
+    <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Alur SOP Kerja Praktek</span>
+            <span class="text-[11px] font-medium text-slate-400">(<?= count($sopList) ?> Tahapan)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <button type="button" id="btnBukaSemuaAcc" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+                <i class="fas fa-angle-double-down mr-1"></i> Buka Selesai
+            </button>
+            <button type="button" id="btnTutupSemuaAcc" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+                <i class="fas fa-angle-double-up mr-1"></i> Tutup Semua
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== Timeline Accordion Sequential Berdasarkan SOP KP ===== -->
+    <div class="space-y-3" id="accordionArsip">
+        <?php foreach ($sopList as $idx => $sop):
+            $stepNum = (int)$sop['no'];
+            $ketSop = $sop['keterangan'];
+            $eksekutorSop = $sop['eksekutor'] ?? '';
+
+            $isCompleted = ($stepNum < $currentStage);
+            $isCurrent   = ($stepNum === $currentStage);
+            $isFuture    = ($stepNum > $currentStage);
+            $canExpand   = $isCompleted; // HANYA SOP yang sudah selesai yang bisa dibuka accordionnya
+
+            $waktuSelesaiUnix = $isCompleted ? $getWaktuSelesaiSop($stepNum, $riwayatWaktuSop, $currentStage) : 0;
+            $waktuSelesaiFormatted = ($waktuSelesaiUnix > 0) ? $formatWaktuSop($waktuSelesaiUnix) : '-';
+
+            // Tentukan status badge
+            if ($isCompleted) {
+                $badgeText = 'Selesai';
+                $badgeStyle = 'bg-emerald-100 text-emerald-700 border border-emerald-200/60 font-semibold';
+                $iconCircle = 'bg-emerald-500 text-white';
+            } elseif ($isCurrent) {
+                $badgeText = 'Sedang Berjalan';
+                $badgeStyle = 'bg-orange-100 text-orange-700 border border-orange-200/60 font-bold';
+                $iconCircle = 'bg-orange-500 text-white ring-2 ring-orange-400/40';
+            } else {
+                $badgeText = 'Belum Ditempuh';
+                $badgeStyle = 'bg-slate-100 text-slate-500 font-medium';
+                $iconCircle = 'bg-slate-200 text-slate-500';
+            }
+        ?>
+        <div class="border border-slate-200 rounded-xl bg-white shadow-xs overflow-hidden transition-all duration-200 <?= $canExpand ? 'card-completed' : 'card-locked' ?>" data-card-stage="<?= $stepNum ?>">
+            <!-- Header Kartu SOP -->
+            <?php if ($canExpand): ?>
+            <div class="flex items-center justify-between p-3.5 cursor-pointer bg-slate-50 hover:bg-slate-100/80 transition btn-toggle-accordion">
+            <?php else: ?>
+            <div class="flex items-center justify-between p-3.5 bg-slate-50/50 cursor-default select-none opacity-85" title="Tahapan sedang berlangsung atau belum ditempuh (tidak dapat dibuka)">
             <?php endif; ?>
-          </div>
-        </div>
-
-        <!-- Accordion Body (Hanya ada untuk completed step) -->
-        <?php if ($isCompleted): ?>
-        <div class="acc-body hidden border-t border-slate-100 bg-slate-50/50 p-4 space-y-3.5 text-xs">
-          
-          <?php
-          // Cek apakah step ini berhubungan dengan surat pembimbing
-          if (strpos($ketLower, 'pembimbing') !== false && (strpos($ketLower, 'penunjukkan') !== false || strpos($ketLower, 'surat') !== false) && $suratBimb):
-              $p1Name = $dosenNames[$suratBimb['pembimbing1']] ?? $suratBimb['pembimbing1'];
-          ?>
-            <div class="data-section-box rounded-lg border border-slate-200 bg-white p-3.5">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                <span class="font-bold text-slate-700 flex items-center gap-1.5"><i class="fas fa-file-contract text-orange-500"></i>Surat Penunjukkan Pembimbing KP</span>
-                <button type="button" class="btn-toggle-edit text-[11px] font-semibold text-orange-600 hover:text-orange-700"><i class="fas fa-pen mr-1"></i>Koreksi Data</button>
-              </div>
-              <div class="view-box space-y-1">
-                <p class="text-slate-500">No. Surat: <span class="font-semibold text-slate-800"><?= tampil($suratBimb['no_surat']) ?></span></p>
-                <p class="text-slate-500">Tanggal: <span class="font-semibold text-slate-800"><?= tampil($suratBimb['tanggal']) ?></span></p>
-                <p class="text-slate-500">Dosen Pembimbing: <span class="font-semibold text-slate-800"><?= tampil($p1Name) ?></span></p>
-              </div>
-              <div class="edit-box hidden">
-                <form class="form-koreksi-arsip space-y-2.5">
-                  <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
-                  <input type="hidden" name="id_surat" value="<?= $suratBimb['id'] ?>">
-                  <input type="hidden" name="tipe_koreksi" value="surat-pembimbing">
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Surat</label>
-                    <input type="text" name="no_surat" value="<?= tampil($suratBimb['no_surat']) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Dosen Pembimbing</label>
-                    <select name="pembimbing1" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                      <?php foreach ($dosenNames as $dId => $dNm): ?>
-                        <option value="<?= $dId ?>" <?= ($dId == $suratBimb['pembimbing1']) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
-                      <?php endforeach; ?>
-                    </select>
-                  </div>
-                  <div class="flex items-center gap-2 pt-1">
-                    <button type="button" class="btn-cancel-edit px-2.5 py-1 text-[11px] rounded bg-slate-100 text-slate-600 font-medium">Batal</button>
-                    <button type="submit" class="px-2.5 py-1 text-[11px] rounded bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Perubahan</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          <?php
-          // Cek apakah step ini berhubungan dengan penguji
-          elseif (strpos($ketLower, 'penguji') !== false && (strpos($ketLower, 'penunjukkan') !== false || strpos($ketLower, 'surat') !== false) && $suratPeng):
-              $pg1Name = $dosenNames[$suratPeng['penguji1']] ?? $suratPeng['penguji1'];
-              $pg2Name = $dosenNames[$suratPeng['penguji2']] ?? $suratPeng['penguji2'];
-          ?>
-            <div class="data-section-box rounded-lg border border-slate-200 bg-white p-3.5">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                <span class="font-bold text-slate-700 flex items-center gap-1.5"><i class="fas fa-file-contract text-orange-500"></i>Surat Penunjukkan Penguji KP</span>
-                <button type="button" class="btn-toggle-edit text-[11px] font-semibold text-orange-600 hover:text-orange-700"><i class="fas fa-pen mr-1"></i>Koreksi Data</button>
-              </div>
-              <div class="view-box space-y-1">
-                <p class="text-slate-500">No. Surat: <span class="font-semibold text-slate-800"><?= tampil($suratPeng['no_surat']) ?></span></p>
-                <p class="text-slate-500">Penguji 1: <span class="font-semibold text-slate-800"><?= tampil($pg1Name) ?></span></p>
-                <p class="text-slate-500">Penguji 2: <span class="font-semibold text-slate-800"><?= tampil($pg2Name ?: '-') ?></span></p>
-              </div>
-              <div class="edit-box hidden">
-                <form class="form-koreksi-arsip space-y-2.5">
-                  <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
-                  <input type="hidden" name="id_surat" value="<?= $suratPeng['id'] ?>">
-                  <input type="hidden" name="tipe_koreksi" value="surat-penguji">
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Surat</label>
-                    <input type="text" name="no_surat" value="<?= tampil($suratPeng['no_surat']) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Dosen Penguji 1</label>
-                    <select name="penguji1" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                      <?php foreach ($dosenNames as $dId => $dNm): ?>
-                        <option value="<?= $dId ?>" <?= ($dId == $suratPeng['penguji1']) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
-                      <?php endforeach; ?>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Dosen Penguji 2</label>
-                    <select name="penguji2" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400">
-                      <option value="">-- Tidak Ada / Kosong --</option>
-                      <?php foreach ($dosenNames as $dId => $dNm): ?>
-                        <option value="<?= $dId ?>" <?= ($dId == $suratPeng['penguji2']) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
-                      <?php endforeach; ?>
-                    </select>
-                  </div>
-                  <div class="flex items-center gap-2 pt-1">
-                    <button type="button" class="btn-cancel-edit px-2.5 py-1 text-[11px] rounded bg-slate-100 text-slate-600 font-medium">Batal</button>
-                    <button type="submit" class="px-2.5 py-1 text-[11px] rounded bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Perubahan</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          <?php
-          // Cek apakah step ini berhubungan dengan jadwal seminar
-          elseif ((strpos($ketLower, 'jadwal') !== false || strpos($ketLower, 'undangan') !== false) && $kpDetail && (!empty($kpDetail['tanggal_seminar']) || !empty($kpDetail['tanggal']))):
-              $tglSem = !empty($kpDetail['tanggal_seminar']) ? $kpDetail['tanggal_seminar'] : ($kpDetail['tanggal'] ?? '-');
-              $jamSem = !empty($kpDetail['jam_seminar']) ? $kpDetail['jam_seminar'] : ($kpDetail['jam'] ?? '-');
-              $ruangSem = $kpDetail['ruangan'] ?? '-';
-              $noUnd = $kpDetail['no_undangan'] ?? '-';
-          ?>
-            <div class="data-section-box rounded-lg border border-slate-200 bg-white p-3.5">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                <span class="font-bold text-slate-700 flex items-center gap-1.5"><i class="fas fa-calendar-check text-orange-500"></i>Jadwal Seminar KP</span>
-                <button type="button" class="btn-toggle-edit text-[11px] font-semibold text-orange-600 hover:text-orange-700"><i class="fas fa-pen mr-1"></i>Koreksi Data</button>
-              </div>
-              <div class="view-box space-y-1">
-                <p class="text-slate-500">No. Undangan: <span class="font-semibold text-slate-800"><?= tampil($noUnd) ?></span></p>
-                <p class="text-slate-500">Tanggal: <span class="font-semibold text-slate-800"><?= tampil($tglSem) ?></span></p>
-                <p class="text-slate-500">Jam: <span class="font-semibold text-slate-800"><?= tampil($jamSem) ?></span></p>
-                <p class="text-slate-500">Ruangan: <span class="font-semibold text-slate-800"><?= tampil($ruangSem) ?></span></p>
-              </div>
-              <div class="edit-box hidden">
-                <form class="form-koreksi-arsip space-y-2.5">
-                  <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
-                  <input type="hidden" name="tipe_koreksi" value="jadwal-seminar">
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Undangan</label>
-                    <input type="text" name="no_undangan" value="<?= tampil($noUnd) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tanggal</label>
-                      <input type="date" name="tanggal_seminar" value="<?= tampil($tglSem) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg <?= $iconCircle ?> text-xs font-bold shadow-xs">
+                        <?php if ($isCompleted): ?>
+                            <i class="fas fa-check"></i>
+                        <?php elseif ($isCurrent): ?>
+                            <span class="text-[11px] font-bold"><?= $stepNum ?></span>
+                        <?php else: ?>
+                            <span class="text-[11px] font-medium text-slate-500"><?= $stepNum ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <div class="min-w-0">
+                        <h4 class="text-xs font-bold text-slate-800 leading-snug">
+                            SOP <?= $stepNum ?>: <?= tampil($ketSop) ?>
+                        </h4>
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 text-[10px]">
+                            <?php if (!empty($eksekutorSop)): ?>
+                                <span class="text-slate-500">Eksekutor: <strong class="text-slate-700 font-semibold"><?= tampil($eksekutorSop) ?></strong></span>
+                            <?php endif; ?>
+                            <?php if ($isCompleted && !empty($waktuSelesaiFormatted) && $waktuSelesaiFormatted !== '-'): ?>
+                                <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                                    <i class="fas fa-check-circle text-emerald-600 text-[10px]"></i> Selesai: <?= $waktuSelesaiFormatted ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                    <div>
-                      <label class="block text-[11px] font-semibold text-slate-600 mb-1">Jam</label>
-                      <input type="text" name="jam_seminar" value="<?= tampil($jamSem) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                    </div>
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Ruangan</label>
-                    <input type="text" name="ruangan" value="<?= tampil($ruangSem) ?>" class="w-full text-xs rounded border border-slate-300 p-1.5 outline-none focus:border-orange-400" required>
-                  </div>
-                  <div class="flex items-center gap-2 pt-1">
-                    <button type="button" class="btn-cancel-edit px-2.5 py-1 text-[11px] rounded bg-slate-100 text-slate-600 font-medium">Batal</button>
-                    <button type="submit" class="px-2.5 py-1 text-[11px] rounded bg-orange-500 hover:bg-orange-600 text-white font-medium">Simpan Perubahan</button>
-                  </div>
-                </form>
-              </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-[11px] px-2 py-0.5 rounded <?= $badgeStyle ?>">
+                        <?= $badgeText ?>
+                    </span>
+                    <?php if ($canExpand): ?>
+                        <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 acc-chevron"></i>
+                    <?php else: ?>
+                        <span title="Tahapan belum selesai (tidak dapat dibuka)">
+                            <i class="fas fa-lock text-[11px] text-slate-300"></i>
+                        </span>
+                    <?php endif; ?>
+                </div>
             </div>
-          <?php endif; ?>
 
-          <div class="text-[11px] text-slate-500 flex items-center justify-between">
-            <span class="flex items-center gap-1.5 text-emerald-600 font-medium"><i class="fas fa-check-circle"></i>Tahap ini telah diselesaikan</span>
-          </div>
+            <?php if ($canExpand): ?>
+            <!-- Body Kartu SOP (HANYA UNTUK SOP YANG SUDAH SELESAI/LAMPAU) -->
+            <div class="acc-body p-4 border-t border-slate-100 hidden space-y-3.5 text-xs" style="display: none;">
+                
+                <?php
+                switch ((int)$stepNum):
+                    case 1:
+                        // SOP 1: Data Pokok Judul, Tempat & Status KP
+                        ?>
+                        <div class="data-section-box p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                            <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fas fa-file-signature text-orange-500"></i> Data Pokok Judul, Tempat &amp; Status KP
+                                </h5>
+                                <button type="button" onclick="toggleEditBox(this, true)" class="btn-toggle-edit inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs">
+                                    <i class="fas fa-pen-to-square"></i> Koreksi Data
+                                </button>
+                            </div>
+
+                            <!-- View Mode -->
+                            <div class="view-box space-y-3">
+                                <div>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Judul Kerja Praktek</span>
+                                    <p class="text-xs font-medium text-slate-800 bg-white p-3 rounded-lg border border-slate-200/80 leading-relaxed target-judul-display">
+                                        <?= !empty($kpDetail['judul']) ? tampil($kpDetail['judul']) : '<em class="text-slate-400">Belum ada judul tercatat</em>' ?>
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Tempat / Instansi KP</span>
+                                        <p class="text-xs font-medium text-slate-800 bg-white p-3 rounded-lg border border-slate-200/80 leading-relaxed">
+                                            <?= !empty($kpDetail['instansi']) ? tampil($kpDetail['instansi']) : (!empty($kpDetail['tempat_kp']) ? tampil($kpDetail['tempat_kp']) : '-') ?>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Status KP</span>
+                                        <div class="p-2.5 bg-white rounded-lg border border-slate-200/80">
+                                            <span class="text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded inline-block target-status-display">
+                                                <?= tampil($kpDetail['status'] ?? '-') ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Edit Mode (Hidden) -->
+                            <div class="edit-box hidden pt-1" style="display: none;">
+                                <form class="form-koreksi-arsip space-y-3" data-step="data-pokok">
+                                    <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
+                                    <input type="hidden" name="tipe_koreksi" value="data-pokok">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Judul Kerja Praktek</label>
+                                        <textarea name="judul" rows="2" class="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:border-orange-500 focus:outline-none" required><?= tampil($kpDetail['judul'] ?? '') ?></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Tempat / Instansi KP</label>
+                                        <input type="text" name="instansi" value="<?= tampil($kpDetail['instansi'] ?? ($kpDetail['tempat_kp'] ?? '')) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Status KP</label>
+                                        <select name="status" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none">
+                                            <option value="Aktif" <?= ($kpDetail['status'] ?? '') === 'Aktif' ? 'selected' : '' ?>>Aktif</option>
+                                            <option value="tidak aktif" <?= ($kpDetail['status'] ?? '') === 'tidak aktif' ? 'selected' : '' ?>>Tidak Aktif</option>
+                                            <option value="Bimbingan" <?= ($kpDetail['status'] ?? '') === 'Bimbingan' ? 'selected' : '' ?>>Bimbingan</option>
+                                            <option value="Alumni" <?= ($kpDetail['status'] ?? '') === 'Alumni' ? 'selected' : '' ?>>Alumni</option>
+                                            <option value="Kadaluarsa" <?= ($kpDetail['status'] ?? '') === 'Kadaluarsa' ? 'selected' : '' ?>>Kadaluarsa</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                                        <button type="button" onclick="toggleEditBox(this, false)" class="btn-cancel-edit px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Batal</button>
+                                        <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">Simpan Koreksi</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <?php if (!empty($masterSyarat[1])): ?>
+                            <?= $renderListBerkas($masterSyarat[1], $berkasMap, $nim, 'Berkas Persyaratan (SOP 1)') ?>
+                        <?php endif; ?>
+                        <?php
+                        break;
+
+                    case 6:
+                        // SOP 6: Surat Penunjukkan Pembimbing KP
+                        $p1Id = $suratBimb['pembimbing1'] ?? '';
+                        $p1Name = !empty($p1Id) ? ($dosenNames[$p1Id] ?? $p1Id) : '';
+                        $idSuratBimb = $suratBimb['id'] ?? '';
+                        $noSuratBimb = $suratBimb['no_surat'] ?? '';
+                        $tglSuratBimb = $suratBimb['tanggal'] ?? '';
+                        ?>
+                        <div class="data-section-box p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                            <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fas fa-file-contract text-orange-500"></i> Surat Penunjukkan Pembimbing KP
+                                </h5>
+                                <button type="button" onclick="toggleEditBox(this, true)" class="btn-toggle-edit inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs">
+                                    <i class="fas fa-pen-to-square"></i> Koreksi Data
+                                </button>
+                            </div>
+
+                            <!-- View Mode -->
+                            <div class="view-box space-y-2.5">
+                                <div class="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-slate-200/80 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">No. Surat</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($noSuratBimb) ? tampil($noSuratBimb) : '-' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Tanggal Surat</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($tglSuratBimb) ? tampil($tglSuratBimb) : '-' ?></span>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border border-slate-200/80 text-xs">
+                                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Dosen Pembimbing</span>
+                                    <span class="font-bold text-slate-800"><?= !empty($p1Name) ? tampil($p1Name) : '<em class="text-slate-400 font-normal">Belum diatur</em>' ?></span>
+                                </div>
+                            </div>
+
+                            <!-- Edit Mode (Hidden) -->
+                            <div class="edit-box hidden pt-1" style="display: none;">
+                                <form class="form-koreksi-arsip space-y-3" data-step="surat-pembimbing">
+                                    <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
+                                    <input type="hidden" name="id_surat" value="<?= $idSuratBimb ?>">
+                                    <input type="hidden" name="tipe_koreksi" value="surat-pembimbing">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">No. Surat</label>
+                                            <input type="text" name="no_surat" value="<?= tampil($noSuratBimb) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" placeholder="Contoh: 123/UN47.B5/TU/2026" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Surat</label>
+                                            <input type="date" name="tanggal" value="<?= tampil(!empty($tglSuratBimb) ? $tglSuratBimb : date('Y-m-d')) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Dosen Pembimbing</label>
+                                        <select name="pembimbing1" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                            <option value="">-- Pilih Dosen Pembimbing --</option>
+                                            <?php foreach ($dosenNames as $dId => $dNm): ?>
+                                                <option value="<?= $dId ?>" <?= ($dId == $p1Id) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                                        <button type="button" onclick="toggleEditBox(this, false)" class="btn-cancel-edit px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Batal</button>
+                                        <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">Simpan Koreksi</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <?php if (!empty($masterSyarat[6])): ?>
+                            <?= $renderListBerkas($masterSyarat[6], $berkasMap, $nim, 'Berkas Persyaratan (SOP 6)') ?>
+                        <?php endif; ?>
+                        <?php
+                        break;
+
+                    case 7:
+                        // SOP 7: Surat Pengantar Penarikan KP
+                        $tempatKpArsip = !empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : '-'));
+                        $urlSuratPenarikanArsip = base_url() . "/administrator/dokumen/surat-penarikan-kp/" . $nim;
+                        ?>
+                        <div class="data-section-box p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                            <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fas fa-file-invoice text-orange-500"></i> Surat Pengantar Penarikan KP
+                                </h5>
+                                <a href="<?= $urlSuratPenarikanArsip ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs">
+                                    <i class="fas fa-print"></i> Buka / Cetak Dokumen ↗
+                                </a>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-slate-200/80 text-xs space-y-2">
+                                <div class="grid grid-cols-2 gap-2.5">
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Instansi / Tempat KP</span>
+                                        <span class="font-bold text-slate-800"><?= tampil($tempatKpArsip) ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Status Surat</span>
+                                        <span class="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                            <i class="fas fa-check-circle text-emerald-500"></i> Telah Diterbitkan
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php if (!empty($masterSyarat[7])): ?>
+                            <?= $renderListBerkas($masterSyarat[7], $berkasMap, $nim, 'Berkas Persyaratan (SOP 7)') ?>
+                        <?php endif; ?>
+                        <?php
+                        break;
+
+                    case 12:
+                        // SOP 12: Surat Penunjukkan Penguji KP
+                        $pg1Id = $suratPeng['penguji1'] ?? '';
+                        $pg2Id = $suratPeng['penguji2'] ?? '';
+                        $pg1Name = !empty($pg1Id) ? ($dosenNames[$pg1Id] ?? $pg1Id) : '';
+                        $pg2Name = !empty($pg2Id) ? ($dosenNames[$pg2Id] ?? $pg2Id) : '';
+                        $idSuratPeng = $suratPeng['id'] ?? '';
+                        $noSuratPeng = $suratPeng['no_surat'] ?? '';
+                        $tglSuratPeng = $suratPeng['tanggal'] ?? '';
+                        ?>
+                        <div class="data-section-box p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                            <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fas fa-file-contract text-orange-500"></i> Surat Penunjukkan Penguji KP
+                                </h5>
+                                <button type="button" onclick="toggleEditBox(this, true)" class="btn-toggle-edit inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs">
+                                    <i class="fas fa-pen-to-square"></i> Koreksi Data
+                                </button>
+                            </div>
+
+                            <!-- View Mode -->
+                            <div class="view-box space-y-2.5">
+                                <div class="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-slate-200/80 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">No. Surat</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($noSuratPeng) ? tampil($noSuratPeng) : '-' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Tanggal Surat</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($tglSuratPeng) ? tampil($tglSuratPeng) : '-' ?></span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-slate-200/80 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Penguji 1</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($pg1Name) ? tampil($pg1Name) : '<em class="text-slate-400 font-normal">Belum diatur</em>' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Penguji 2</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($pg2Name) ? tampil($pg2Name) : '<em class="text-slate-400 font-normal">-</em>' ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Edit Mode (Hidden) -->
+                            <div class="edit-box hidden pt-1" style="display: none;">
+                                <form class="form-koreksi-arsip space-y-3" data-step="surat-penguji">
+                                    <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
+                                    <input type="hidden" name="id_surat" value="<?= $idSuratPeng ?>">
+                                    <input type="hidden" name="tipe_koreksi" value="surat-penguji">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">No. Surat</label>
+                                            <input type="text" name="no_surat" value="<?= tampil($noSuratPeng) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" placeholder="Contoh: 124/UN47.B5/TU/2026" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Surat</label>
+                                            <input type="date" name="tanggal" value="<?= tampil(!empty($tglSuratPeng) ? $tglSuratPeng : date('Y-m-d')) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Dosen Penguji 1</label>
+                                        <select name="penguji1" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                            <option value="">-- Pilih Dosen Penguji 1 --</option>
+                                            <?php foreach ($dosenNames as $dId => $dNm): ?>
+                                                <option value="<?= $dId ?>" <?= ($dId == $pg1Id) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Dosen Penguji 2</label>
+                                        <select name="penguji2" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none">
+                                            <option value="">-- Tidak Ada / Kosong --</option>
+                                            <?php foreach ($dosenNames as $dId => $dNm): ?>
+                                                <option value="<?= $dId ?>" <?= ($dId == $pg2Id) ? 'selected' : '' ?>><?= tampil($dNm) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                                        <button type="button" onclick="toggleEditBox(this, false)" class="btn-cancel-edit px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Batal</button>
+                                        <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">Simpan Koreksi</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <?php if (!empty($masterSyarat[12])): ?>
+                            <?= $renderListBerkas($masterSyarat[12], $berkasMap, $nim, 'Berkas Persyaratan (SOP 12)') ?>
+                        <?php endif; ?>
+                        <?php
+                        break;
+
+                    case 13:
+                        // SOP 13: Jadwal Seminar Kerja Praktek
+                        $tglSem = !empty($kpDetail['tanggal_seminar']) ? $kpDetail['tanggal_seminar'] : ($kpDetail['tanggal'] ?? '');
+                        $jamSem = !empty($kpDetail['jam_seminar']) ? $kpDetail['jam_seminar'] : ($kpDetail['jam'] ?? '');
+                        $ruangSem = $kpDetail['ruangan'] ?? '';
+                        $noUnd = $kpDetail['no_undangan'] ?? '';
+                        ?>
+                        <div class="data-section-box p-3.5 rounded-xl border border-slate-200 bg-slate-50/60">
+                            <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                                <h5 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fas fa-calendar-check text-orange-500"></i> Jadwal Seminar Kerja Praktek
+                                </h5>
+                                <button type="button" onclick="toggleEditBox(this, true)" class="btn-toggle-edit inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition shadow-2xs">
+                                    <i class="fas fa-pen-to-square"></i> Koreksi Data
+                                </button>
+                            </div>
+
+                            <!-- View Mode -->
+                            <div class="view-box space-y-2.5">
+                                <div class="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-lg border border-slate-200/80 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">No. Undangan</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($noUnd) ? tampil($noUnd) : '-' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Tanggal</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($tglSem) ? tampil($tglSem) : '-' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Jam</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($jamSem) ? tampil($jamSem) : '-' ?></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Ruangan</span>
+                                        <span class="font-bold text-slate-800"><?= !empty($ruangSem) ? tampil($ruangSem) : '-' ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Edit Mode (Hidden) -->
+                            <div class="edit-box hidden pt-1" style="display: none;">
+                                <form class="form-koreksi-arsip space-y-3" data-step="jadwal-seminar">
+                                    <input type="hidden" name="nim" value="<?= tampil($nim) ?>">
+                                    <input type="hidden" name="tipe_koreksi" value="jadwal-seminar">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">No. Undangan</label>
+                                        <input type="text" name="no_undangan" value="<?= tampil($noUnd) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Tanggal</label>
+                                            <input type="date" name="tanggal_seminar" value="<?= tampil($tglSem) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1">Jam</label>
+                                            <input type="text" name="jam_seminar" value="<?= tampil($jamSem) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">Ruangan</label>
+                                        <input type="text" name="ruangan" value="<?= tampil($ruangSem) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                                        <button type="button" onclick="toggleEditBox(this, false)" class="btn-cancel-edit px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Batal</button>
+                                        <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition">Simpan Koreksi</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <?php if (!empty($masterSyarat[13])): ?>
+                            <?= $renderListBerkas($masterSyarat[13], $berkasMap, $nim, 'Berkas Persyaratan (SOP 13)') ?>
+                        <?php endif; ?>
+                        <?php
+                        break;
+
+                    default:
+                        // Tahapan lainnya: render berkas jika ada di persyaratan_berkas_kp (misal step 2, 4, 8, 10, 14)
+                        if (!empty($masterSyarat[$stepNum])) {
+                            echo $renderListBerkas($masterSyarat[$stepNum], $berkasMap, $nim, 'Berkas Persyaratan (SOP ' . $stepNum . ')');
+                        } else {
+                            ?>
+                            <div class="py-2.5 px-3.5 rounded-lg bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
+                                <p class="leading-relaxed">
+                                    <i class="fas fa-info-circle text-orange-500 mr-1.5"></i>
+                                    Tahapan ini merupakan proses verifikasi/persetujuan oleh <span class="font-semibold text-slate-800"><?= tampil($eksekutorSop !== '' ? $eksekutorSop : 'Pengelola') ?></span>.
+                                    <?php if ($isCompleted): ?>
+                                        <span class="text-emerald-600 font-semibold block mt-1"><i class="fas fa-check-circle mr-1"></i>Tahapan ini telah selesai ditempuh<?= ($waktuSelesaiFormatted !== '-' ? ' pada ' . $waktuSelesaiFormatted : '') ?>.</span>
+                                    <?php elseif ($isCurrent): ?>
+                                        <span class="text-orange-600 font-semibold block mt-1"><i class="fas fa-spinner fa-spin mr-1"></i>Mahasiswa saat ini sedang dalam tahapan ini.</span>
+                                    <?php else: ?>
+                                        <span class="text-slate-400 block mt-1"><i class="fas fa-clock mr-1"></i>Tahapan ini belum dimulai.</span>
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                            <?php
+                        }
+                        break;
+                endswitch;
+                ?>
+
+                <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-200/60 mt-3">
+                    <span class="flex items-center gap-1.5 text-emerald-600 font-medium">
+                        <i class="fas fa-check-circle"></i>
+                        Tahap ini telah diselesaikan <?= ($waktuSelesaiFormatted !== '-' ? 'pada ' . $waktuSelesaiFormatted : '') ?>
+                    </span>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
-
-      </div>
-      <?php endforeach; ?>
+        <?php endforeach; ?>
     </div>
     <?php
     $html = ob_get_clean();
@@ -924,6 +1483,8 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
 
 // ================= KOREKSI ARSIP STEP =================
 if (isset($_POST['koreksi-arsip-step'])) {
+    if (ob_get_length()) ob_clean();
+
     $nim = bersihkan($_POST['nim'] ?? '');
     $tipe = bersihkan($_POST['tipe_koreksi'] ?? '');
 
@@ -932,89 +1493,203 @@ if (isset($_POST['koreksi-arsip-step'])) {
         exit;
     }
 
-    if ($tipe === 'surat-pembimbing') {
-        $idSurat = bersihkan($_POST['id_surat'] ?? '');
-        $noSurat = bersihkan($_POST['no_surat'] ?? '');
-        $p1 = bersihkan($_POST['pembimbing1'] ?? '');
+    try {
+        if ($tipe === 'data-pokok') {
+            $judul    = bersihkan($_POST['judul'] ?? '');
+            $instansi = bersihkan($_POST['instansi'] ?? '');
+            $status   = bersihkan($_POST['status'] ?? '');
 
-        $up = query("UPDATE surat_penunjukkan SET no_surat = '$noSurat', pembimbing1 = '$p1' WHERE id = '$idSurat'");
-        query("UPDATE kp SET pembimbing = '$p1' WHERE nim = '$nim'");
+            if ($judul === '' || $instansi === '') {
+                echo json_encode(['status' => false, 'pesan' => 'Judul dan Tempat/Instansi KP wajib diisi']);
+                exit;
+            }
 
-        if ($up) {
-            echo json_encode(['status' => true, 'pesan' => 'Koreksi surat penunjukkan pembimbing berhasil disimpan']);
-        } else {
-            echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
+            // Dapatkan kolom tabel kp secara dinamis agar query selalu valid
+            $colRes = query("SHOW COLUMNS FROM kp");
+            $kpCols = [];
+            if ($colRes) {
+                while ($c = mysqli_fetch_assoc($colRes)) {
+                    $kpCols[] = strtolower($c['Field']);
+                }
+            }
+
+            $setFields = ["judul = '$judul'", "status = '$status'"];
+            if (in_array('instansi', $kpCols, true)) {
+                $setFields[] = "instansi = '$instansi'";
+            }
+            if (in_array('tempat', $kpCols, true)) {
+                $setFields[] = "tempat = '$instansi'";
+            }
+            if (in_array('tempat_kp', $kpCols, true)) {
+                $setFields[] = "tempat_kp = '$instansi'";
+            }
+
+            $up = query("UPDATE kp SET " . implode(', ', $setFields) . " WHERE nim = '$nim'");
+
+            if ($up) {
+                echo json_encode(['status' => true, 'pesan' => 'Data pokok Kerja Praktek berhasil diperbarui']);
+            } else {
+                echo json_encode(['status' => false, 'pesan' => 'Gagal memperbarui data pokok: ' . mysqli_error($GLOBALS['koneksi'])]);
+            }
+            exit;
+        } elseif ($tipe === 'surat-pembimbing') {
+            $idSurat = bersihkan($_POST['id_surat'] ?? '');
+            $noSurat = bersihkan($_POST['no_surat'] ?? '');
+            $p1 = bersihkan($_POST['pembimbing1'] ?? '');
+            $tgl = bersihkan($_POST['tanggal'] ?? date('Y-m-d'));
+
+            if ($noSurat === '' || $p1 === '') {
+                echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan Dosen Pembimbing wajib diisi']);
+                exit;
+            }
+
+            if (empty($idSurat)) {
+                $sKp = mysqli_fetch_assoc(query("SELECT surat_penunjukkan_pembimbing FROM kp WHERE nim = '$nim' LIMIT 1"));
+                $idSurat = $sKp['surat_penunjukkan_pembimbing'] ?? 0;
+                if (!$idSurat) {
+                    $sSurat = mysqli_fetch_assoc(query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1"));
+                    if ($sSurat) $idSurat = $sSurat['id'];
+                }
+            }
+
+            if (!empty($idSurat)) {
+                $up = query("UPDATE surat_penunjukkan SET no_surat = '$noSurat', pembimbing1 = '$p1', tanggal = '$tgl' WHERE id = '$idSurat'");
+            } else {
+                $idSurat = time();
+                $up = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$p1', '$tgl', 'PEMBIMBING KP')");
+                query("UPDATE kp SET surat_penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
+            }
+
+            if ($up) {
+                echo json_encode(['status' => true, 'pesan' => 'Koreksi surat penunjukkan pembimbing berhasil disimpan']);
+            } else {
+                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
+            }
+            exit;
+        } elseif ($tipe === 'surat-penguji') {
+            $idSurat = bersihkan($_POST['id_surat'] ?? '');
+            $noSurat = bersihkan($_POST['no_surat'] ?? '');
+            $pg1 = bersihkan($_POST['penguji1'] ?? '');
+            $pg2 = bersihkan($_POST['penguji2'] ?? '');
+            $tgl = bersihkan($_POST['tanggal'] ?? date('Y-m-d'));
+
+            if ($noSurat === '' || $pg1 === '') {
+                echo json_encode(['status' => false, 'pesan' => 'Nomor surat dan Penguji 1 wajib diisi']);
+                exit;
+            }
+
+            if (empty($idSurat)) {
+                $sKp = mysqli_fetch_assoc(query("SELECT surat_penunjukkan_penguji FROM kp WHERE nim = '$nim' LIMIT 1"));
+                $idSurat = $sKp['surat_penunjukkan_penguji'] ?? 0;
+                if (!$idSurat) {
+                    $sSurat = mysqli_fetch_assoc(query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI KP' ORDER BY id DESC LIMIT 1"));
+                    if ($sSurat) $idSurat = $sSurat['id'];
+                }
+            }
+
+            if (!empty($idSurat)) {
+                $up = query("UPDATE surat_penunjukkan SET no_surat = '$noSurat', penguji1 = '$pg1', penguji2 = '$pg2', tanggal = '$tgl' WHERE id = '$idSurat'");
+            } else {
+                $idSurat = time();
+                $up = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, tanggal, keterangan) VALUES ($idSurat, '$noSurat', '$nim', '$pg1', '$pg2', '$tgl', 'PENGUJI KP')");
+                query("UPDATE kp SET surat_penunjukkan_penguji = '$idSurat' WHERE nim = '$nim'");
+            }
+
+            if ($up) {
+                echo json_encode(['status' => true, 'pesan' => 'Koreksi surat penunjukkan penguji berhasil disimpan']);
+            } else {
+                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
+            }
+            exit;
+        } elseif ($tipe === 'jadwal-seminar') {
+            $noUnd = bersihkan($_POST['no_undangan'] ?? '');
+            $tglSem = bersihkan($_POST['tanggal_seminar'] ?? '');
+            $jamSem = bersihkan($_POST['jam_seminar'] ?? '');
+            $ruangSem = bersihkan($_POST['ruangan'] ?? '');
+
+            if ($noUnd === '' || $tglSem === '' || $jamSem === '' || $ruangSem === '') {
+                echo json_encode(['status' => false, 'pesan' => 'Nomor undangan, tanggal, jam, dan ruangan wajib diisi']);
+                exit;
+            }
+
+            $up = query("UPDATE kp SET no_undangan = '$noUnd', tanggal_seminar = '$tglSem', jam_seminar = '$jamSem', ruangan = '$ruangSem' WHERE nim = '$nim'");
+
+            if ($up) {
+                echo json_encode(['status' => true, 'pesan' => 'Koreksi jadwal seminar KP berhasil disimpan']);
+            } else {
+                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
+            }
+            exit;
         }
+
+        echo json_encode(['status' => false, 'pesan' => 'Tipe koreksi tidak valid']);
         exit;
-    } elseif ($tipe === 'surat-penguji') {
-        $idSurat = bersihkan($_POST['id_surat'] ?? '');
-        $noSurat = bersihkan($_POST['no_surat'] ?? '');
-        $pg1 = bersihkan($_POST['penguji1'] ?? '');
-        $pg2 = bersihkan($_POST['penguji2'] ?? '');
-
-        $up = query("UPDATE surat_penunjukkan SET no_surat = '$noSurat', penguji1 = '$pg1', penguji2 = '$pg2' WHERE id = '$idSurat'");
-
-        if ($up) {
-            echo json_encode(['status' => true, 'pesan' => 'Koreksi surat penunjukkan penguji berhasil disimpan']);
-        } else {
-            echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
-        }
+    } catch (\Throwable $e) {
+        echo json_encode(['status' => false, 'pesan' => 'Terjadi kesalahan sistem: ' . $e->getMessage()]);
         exit;
-    } elseif ($tipe === 'jadwal-seminar') {
-        $noUnd = bersihkan($_POST['no_undangan'] ?? '');
-        $tglSem = bersihkan($_POST['tanggal_seminar'] ?? '');
-        $jamSem = bersihkan($_POST['jam_seminar'] ?? '');
-        $ruangSem = bersihkan($_POST['ruangan'] ?? '');
+    }
+}
 
-        $up = query("UPDATE kp SET no_undangan = '$noUnd', tanggal_seminar = '$tglSem', jam_seminar = '$jamSem', ruangan = '$ruangSem' WHERE nim = '$nim'");
-        query("UPDATE kp SET tanggal = '$tglSem', jam = '$jamSem' WHERE nim = '$nim'");
+// ================= GANTI / UNGGAH ULANG BERKAS MAHASISWA & OPERATOR =================
+if (isset($_POST['ganti-berkas-kp'])) {
+    if (ob_get_length()) ob_clean();
 
-        if ($up) {
-            echo json_encode(['status' => true, 'pesan' => 'Koreksi jadwal seminar KP berhasil disimpan']);
-        } else {
-            echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan perubahan: ' . mysqli_error($GLOBALS['koneksi'])]);
-        }
+    // Otoritas wewenang unggah ulang berkas: Level 5, 6, dan 9 (sesuai hirarki Skripsi)
+    if (!in_array($userLevel, [5, 6, 9], true)) {
+        echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: Anda tidak memiliki wewenang untuk mengunggah ulang berkas (hanya level 5, 6, dan 9)']);
         exit;
     }
 
-    echo json_encode(['status' => false, 'pesan' => 'Tipe koreksi tidak valid']);
-    exit;
-}
-
-// ================= GANTI BERKAS KP =================
-if (isset($_POST['ganti-berkas-kp'])) {
     $nim = bersihkan($_POST['nim'] ?? '');
     $idPersyaratan = (int)($_POST['id_persyaratan'] ?? 0);
 
-    if (!isset($_FILES['file']) || $_FILES['file']['error'] != 0) {
-        echo json_encode(['status' => false, 'pesan' => 'File tidak ditemukan atau terjadi kesalahan unggah']);
+    if ($nim === '' || $idPersyaratan <= 0 || !isset($_FILES['file']) || $_FILES['file']['error'] !== 0) {
+        echo json_encode(['status' => false, 'pesan' => 'File atau parameter tidak valid']);
         exit;
     }
 
+    // Validasi file (PDF, ukuran, dll)
     $val = validasi_file($_FILES['file'], $userLevel);
     if (!$val['valid']) {
         echo json_encode(['status' => false, 'pesan' => $val['pesan']]);
         exit;
     }
 
-    $idFile = upload_file($_FILES['file'], 'temp_kp');
-    if (!$idFile) {
-        echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah dan menyimpan file']);
+    // 1. Cek berkas lama di berkas_kp (Tabel UTAMA berkas arsip)
+    $idFileLama = '';
+    $idRowBerkas = 0;
+    $cekB = query("SELECT id, file FROM berkas_kp WHERE id_persyaratan = $idPersyaratan AND nim = '$nim' LIMIT 1");
+    if ($cekB && mysqli_num_rows($cekB) > 0) {
+        $rB = mysqli_fetch_assoc($cekB);
+        $idRowBerkas = (int)$rB['id'];
+        $idFileLama = trim((string)($rB['file'] ?? ''));
+    }
+
+    // Unggah file baru ke kategori 'kp' dan hapus file fisik lama
+    $idFileBaru = upload_file($_FILES['file'], 'kp', $idFileLama);
+    if (!$idFileBaru) {
+        echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah file baru']);
         exit;
     }
 
-    // Catat ke temp_kp jika ada
-    $cekTemp = query("SELECT id FROM temp_kp WHERE nim = '$nim' AND id_persyaratan = $idPersyaratan LIMIT 1");
-    if ($cekTemp && mysqli_num_rows($cekTemp) > 0) {
-        query("UPDATE temp_kp SET file = '$idFile', status = 'diterima', waktu = " . time() . " WHERE nim = '$nim' AND id_persyaratan = $idPersyaratan");
-    } else {
-        query("INSERT INTO temp_kp (nim, id_persyaratan, file, status, waktu) VALUES ('$nim', $idPersyaratan, '$idFile', 'diterima', " . time() . ")");
+    try {
+        // 2. Simpan/update langsung ke berkas_kp (Arsip Berkas KP)
+        if ($idRowBerkas > 0) {
+            query("UPDATE berkas_kp SET file = '$idFileBaru' WHERE id = $idRowBerkas");
+        } else {
+            query("INSERT INTO berkas_kp (id_persyaratan, nim, file) VALUES ($idPersyaratan, '$nim', '$idFileBaru')");
+        }
+    } catch (\Throwable $e) {
+        echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan ke berkas_kp: ' . $e->getMessage()]);
+        exit;
     }
+
+    $urlBaru = url_file($idFileBaru);
 
     echo json_encode([
         'status'   => true,
-        'pesan'    => 'Berkas berhasil diganti dan disimpan',
-        'url_file' => url_file($idFile)
+        'pesan'    => 'Berkas berhasil diunggah ulang dan tersimpan di berkas KP',
+        'url_file' => $urlBaru
     ]);
     exit;
 }

@@ -523,25 +523,68 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function updateSidebarPenunjukkanBadge(total) {
+        var sbBadge = document.getElementById('sidebarPenunjukkanBadge');
+        if (sbBadge) {
+            if (total > 0) {
+                sbBadge.textContent = total > 99 ? '99+' : String(total);
+                sbBadge.classList.remove('hidden');
+                sbBadge.classList.add('inline-flex');
+            } else {
+                sbBadge.classList.add('hidden');
+                sbBadge.classList.remove('inline-flex');
+            }
+        }
+    }
+
+    function cekNotifikasiPenunjukkan() {
+        var sbBadge = document.getElementById('sidebarPenunjukkanBadge');
+        if (!sbBadge) return;
+        var url = (typeof window.SIATEK_PENUNJUKKAN_PROSES_URL === 'string' && window.SIATEK_PENUNJUKKAN_PROSES_URL !== '')
+            ? window.SIATEK_PENUNJUKKAN_PROSES_URL
+            : '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/penunjukkan/proses.php';
+
+        var formData = new FormData();
+        formData.append('cek-badge-penunjukkan', '1');
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res && res.status) {
+                updateSidebarPenunjukkanBadge(parseInt(res.total_menunggu, 10) || 0);
+            }
+        })
+        .catch(function () {});
+    }
+
     function scheduleNextPoll() {
         if (pollTimer) clearTimeout(pollTimer);
         var delay = document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS;
         pollTimer = setTimeout(function () {
             cekNotifikasiVerifikasi(false);
+            cekNotifikasiPenunjukkan();
             scheduleNextPoll();
         }, delay);
     }
 
     window.cekNotifikasiVerifikasi = cekNotifikasiVerifikasi;
+    window.cekNotifikasiPenunjukkan = cekNotifikasiPenunjukkan;
 
     document.addEventListener('DOMContentLoaded', function () {
         cekNotifikasiVerifikasi(false);
+        cekNotifikasiPenunjukkan();
         scheduleNextPoll();
 
         document.addEventListener('visibilitychange', function () {
             scheduleNextPoll();
             if (!document.hidden && (Date.now() - lastCheckTs > 2000)) {
                 cekNotifikasiVerifikasi(false);
+                cekNotifikasiPenunjukkan();
             }
         });
     });

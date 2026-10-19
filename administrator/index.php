@@ -29,6 +29,8 @@ $routeMap = [
     // === Pengelolaan > Mahasiswa ===
     'mhs-skripsi'       => ['path' => 'pengelolaan/mahasiswa/skripsi',    'title' => 'Mahasiswa - Skripsi'],
     'mhs-kp'            => ['path' => 'pengelolaan/mahasiswa/kp',         'title' => 'Mahasiswa - Kerja Praktek'],
+    'mhs-ujian'         => ['path' => 'pengelolaan/mahasiswa/ujian',       'title' => 'Mahasiswa - Ujian'],
+    'mhs-penunjukkan'   => ['path' => 'pengelolaan/mahasiswa/penunjukkan', 'title' => 'Mahasiswa - Penunjukkan'],
     'mhs-verifikasi'    => ['path' => 'pengelolaan/mahasiswa/verifikasi', 'title' => 'Mahasiswa - Verifikasi Berkas'],
     'mhs-alumni'        => ['path' => 'pengelolaan/mahasiswa/alumni',     'title' => 'Mahasiswa - Data Alumni'],
     'mhs-kegiatan'      => ['path' => 'pengelolaan/mahasiswa/kegiatan',   'title' => 'Mahasiswa - Kegiatan'],
@@ -86,7 +88,9 @@ $routeMap = [
 
 /* Alias (URL singkat yang dikenal) */
 $aliases = [
-    'dashboard' => 'beranda',
+    'dashboard'   => 'beranda',
+    'ujian'       => 'mhs-ujian',
+    'penunjukkan' => 'mhs-penunjukkan',
 ];
 
 /* ============ Resolve Slug ============ */
@@ -397,7 +401,10 @@ $activePage = $pageKey;
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Local JS -->
-    <script>window.SIATEK_VERIFIKASI_PROSES_URL = '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/verifikasi/proses.php';</script>
+    <script>
+        window.SIATEK_VERIFIKASI_PROSES_URL = '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/verifikasi/proses.php';
+        window.SIATEK_PENUNJUKKAN_PROSES_URL = '/redesain-siatek/administrator/pages/pengelolaan/mahasiswa/penunjukkan/proses.php';
+    </script>
     <script src="js/dashboard.js?v=<?= @filemtime(__DIR__ . '/js/dashboard.js') ?: time() ?>"></script>
 
     <script>

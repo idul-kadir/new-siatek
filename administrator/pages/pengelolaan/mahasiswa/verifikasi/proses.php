@@ -32,46 +32,98 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
         exit;
     }
 
-    $condVerifikasi = "ts.status = 'menunggu' 
+    // 1. Skripsi: tahap verifikasi admin 2, 5, 8, 13, 16, 21 (unggah: 1, 4, 7, 12, 15, 20)
+    $joinMhsSkripsi = "";
+    $condProdiSkripsi = "";
+    if ($isLevel3) {
+        if ($userProdi !== '') {
+            $joinMhsSkripsi   = "JOIN mahasiswa m ON ts.nim = m.nim";
+            $condProdiSkripsi = "AND m.prodi = '" . bersihkan($userProdi) . "'";
+        } else {
+            $condProdiSkripsi = "AND 1=0";
+        }
+    }
+
+    $condVerifikasiSkripsi = "ts.status = 'menunggu' 
         AND pbs.progres IN (1, 4, 7, 12, 15, 20)
         AND (
             SELECT proses FROM progres_skripsi 
             WHERE mahasiswa = ts.nim 
-            ORDER BY waktu DESC LIMIT 1
+            ORDER BY waktu DESC, proses DESC LIMIT 1
         ) = (pbs.progres + 1)";
 
-    // Jika level 3, filter hanya mahasiswa program studinya sendiri
-    $joinMhs   = "";
-    $condProdi = "";
-    if ($isLevel3) {
-        if ($userProdi !== '') {
-            $joinMhs   = "JOIN mahasiswa m ON ts.nim = m.nim";
-            $condProdi = "AND m.prodi = '" . bersihkan($userProdi) . "'";
-        } else {
-            // Level 3 tanpa prodi tidak ada notifikasi
-            $condProdi = "AND 1=0";
-        }
-    }
-
-    $sqlRingkas = "SELECT 
+    $sqlSkripsi = "SELECT 
                        COUNT(ts.id) AS total_berkas,
-                       COUNT(DISTINCT ts.nim) AS total_mhs,
                        COALESCE(MAX(ts.id), 0) AS max_id,
                        COALESCE(MAX(ts.file), '') AS max_file
                    FROM temp_skripsi ts
                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id
-                   $joinMhs
-                   WHERE $condVerifikasi $condProdi";
+                   $joinMhsSkripsi
+                   WHERE $condVerifikasiSkripsi $condProdiSkripsi";
 
-    $qRingkas = query($sqlRingkas);
-    $rowRingkas = ($qRingkas && mysqli_num_rows($qRingkas) > 0)
-        ? mysqli_fetch_assoc($qRingkas)
-        : ['total_berkas' => 0, 'total_mhs' => 0, 'max_id' => 0, 'max_file' => ''];
+    $qSkripsi = query($sqlSkripsi);
+    $rowSkripsi = ($qSkripsi && mysqli_num_rows($qSkripsi) > 0)
+        ? mysqli_fetch_assoc($qSkripsi)
+        : ['total_berkas' => 0, 'max_id' => 0, 'max_file' => ''];
 
-    $totalBerkas = (int)($rowRingkas['total_berkas'] ?? 0);
-    $totalMhs    = (int)($rowRingkas['total_mhs'] ?? 0);
-    $maxId       = (int)($rowRingkas['max_id'] ?? 0);
-    $maxFile     = (string)($rowRingkas['max_file'] ?? '');
+    // 2. KP: tahap verifikasi admin 3, 5, 9, 11, 15 (unggah: 2, 4, 8, 10, 14)
+    $joinMhsKp = "";
+    $condProdiKp = "";
+    if ($isLevel3) {
+        if ($userProdi !== '') {
+            $joinMhsKp   = "JOIN mahasiswa m ON tk.nim = m.nim";
+            $condProdiKp = "AND m.prodi = '" . bersihkan($userProdi) . "'";
+        } else {
+            $condProdiKp = "AND 1=0";
+        }
+    }
+
+    $condVerifikasiKp = "tk.status = 'menunggu' 
+        AND pbk.progres IN (2, 4, 8, 10, 14)
+        AND (
+            SELECT proses FROM progres_kp 
+            WHERE mahasiswa = tk.nim 
+            ORDER BY waktu DESC, proses DESC LIMIT 1
+        ) = (pbk.progres + 1)";
+
+    $sqlKp = "SELECT 
+                  COUNT(tk.id) AS total_berkas,
+                  COALESCE(MAX(tk.id), 0) AS max_id,
+                  COALESCE(MAX(tk.file), '') AS max_file
+              FROM temp_kp tk
+              JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id
+              $joinMhsKp
+              WHERE $condVerifikasiKp $condProdiKp";
+
+    $qKp = query($sqlKp);
+    $rowKp = ($qKp && mysqli_num_rows($qKp) > 0)
+        ? mysqli_fetch_assoc($qKp)
+        : ['total_berkas' => 0, 'max_id' => 0, 'max_file' => ''];
+
+    // Distinct total mahasiswa (gabungan Skripsi dan KP)
+    $sqlDistinctMhs = "SELECT COUNT(DISTINCT nim) AS total_mhs FROM (
+        SELECT ts.nim 
+        FROM temp_skripsi ts
+        JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id
+        $joinMhsSkripsi
+        WHERE $condVerifikasiSkripsi $condProdiSkripsi
+        UNION
+        SELECT tk.nim 
+        FROM temp_kp tk
+        JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id
+        $joinMhsKp
+        WHERE $condVerifikasiKp $condProdiKp
+    ) AS gabungan_antrian";
+
+    $qDistinctMhs = query($sqlDistinctMhs);
+    $rowDistinctMhs = ($qDistinctMhs && mysqli_num_rows($qDistinctMhs) > 0)
+        ? mysqli_fetch_assoc($qDistinctMhs)
+        : ['total_mhs' => 0];
+
+    $totalBerkas = (int)($rowSkripsi['total_berkas'] ?? 0) + (int)($rowKp['total_berkas'] ?? 0);
+    $totalMhs    = (int)($rowDistinctMhs['total_mhs'] ?? 0);
+    $maxId       = max((int)($rowSkripsi['max_id'] ?? 0), (int)($rowKp['max_id'] ?? 0));
+    $maxFile     = max((string)($rowSkripsi['max_file'] ?? ''), (string)($rowKp['max_file'] ?? ''));
     $fingerprint = $totalBerkas > 0 ? md5($totalBerkas . '|' . $totalMhs . '|' . $maxId . '|' . $maxFile) : '0';
 
     echo json_encode([
@@ -87,69 +139,96 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
 
 // ================= AMBIL ANTRIAN VERIFIKASI =================
 if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
-    $cari   = bersihkan($_POST['cari'] ?? '');
-    $status = bersihkan($_POST['status'] ?? '');
-    $prodi  = bersihkan($_POST['prodi'] ?? '');
+    $cari    = bersihkan($_POST['cari'] ?? '');
+    $status  = bersihkan($_POST['status'] ?? '');
+    $prodi   = bersihkan($_POST['prodi'] ?? '');
+    $layanan = strtolower(trim(bersihkan($_POST['layanan'] ?? '')));
     
-    $where = ["1=1"];
-
-    // Jika level 3, paksa hanya prodi pengguna
+    // Filter Prodi
+    $filterProdiMhs = "";
     if ($isLevel3) {
         if ($userProdi !== '') {
-            $prodi = $userProdi;
-            $where[] = "m.prodi = '$prodi'";
+            $filterProdiMhs = "AND m.prodi = '" . bersihkan($userProdi) . "'";
         } else {
-            $where[] = "1=0"; // Level 3 tanpa prodi tidak boleh melihat antrian apapun
+            $filterProdiMhs = "AND 1=0";
         }
     } elseif ($prodi !== '') {
-        $where[] = "m.prodi = '$prodi'";
+        $filterProdiMhs = "AND m.prodi = '$prodi'";
     }
-    if ($status !== '') {
-        $where[] = "ts.status = '$status'";
-    }
+
+    // Filter Pencarian NIM/Nama
+    $filterCari = "";
     if ($cari !== '') {
-        $where[] = "(ts.nim LIKE '%$cari%' OR m.nama LIKE '%$cari%')";
+        $filterCari = "AND (ts.nim LIKE '%$cari%' OR m.nama LIKE '%$cari%')";
+        $filterCariKp = "AND (tk.nim LIKE '%$cari%' OR m.nama LIKE '%$cari%')";
+    } else {
+        $filterCariKp = "";
     }
-    if ($prodi !== '') {
-        $where[] = "m.prodi = '$prodi'";
+
+    // Filter Status Berkas
+    $filterStatusSkripsi = $status !== '' ? "AND ts.status = '$status'" : "";
+    $filterStatusKp      = $status !== '' ? "AND tk.status = '$status'" : "";
+
+    $queryParts = [];
+
+    // Query Antrian Skripsi
+    if ($layanan === '' || $layanan === 'semua' || $layanan === 'skripsi') {
+        $queryParts[] = "SELECT 'skripsi' AS tipe,
+                               ts.nim, m.nama AS nama_mahasiswa, m.prodi, p.nama AS nama_prodi,
+                               MIN(ts.id) AS min_id,
+                               COUNT(ts.id) AS total_berkas,
+                               SUM(CASE WHEN ts.status = 'menunggu' THEN 1 ELSE 0 END) AS total_menunggu,
+                               SUM(CASE WHEN ts.status = 'diterima' THEN 1 ELSE 0 END) AS total_diterima,
+                               SUM(CASE WHEN ts.status = 'ditolak' THEN 1 ELSE 0 END) AS total_ditolak
+                        FROM temp_skripsi ts 
+                        JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
+                        LEFT JOIN mahasiswa m ON ts.nim = m.nim
+                        LEFT JOIN prodi p ON m.prodi = p.kode
+                        WHERE pbs.progres IN (1, 4, 7, 12, 15, 20)
+                          AND (
+                              SELECT proses FROM progres_skripsi 
+                              WHERE mahasiswa = ts.nim 
+                              ORDER BY waktu DESC, proses DESC LIMIT 1
+                          ) = (pbs.progres + 1)
+                          $filterProdiMhs
+                          $filterCari
+                          $filterStatusSkripsi
+                        GROUP BY ts.nim, m.nama, m.prodi, p.nama";
     }
 
-    // Hanya progres yang merupakan tugas "admin" (verifikasi) yang muncul
-    // Tahap verifikasi adalah n+1 dari tahap unggah oleh mahasiswa (contoh: unggah tahap 1, verifikasi di tahap 2)
-    // Di temp_skripsi (dan persyaratan_berkas_skripsi) id_persyaratan-nya terhubung ke progres tempat MAHASISWA mengunggahnya.
-    // Misal: Mahasiswa unggah KRS di progres 1. Maka di tabel pbs, progres = 1.
-    // Tapi tahap verifikasi yang seharusnya menampilkan itu adalah tahap 2.
-    // Karena halaman ini MENAMPILKAN apa yang harus diverifikasi admin, maka kita filter `pbs.progres`
-    // berdasarkan TAHAP UNGGAH-nya: 1, 4, 7, 12, 15, 20
-    $where[] = "pbs.progres IN (1, 4, 7, 12, 15, 20)";
+    // Query Antrian KP
+    if ($layanan === '' || $layanan === 'semua' || $layanan === 'kp') {
+        $queryParts[] = "SELECT 'kp' AS tipe,
+                               tk.nim, m.nama AS nama_mahasiswa, m.prodi, p.nama AS nama_prodi,
+                               MIN(tk.id) AS min_id,
+                               COUNT(tk.id) AS total_berkas,
+                               SUM(CASE WHEN tk.status = 'menunggu' THEN 1 ELSE 0 END) AS total_menunggu,
+                               SUM(CASE WHEN tk.status = 'diterima' THEN 1 ELSE 0 END) AS total_diterima,
+                               SUM(CASE WHEN tk.status = 'ditolak' THEN 1 ELSE 0 END) AS total_ditolak
+                        FROM temp_kp tk 
+                        JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                        LEFT JOIN mahasiswa m ON tk.nim = m.nim
+                        LEFT JOIN prodi p ON m.prodi = p.kode
+                        WHERE pbk.progres IN (2, 4, 8, 10, 14)
+                          AND (
+                              SELECT proses FROM progres_kp 
+                              WHERE mahasiswa = tk.nim 
+                              ORDER BY waktu DESC, proses DESC LIMIT 1
+                          ) = (pbk.progres + 1)
+                          $filterProdiMhs
+                          $filterCariKp
+                          $filterStatusKp
+                        GROUP BY tk.nim, m.nama, m.prodi, p.nama";
+    }
 
-    // Filter: hanya tampilkan mahasiswa yang PROGRES SKRIPSI TERAKHIRNYA sesuai dengan tahap verifikasi
-    // Progres verifikasi = progres unggah + 1
-    // Filter ini memastikan bahwa jika mahasiswa sudah melangkah ke progres lain (misal progres 3), 
-    // berkas verifikasi progres 2 mereka tidak lagi muncul dalam daftar (sudah "berlalu").
-    $where[] = "(
-        SELECT proses FROM progres_skripsi 
-        WHERE mahasiswa = ts.nim 
-        ORDER BY waktu DESC LIMIT 1
-    ) = (pbs.progres + 1)";
+    if (empty($queryParts)) {
+        $sqlMhs = "SELECT 'skripsi' AS tipe, '' AS nim WHERE 1=0";
+    } elseif (count($queryParts) === 1) {
+        $sqlMhs = $queryParts[0] . " ORDER BY total_menunggu DESC, min_id ASC";
+    } else {
+        $sqlMhs = "SELECT * FROM (" . implode(" UNION ALL ", $queryParts) . ") AS antrian_gabungan ORDER BY total_menunggu DESC, min_id ASC";
+    }
 
-    $whereSql = implode(" AND ", $where);
-
-    // Ambil data mahasiswa yang masuk antrian verifikasi
-    $sqlMhs = "SELECT ts.nim, m.nama AS nama_mahasiswa, m.prodi, p.nama AS nama_prodi,
-                      MIN(ts.id) AS min_id,
-                      COUNT(ts.id) AS total_berkas,
-                      SUM(CASE WHEN ts.status = 'menunggu' THEN 1 ELSE 0 END) AS total_menunggu,
-                      SUM(CASE WHEN ts.status = 'diterima' THEN 1 ELSE 0 END) AS total_diterima,
-                      SUM(CASE WHEN ts.status = 'ditolak' THEN 1 ELSE 0 END) AS total_ditolak
-               FROM temp_skripsi ts 
-               JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-               LEFT JOIN mahasiswa m ON ts.nim = m.nim
-               LEFT JOIN prodi p ON m.prodi = p.kode
-               WHERE $whereSql 
-               GROUP BY ts.nim, m.nama, m.prodi, p.nama 
-               ORDER BY total_menunggu DESC, min_id ASC";
-            
     $qMhs = query($sqlMhs);
     
     ob_start();
@@ -159,29 +238,50 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
         <div class="space-y-4">
         <?php
         while ($mhs = mysqli_fetch_assoc($qMhs)) {
+            $tipeMhs  = $mhs['tipe']; // 'skripsi' atau 'kp'
             $nimMhs   = $mhs['nim'];
             $namaMhs  = !empty($mhs['nama_mahasiswa']) ? $mhs['nama_mahasiswa'] : '-';
             $prodiMhs = !empty($mhs['nama_prodi']) ? $mhs['nama_prodi'] : ($mhs['prodi'] ?? '-');
 
-            // Ambil detail berkas mahasiswa ini (hanya yang masuk dalam progres admin)
-            $sqlBerkas = "SELECT ts.id, ts.nim, ts.file, ts.status, ts.ket, pbs.nama_berkas, pbs.progres AS progres_unggah, sop.no AS sop_no, sop.keterangan AS sop_ket, f.nama_file 
-                          FROM temp_skripsi ts 
-                          JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                          LEFT JOIN sop_skripsi sop ON sop.no = (pbs.progres + 1)
-                          LEFT JOIN files f ON ts.file = f.id
-                          WHERE ts.nim = '$nimMhs' AND pbs.progres IN (1, 4, 7, 12, 15, 20) " . ($status !== '' ? "AND ts.status = '$status'" : "") . " 
-                          ORDER BY pbs.id ASC";
+            if ($tipeMhs === 'kp') {
+                $sqlBerkas = "SELECT tk.id, tk.nim, tk.file, tk.status, tk.ket, pbk.nama_berkas, pbk.progres AS progres_unggah, sop.no AS sop_no, sop.status AS sop_ket, f.nama_file 
+                              FROM temp_kp tk 
+                              JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                              LEFT JOIN sop_kp sop ON sop.no = (pbk.progres + 1)
+                              LEFT JOIN files f ON tk.file = f.id
+                              WHERE tk.nim = '$nimMhs' AND pbk.progres IN (2, 4, 8, 10, 14) " . ($status !== '' ? "AND tk.status = '$status'" : "") . " 
+                              ORDER BY pbk.id ASC";
+            } else {
+                $sqlBerkas = "SELECT ts.id, ts.nim, ts.file, ts.status, ts.ket, pbs.nama_berkas, pbs.progres AS progres_unggah, sop.no AS sop_no, sop.keterangan AS sop_ket, f.nama_file 
+                              FROM temp_skripsi ts 
+                              JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
+                              LEFT JOIN sop_skripsi sop ON sop.no = (pbs.progres + 1)
+                              LEFT JOIN files f ON ts.file = f.id
+                              WHERE ts.nim = '$nimMhs' AND pbs.progres IN (1, 4, 7, 12, 15, 20) " . ($status !== '' ? "AND ts.status = '$status'" : "") . " 
+                              ORDER BY pbs.id ASC";
+            }
             $qBerkas = query($sqlBerkas);
             ?>
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden transition hover:border-slate-300">
                 <!-- Header Card Antrian -->
                 <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50/80 border-b border-slate-200 px-5 py-3.5">
                     <div class="flex items-center gap-3">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white shadow-sm">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg <?= $tipeMhs === 'kp' ? 'bg-blue-600' : 'bg-orange-500' ?> text-sm font-bold text-white shadow-sm">
                             #<?= $noAntrian ?>
                         </span>
                         <div>
-                            <h3 class="font-bold text-slate-800 text-base leading-snug"><?= tampil($namaMhs) ?></h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-slate-800 text-base leading-snug"><?= tampil($namaMhs) ?></h3>
+                                <?php if ($tipeMhs === 'kp'): ?>
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-bold">
+                                        <i class="fas fa-briefcase text-[9px]"></i> Kerja Praktek
+                                    </span>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-bold">
+                                        <i class="fas fa-graduation-cap text-[9px]"></i> Skripsi
+                                    </span>
+                                <?php endif; ?>
+                            </div>
                             <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                                 <span class="font-medium text-slate-700">NIM: <?= tampil($nimMhs) ?></span>
                                 <span>&bull;</span>
@@ -219,7 +319,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                             ?>
                             <div class="py-3 first:pt-0 last:pb-0 flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex items-start gap-3 flex-1 min-w-[250px]">
-                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 mt-0.5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg <?= $tipeMhs === 'kp' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500' ?> mt-0.5">
                                         <i class="fas fa-file-alt"></i>
                                     </div>
                                     <div>
@@ -240,8 +340,9 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
 
                                 <div class="flex items-center gap-2">
                                     <?php if ($st === 'menunggu'): ?>
-                                        <button type="button" class="btnPratinjau rounded-lg bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-1.5 text-xs font-semibold shadow-sm transition inline-flex items-center gap-1.5" 
+                                        <button type="button" class="btnPratinjau rounded-lg <?= $tipeMhs === 'kp' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-500 hover:bg-orange-600' ?> text-white px-3.5 py-1.5 text-xs font-semibold shadow-sm transition inline-flex items-center gap-1.5" 
                                                 data-id="<?= $b['id'] ?>"
+                                                data-tipe="<?= $tipeMhs ?>"
                                                 data-url="<?= $fileUrl ?>"
                                                 data-namaberkas="<?= tampil($b['nama_berkas']) ?>"
                                                 data-mhs="<?= tampil($namaMhs) ?> (<?= tampil($nimMhs) ?>)"
@@ -254,6 +355,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                                     <?php else: ?>
                                         <button type="button" class="btnPratinjauStatus rounded-lg px-3.5 py-1.5 text-xs font-semibold shadow-sm transition inline-flex items-center gap-1.5 <?= $st === 'diterima' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-rose-100 text-rose-700 hover:bg-rose-200' ?>"
                                                 data-id="<?= $b['id'] ?>"
+                                                data-tipe="<?= $tipeMhs ?>"
                                                 data-url="<?= $fileUrl ?>"
                                                 data-namaberkas="<?= tampil($b['nama_berkas']) ?>"
                                                 data-mhs="<?= tampil($namaMhs) ?> (<?= tampil($nimMhs) ?>)"
@@ -298,15 +400,7 @@ if (isset($_POST['verifikasi-berkas'])) {
     $id   = bersihkan($_POST['id']);
     $aksi = bersihkan($_POST['aksi']);
     $ket  = bersihkan($_POST['ket'] ?? '');
-
-    // Proteksi level 3: pastikan berkas mahasiswa yang diverifikasi adalah dari prodi user
-    if ($isLevel3 && $userProdi !== '') {
-        $cekMhs = mysqli_fetch_assoc(query("SELECT m.prodi FROM temp_skripsi ts JOIN mahasiswa m ON ts.nim = m.nim WHERE ts.id = '$id' LIMIT 1"));
-        if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
-            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: mahasiswa bukan dari program studi Anda.']);
-            exit;
-        }
-    }
+    $tipe = strtolower(trim(bersihkan($_POST['tipe'] ?? 'skripsi')));
 
     if (!in_array($aksi, ['diterima', 'ditolak'])) {
         echo json_encode(['status' => false, 'pesan' => 'Aksi tidak valid']);
@@ -320,53 +414,160 @@ if (isset($_POST['verifikasi-berkas'])) {
         $ket = "Berkas telah diverifikasi dan diterima.";
     }
 
+    // ------------------ CASE A: KERJA PRAKTEK (KP) ------------------
+    if ($tipe === 'kp') {
+        // Proteksi level 3
+        if ($isLevel3 && $userProdi !== '') {
+            $cekMhs = mysqli_fetch_assoc(query("SELECT m.prodi FROM temp_kp tk JOIN mahasiswa m ON tk.nim = m.nim WHERE tk.id = '$id' LIMIT 1"));
+            if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
+                echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: mahasiswa bukan dari program studi Anda.']);
+                exit;
+            }
+        }
+
+        $q = query("UPDATE temp_kp SET status = '$aksi', ket = '$ket' WHERE id = '$id'");
+
+        if ($q) {
+            $qBerkasCurrent = query("SELECT nim, id_persyaratan FROM temp_kp WHERE id = '$id' LIMIT 1");
+            if ($qBerkasCurrent && mysqli_num_rows($qBerkasCurrent) > 0) {
+                $rowB = mysqli_fetch_assoc($qBerkasCurrent);
+                $nimMhs = $rowB['nim'];
+                $idPersyaratan = $rowB['id_persyaratan'];
+
+                $qProg = query("SELECT progres FROM persyaratan_berkas_kp WHERE id = '$idPersyaratan' LIMIT 1");
+                if ($qProg && mysqli_num_rows($qProg) > 0) {
+                    $progresUnggah = (int)mysqli_fetch_assoc($qProg)['progres'];
+                    $tahapAdmin = $progresUnggah + 1; // Tahap SOP KP: 3, 5, 9, 11, 15
+
+                    // Total berkas wajib di tahap unggah ini
+                    $qTotal = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_kp WHERE progres = '$progresUnggah'");
+                    $totalWajib = ($qTotal && mysqli_num_rows($qTotal) > 0) ? (int)mysqli_fetch_assoc($qTotal)['total'] : 0;
+
+                    // Total berkas yang sudah diterima
+                    $qDiterima = query("SELECT COUNT(*) AS total FROM temp_kp tk 
+                                        JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                                        WHERE tk.nim = '$nimMhs' AND pbk.progres = '$progresUnggah' AND tk.status = 'diterima'");
+                    $totalDiterima = ($qDiterima && mysqli_num_rows($qDiterima) > 0) ? (int)mysqli_fetch_assoc($qDiterima)['total'] : 0;
+
+                    // Total berkas yang sudah diproses (diterima + ditolak)
+                    $qSelesai = query("SELECT COUNT(*) AS total FROM temp_kp tk 
+                                       JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                                       WHERE tk.nim = '$nimMhs' AND pbk.progres = '$progresUnggah' AND tk.status IN ('diterima', 'ditolak')");
+                    $totalSelesai = ($qSelesai && mysqli_num_rows($qSelesai) > 0) ? (int)mysqli_fetch_assoc($qSelesai)['total'] : 0;
+
+                    // Total berkas yang ditolak
+                    $qDitolak = query("SELECT COUNT(*) AS total FROM temp_kp tk 
+                                       JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                                       WHERE tk.nim = '$nimMhs' AND pbk.progres = '$progresUnggah' AND tk.status = 'ditolak'");
+                    $totalDitolak = ($qDitolak && mysqli_num_rows($qDitolak) > 0) ? (int)mysqli_fetch_assoc($qDitolak)['total'] : 0;
+
+                    if ($totalWajib > 0 && $totalSelesai >= $totalWajib) {
+                        if ($totalDitolak > 0) {
+                            // Mundurkan progres KP ke tahap mahasiswa unggah
+                            $tahapSebelumnya = $tahapAdmin - 1;
+                            $lastProsesDb = (int)get_progres_kp($nimMhs);
+                            if ($lastProsesDb !== $tahapSebelumnya) {
+                                set_progres_kp($nimMhs, $tahapSebelumnya);
+                            }
+                            echo json_encode([
+                                'status' => true,
+                                'pesan'  => 'Berkas ditolak. Mahasiswa dikembalikan ke tahap unggah berkas (' . $tahapSebelumnya . ')'
+                            ]);
+                            exit;
+                        } elseif ($totalDiterima >= $totalWajib) {
+                            // Pindahkan berkas yang diterima ke berkas_kp (persis seperti skripsi)
+                            $qGetTemp = query("SELECT tk.id_persyaratan, tk.nim, tk.file FROM temp_kp tk 
+                                               JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                                               WHERE tk.nim = '$nimMhs' AND pbk.progres = '$progresUnggah' AND tk.status = 'diterima'");
+                            if ($qGetTemp && mysqli_num_rows($qGetTemp) > 0) {
+                                while ($rowT = mysqli_fetch_assoc($qGetTemp)) {
+                                    $idP  = bersihkan($rowT['id_persyaratan']);
+                                    $nMhs = bersihkan($rowT['nim']);
+                                    $fId  = bersihkan($rowT['file']);
+
+                                    $qCekAda = query("SELECT id FROM berkas_kp WHERE nim = '$nMhs' AND id_persyaratan = '$idP'");
+                                    if ($qCekAda && mysqli_num_rows($qCekAda) > 0) {
+                                        query("UPDATE berkas_kp SET file = '$fId' WHERE nim = '$nMhs' AND id_persyaratan = '$idP'");
+                                    } else {
+                                        query("INSERT INTO berkas_kp (id_persyaratan, nim, file) VALUES ('$idP', '$nMhs', '$fId')");
+                                    }
+                                }
+                                query("DELETE tk FROM temp_kp tk 
+                                       JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
+                                       WHERE tk.nim = '$nimMhs' AND pbk.progres = '$progresUnggah'");
+                            }
+
+                            // Catat verifikasi selesai & majukan tahapan mahasiswa
+                            $waktuNow = time();
+                            $qCekAdmin = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nimMhs' AND proses = '$tahapAdmin'");
+                            if (!$qCekAdmin || mysqli_num_rows($qCekAdmin) == 0) {
+                                set_progres_kp($nimMhs, $tahapAdmin, $waktuNow);
+                            }
+
+                            $nextProsesAfterAdmin = $tahapAdmin + 1;
+                            $qCekProgres = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nimMhs' AND proses = '$nextProsesAfterAdmin'");
+                            if (!$qCekProgres || mysqli_num_rows($qCekProgres) == 0) {
+                                set_progres_kp($nimMhs, $nextProsesAfterAdmin, $waktuNow + 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            echo json_encode(['status' => true, 'pesan' => 'Status berkas KP berhasil diperbarui']);
+        } else {
+            echo json_encode(['status' => false, 'pesan' => 'Gagal memperbarui status berkas KP']);
+        }
+        exit;
+    }
+
+    // ------------------ CASE B: SKRIPSI ------------------
+    // Proteksi level 3
+    if ($isLevel3 && $userProdi !== '') {
+        $cekMhs = mysqli_fetch_assoc(query("SELECT m.prodi FROM temp_skripsi ts JOIN mahasiswa m ON ts.nim = m.nim WHERE ts.id = '$id' LIMIT 1"));
+        if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
+            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: mahasiswa bukan dari program studi Anda.']);
+            exit;
+        }
+    }
+
     $q = query("UPDATE temp_skripsi SET status = '$aksi', ket = '$ket' WHERE id = '$id'");
 
     if ($q) {
-        // Cek jika seluruh berkas persyaratan pada tahap tersebut sudah di-ACC/diterima oleh Admin
         $qBerkasCurrent = query("SELECT nim, id_persyaratan FROM temp_skripsi WHERE id = '$id' LIMIT 1");
         if ($qBerkasCurrent && mysqli_num_rows($qBerkasCurrent) > 0) {
             $rowB = mysqli_fetch_assoc($qBerkasCurrent);
             $nimMhs = $rowB['nim'];
             $idPersyaratan = $rowB['id_persyaratan'];
 
-            // Cari tahapan progres unggah mahasiswa
             $qProg = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$idPersyaratan' LIMIT 1");
             if ($qProg && mysqli_num_rows($qProg) > 0) {
                 $progresUnggah = (int)mysqli_fetch_assoc($qProg)['progres'];
-                $tahapAdmin = $progresUnggah + 1; // Progres verifikasi admin
+                $tahapAdmin = $progresUnggah + 1;
 
-                // Hitung total berkas wajib di tahap ini
                 $qTotal = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$progresUnggah'");
                 $totalWajib = ($qTotal && mysqli_num_rows($qTotal) > 0) ? (int)mysqli_fetch_assoc($qTotal)['total'] : 0;
 
-                // Hitung total berkas yang sudah DITERIMA oleh Admin
                 $qDiterima = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                     JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                                     WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'diterima'");
                 $totalDiterima = ($qDiterima && mysqli_num_rows($qDiterima) > 0) ? (int)mysqli_fetch_assoc($qDiterima)['total'] : 0;
 
-                // Hitung total berkas yang sudah diverifikasi (diterima + ditolak)
                 $qSelesaiVerifikasi = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                              JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                                              WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status IN ('diterima', 'ditolak')");
                 $totalSelesaiVerifikasi = ($qSelesaiVerifikasi && mysqli_num_rows($qSelesaiVerifikasi) > 0) ? (int)mysqli_fetch_assoc($qSelesaiVerifikasi)['total'] : 0;
 
-                // Hitung total berkas yang DITOLAK oleh Admin
                 $qDitolak = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                                    WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'ditolak'");
                 $totalDitolak = ($qDitolak && mysqli_num_rows($qDitolak) > 0) ? (int)mysqli_fetch_assoc($qDitolak)['total'] : 0;
 
-                // Cek apakah SEMUA berkas sudah diverifikasi (tidak ada lagi yang "menunggu")
                 if ($totalWajib > 0 && $totalSelesaiVerifikasi >= $totalWajib) {
-                    
                     if ($totalDitolak > 0) {
-                        // Jika ADA berkas yang DITOLAK: Mundurkan progres_skripsi ke tahap sebelumnya (agar mahasiswa bisa unggah ulang)
-                        $tahapSebelumnya = $tahapAdmin - 1; // Mundur satu tahap (ke tahap unggah)
+                        $tahapSebelumnya = $tahapAdmin - 1;
                         $waktu = time();
 
-                        // Hanya insert progres mundur jika yang TERAKHIR bukan tahap tersebut (biar tidak terekam berkali-kali)
                         $qLast = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nimMhs' ORDER BY waktu DESC LIMIT 1");
                         $lastProsesDb = ($qLast && mysqli_num_rows($qLast) > 0) ? (int)mysqli_fetch_assoc($qLast)['proses'] : 0;
 
@@ -374,7 +575,6 @@ if (isset($_POST['verifikasi-berkas'])) {
                             query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', '$tahapSebelumnya', '$nimMhs')");
                         }
                     } elseif ($totalDiterima >= $totalWajib) {
-                        // 1. Pindahkan berkas yang diterima dari temp_skripsi ke berkas_skripsi
                         $qGetTemp = query("SELECT ts.id_persyaratan, ts.nim, ts.file FROM temp_skripsi ts 
                                            JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                                            WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'diterima'");
@@ -384,7 +584,6 @@ if (isset($_POST['verifikasi-berkas'])) {
                                 $nMhs = bersihkan($rowT['nim']);
                                 $fId  = bersihkan($rowT['file']);
 
-                                // Cek apakah sudah ada di berkas_skripsi
                                 $qCekAda = query("SELECT id FROM berkas_skripsi WHERE nim = '$nMhs' AND id_persyaratan = '$idP'");
                                 if ($qCekAda && mysqli_num_rows($qCekAda) > 0) {
                                     query("UPDATE berkas_skripsi SET file = '$fId' WHERE nim = '$nMhs' AND id_persyaratan = '$idP'");
@@ -392,22 +591,18 @@ if (isset($_POST['verifikasi-berkas'])) {
                                     query("INSERT INTO berkas_skripsi (id_persyaratan, nim, file) VALUES ('$idP', '$nMhs', '$fId')");
                                 }
                             }
-                            // Hapus berkas yang sudah dipindahkan dari temp_skripsi
                             query("DELETE ts FROM temp_skripsi ts 
                                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                                    WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah'");
                         }
 
-                        // 2. Otomatis majukan progres_skripsi ke tahap berikutnya (setelah verifikasi admin)
                         $waktu = time();
-                        
-                        // Catat progres admin selesai (verifikasi)
                         $qCekProgresAdmin = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nimMhs' AND proses = '$tahapAdmin'");
                         if (!$qCekProgresAdmin || mysqli_num_rows($qCekProgresAdmin) == 0) {
                             query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ('$waktu', '$tahapAdmin', '$nimMhs')");
                         }
 
-                        $nextProsesAfterAdmin = $tahapAdmin + 1; // Tahap lanjutan setelah verifikasi admin selesai
+                        $nextProsesAfterAdmin = $tahapAdmin + 1;
                         $waktu = time() + 1;
 
                         $qCekProgres = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nimMhs' AND proses = '$nextProsesAfterAdmin'");
@@ -428,14 +623,14 @@ if (isset($_POST['verifikasi-berkas'])) {
 
 // ================= VERIFIKASI BATCH (SEMUA BERKAS MAHASISWA) =================
 if (isset($_POST['verifikasi-semua-mhs'])) {
-    $nim = bersihkan($_POST['nim']);
+    $nim  = bersihkan($_POST['nim']);
+    $tipe = strtolower(trim(bersihkan($_POST['tipe'] ?? '')));
 
     if (empty($nim)) {
         echo json_encode(['status' => false, 'pesan' => 'NIM tidak valid']);
         exit;
     }
 
-    // Proteksi level 3: pastikan mahasiswa yang diverifikasi adalah dari prodi user
     if ($isLevel3 && $userProdi !== '') {
         $cekMhs = mysqli_fetch_assoc(query("SELECT prodi FROM mahasiswa WHERE nim = '$nim' LIMIT 1"));
         if (!$cekMhs || trim((string)$cekMhs['prodi']) !== $userProdi) {
@@ -445,7 +640,16 @@ if (isset($_POST['verifikasi-semua-mhs'])) {
     }
 
     $ket = "Berkas diverifikasi dan diterima sekaligus.";
-    $q = query("UPDATE temp_skripsi SET status = 'diterima', ket = '$ket' WHERE nim = '$nim' AND status = 'menunggu'");
+
+    if ($tipe === 'kp') {
+        $q = query("UPDATE temp_kp SET status = 'diterima', ket = '$ket' WHERE nim = '$nim' AND status = 'menunggu'");
+    } elseif ($tipe === 'skripsi') {
+        $q = query("UPDATE temp_skripsi SET status = 'diterima', ket = '$ket' WHERE nim = '$nim' AND status = 'menunggu'");
+    } else {
+        $q1 = query("UPDATE temp_skripsi SET status = 'diterima', ket = '$ket' WHERE nim = '$nim' AND status = 'menunggu'");
+        $q2 = query("UPDATE temp_kp SET status = 'diterima', ket = '$ket' WHERE nim = '$nim' AND status = 'menunggu'");
+        $q = ($q1 || $q2);
+    }
 
     if ($q) {
         echo json_encode(['status' => true, 'pesan' => 'Semua berkas mahasiswa berhasil diterima']);
@@ -456,4 +660,3 @@ if (isset($_POST['verifikasi-semua-mhs'])) {
 }
 
 echo json_encode(['status' => false, 'pesan' => 'Permintaan tidak valid']);
-

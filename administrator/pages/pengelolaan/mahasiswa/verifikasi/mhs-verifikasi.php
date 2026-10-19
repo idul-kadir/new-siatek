@@ -133,7 +133,7 @@ if ($isLevel3 && $userProdi !== '') {
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-slate-800">Verifikasi Berkas</h1>
                     <p class="text-xs text-slate-500">
-                        Verifikasi berkas persyaratan skripsi mahasiswa
+                        Verifikasi berkas persyaratan skripsi dan kerja praktek mahasiswa
                         <?php if ($isLevel3 && $namaProdiUser !== ''): ?>
                             &bull; <span class="font-semibold text-orange-600"><?= tampil($namaProdiUser) ?></span>
                         <?php endif; ?>
@@ -156,6 +156,13 @@ if ($isLevel3 && $userProdi !== '') {
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                 <input type="search" id="fCari" placeholder="Cari nama atau NIM mahasiswa..." class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-orange-400 focus:bg-white">
             </div>
+
+            <!-- Filter Layanan -->
+            <select id="fLayanan" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
+                <option value="" selected>Semua Layanan</option>
+                <option value="skripsi">Skripsi</option>
+                <option value="kp">Kerja Praktek (KP)</option>
+            </select>
 
             <!-- Filter Prodi -->
             <select id="fProdi" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 <?= $isLevel3 ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>" <?= $isLevel3 ? 'disabled' : '' ?>>
@@ -303,9 +310,10 @@ if ($isLevel3 && $userProdi !== '') {
         if (!container) return;
         container.innerHTML = '<div class="acc-loading py-4 text-center"><div class="spinner-slate mx-auto"></div><p class="mt-3 text-muted" style="font-size: .85rem;">Memuat data...</p></div>';
 
-        var cari = $('#fCari').val() || '';
-        var status = $('#fStatus').val() || '';
-        var prodi = '<?= $isLevel3 ? addslashes($userProdi) : '' ?>' || $('#fProdi').val() || '';
+        var cari    = $('#fCari').val() || '';
+        var status  = $('#fStatus').val() || '';
+        var layanan = $('#fLayanan').val() || '';
+        var prodi   = '<?= $isLevel3 ? addslashes($userProdi) : '' ?>' || $('#fProdi').val() || '';
 
         $.ajax({
             url: PROSES_URL,
@@ -314,6 +322,7 @@ if ($isLevel3 && $userProdi !== '') {
                 'ambil-tabel': 1,
                 'cari': cari,
                 'status': status,
+                'layanan': layanan,
                 'prodi': prodi
             },
             dataType: 'json',
@@ -339,12 +348,13 @@ if ($isLevel3 && $userProdi !== '') {
             delayTimer = setTimeout(muatUlangTabel, 300);
         });
 
-        $('#fStatus, #fProdi').on('change', function(){
+        $('#fLayanan, #fStatus, #fProdi').on('change', function(){
             muatUlangTabel();
         });
 
         $('#btnReset').on('click', function(){
             $('#fCari').val('');
+            $('#fLayanan').val('');
             $('#fStatus').val('');
             <?php if (!$isLevel3): ?>
             $('#fProdi').val('');
@@ -357,14 +367,15 @@ if ($isLevel3 && $userProdi !== '') {
         // Buka Modal Pratinjau
         $(document).on('click', '.btnPratinjau, .btnPratinjauStatus', function(e){
             e.preventDefault();
-            var id = $(this).data('id');
-            var url = $(this).data('url');
+            var id         = $(this).data('id');
+            var tipe       = $(this).data('tipe') || 'skripsi';
+            var url        = $(this).data('url');
             var namaBerkas = $(this).data('namaberkas');
-            var mhs = $(this).data('mhs');
-            var sop = $(this).data('sop');
-            var status = $(this).data('status');
+            var mhs        = $(this).data('mhs');
+            var sop        = $(this).data('sop');
+            var status     = $(this).data('status');
             var badgestyle = $(this).data('badgestyle');
-            var ket = $(this).data('ket') || '';
+            var ket        = $(this).data('ket') || '';
 
             $('#pratinjauNamaBerkas').text(namaBerkas);
             $('#pratinjauNamaMahasiswa').text(mhs);
@@ -384,17 +395,11 @@ if ($isLevel3 && $userProdi !== '') {
             $('#panelFormTolakPratinjau').hide();
             $('#ketTolakPratinjau').val('');
 
-            // Setup tombol aksi & simpan ID
+            // Setup tombol aksi & simpan ID + Tipe
             var panelAksi = $('#panelAksiPratinjau');
-            if (status === 'menunggu') {
-                panelAksi.show();
-                $('.btnAksiPratinjau').data('id', id);
-                $('.btnSubmitTolakPratinjau').data('id', id);
-            } else {
-                panelAksi.show();
-                $('.btnAksiPratinjau').data('id', id);
-                $('.btnSubmitTolakPratinjau').data('id', id);
-            }
+            panelAksi.show();
+            $('.btnAksiPratinjau').data('id', id).data('tipe', tipe);
+            $('.btnSubmitTolakPratinjau').data('id', id).data('tipe', tipe);
 
             // Tampilkan loading dan muat iframe
             document.getElementById('loadingPratinjau').style.display = 'flex';
@@ -418,13 +423,14 @@ if ($isLevel3 && $userProdi !== '') {
 
         // Submit Terima
         $(document).on('click', '.btnAksiPratinjau', function(){
-            var id = $(this).data('id');
-            var btn = this;
+            var id   = $(this).data('id');
+            var tipe = $(this).data('tipe') || 'skripsi';
+            var btn  = this;
             setButtonLoading(btn, true);
             $.ajax({
                 url: PROSES_URL,
                 method: 'POST',
-                data: { 'verifikasi-berkas': 1, 'id': id, 'aksi': 'diterima' },
+                data: { 'verifikasi-berkas': 1, 'id': id, 'tipe': tipe, 'aksi': 'diterima' },
                 dataType: 'json',
                 success: function(respon) {
                     toast(respon.pesan, respon.status ? 'success' : 'error');
@@ -437,8 +443,9 @@ if ($isLevel3 && $userProdi !== '') {
                         }
                     }
                 },
-                error: function() {
-                    toast('Terjadi kesalahan pada server', 'error');
+                error: function(xhr, status, err) {
+                    var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : (err || '');
+                    toast('Terjadi kesalahan pada server' + (detail ? ': ' + detail : ''), 'error');
                 },
                 complete: function() {
                     setButtonLoading(btn, false);
@@ -448,8 +455,9 @@ if ($isLevel3 && $userProdi !== '') {
 
         // Submit Tolak Inline
         $(document).on('click', '.btnSubmitTolakPratinjau', function(){
-            var id = $(this).data('id');
-            var ket = $('#ketTolakPratinjau').val().trim();
+            var id   = $(this).data('id');
+            var tipe = $(this).data('tipe') || 'skripsi';
+            var ket  = $('#ketTolakPratinjau').val().trim();
             
             if (ket === '') {
                 toast('Alasan penolakan wajib diisi', 'error');
@@ -463,7 +471,7 @@ if ($isLevel3 && $userProdi !== '') {
             $.ajax({
                 url: PROSES_URL,
                 method: 'POST',
-                data: { 'verifikasi-berkas': 1, 'id': id, 'aksi': 'ditolak', 'ket': ket },
+                data: { 'verifikasi-berkas': 1, 'id': id, 'tipe': tipe, 'aksi': 'ditolak', 'ket': ket },
                 dataType: 'json',
                 success: function(respon) {
                     toast(respon.pesan, respon.status ? 'success' : 'error');
@@ -476,8 +484,9 @@ if ($isLevel3 && $userProdi !== '') {
                         }
                     }
                 },
-                error: function() {
-                    toast('Terjadi kesalahan pada server', 'error');
+                error: function(xhr, status, err) {
+                    var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : (err || '');
+                    toast('Terjadi kesalahan pada server' + (detail ? ': ' + detail : ''), 'error');
                 },
                 complete: function() {
                     setButtonLoading(btn, false);

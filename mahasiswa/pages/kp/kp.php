@@ -19,6 +19,8 @@ $dKp  = [
     'penguji_2'           => 'Belum Ditentukan',
     'tgl_mulai'           => 'Belum dijadwalkan',
     'tgl_selesai'         => 'Belum dijadwalkan',
+    'tgl_penarikan'       => 'Belum dijadwalkan',
+    'batas_proposal'      => 'Belum dijadwalkan',
     'jadwal_seminar'      => 'Belum dijadwalkan',
     'jam_seminar'         => '-',
     'ruangan_seminar'     => '-'
@@ -113,7 +115,10 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
     }
 
     // Ambil Pembimbing dari tabel surat_penunjukkan (keterangan PEMBIMBING KP)
-    $qSuratBimb = query("SELECT pembimbing1, no_surat FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%PEMBIMBING%KP%' ORDER BY id DESC LIMIT 1");
+    $idSuratBimb = (int)($rowKp['surat_penunjukkan_pembimbing'] ?? 0);
+    $qSuratBimb = ($idSuratBimb > 0)
+        ? query("SELECT pembimbing1, no_surat FROM surat_penunjukkan WHERE id = $idSuratBimb LIMIT 1")
+        : query("SELECT pembimbing1, no_surat FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%PEMBIMBING%KP%' ORDER BY id DESC LIMIT 1");
     if ($qSuratBimb && mysqli_num_rows($qSuratBimb) > 0) {
         $sb = mysqli_fetch_assoc($qSuratBimb);
         $idP1 = $sb['pembimbing1'];
@@ -126,21 +131,13 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
             $dKp['pembimbing'] = $idP1;
             $dKp['nip_pemb']   = $idP1;
         }
-    } elseif (!empty($rowKp['pembimbing'])) {
-        $idP1 = $rowKp['pembimbing'];
-        $qDsn = query("SELECT nama, nip FROM dosen WHERE id = '$idP1' OR nip = '$idP1' LIMIT 1");
-        if ($qDsn && mysqli_num_rows($qDsn) > 0) {
-            $rd = mysqli_fetch_assoc($qDsn);
-            $dKp['pembimbing'] = $rd['nama'];
-            $dKp['nip_pemb']   = $rd['nip'] ?: $idP1;
-        } else {
-            $dKp['pembimbing'] = $idP1;
-            $dKp['nip_pemb']   = $idP1;
-        }
     }
 
     // Ambil Penguji Seminar KP (keterangan PENGUJI KP)
-    $qSuratPeng = query("SELECT penguji1, penguji2 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%PENGUJI%KP%' ORDER BY id DESC LIMIT 1");
+    $idSuratPeng = (int)($rowKp['surat_penunjukkan_penguji'] ?? 0);
+    $qSuratPeng = ($idSuratPeng > 0)
+        ? query("SELECT penguji1, penguji2 FROM surat_penunjukkan WHERE id = $idSuratPeng LIMIT 1")
+        : query("SELECT penguji1, penguji2 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%PENGUJI%KP%' ORDER BY id DESC LIMIT 1");
     if ($qSuratPeng && mysqli_num_rows($qSuratPeng) > 0) {
         $spg = mysqli_fetch_assoc($qSuratPeng);
         if (!empty($spg['penguji1'])) {
@@ -179,6 +176,15 @@ if (!empty($rowKp)) {
         $valTglSelesai = date('Y-m-d', strtotime($rawSelesai));
         $dKp['tgl_selesai'] = date('d M Y', strtotime($rawSelesai));
     }
+
+    // Tanggal Penarikan KP
+    $rawPenarikan  = !empty($rowKp['tanggal_penarikan']) && $rowKp['tanggal_penarikan'] !== '0000-00-00'
+                       ? $rowKp['tanggal_penarikan']
+                       : (!empty($rowKp['tanggal_selesai']) && $rowKp['tanggal_selesai'] !== '0000-00-00' ? $rowKp['tanggal_selesai'] : '');
+    if (!empty($rawPenarikan) && $rawPenarikan !== '0000-00-00') {
+        $dKp['tgl_penarikan'] = date('d M Y', strtotime($rawPenarikan));
+    }
+
     $valTempat     = $rowKp['nama_instansi'] ?? $rowKp['instansi'] ?? $rowKp['tempat'] ?? '';
     $valAlamat     = $rowKp['alamat_instansi'] ?? $rowKp['alamat'] ?? '';
     $valTujuan     = $rowKp['pimpinan_instansi'] ?? '';
@@ -189,8 +195,48 @@ if (!empty($valTglMulai) && empty($valTglSelesai)) {
     $valTglSelesai = hitung_tanggal_selesai_kp($valTglMulai);
     if (!empty($valTglSelesai)) {
         $dKp['tgl_selesai'] = date('d M Y', strtotime($valTglSelesai));
+        if ($dKp['tgl_penarikan'] === 'Belum dijadwalkan') {
+            $dKp['tgl_penarikan'] = date('d M Y', strtotime($valTglSelesai));
+        }
     }
 }
+
+// Hitung status tanggal penarikan untuk informasi di Step 7
+$valTglPenarikan = '';
+if (!empty($rawPenarikan) && $rawPenarikan !== '0000-00-00') {
+    $valTglPenarikan = date('Y-m-d', strtotime($rawPenarikan));
+} elseif (!empty($valTglSelesai) && $valTglSelesai !== '0000-00-00') {
+    $valTglPenarikan = $valTglSelesai;
+}
+
+$tglPenarikanIndo  = !empty($valTglPenarikan) ? tgl_indo($valTglPenarikan) : $dKp['tgl_penarikan'];
+$tglSekarang       = date('Y-m-d');
+$isBelumWaktunya   = (!empty($valTglPenarikan) && $tglSekarang < $valTglPenarikan);
+$isSudahWaktunya   = (!empty($valTglPenarikan) && $tglSekarang >= $valTglPenarikan);
+$sisaHariPenarikan = 0;
+if ($isBelumWaktunya) {
+    try {
+        $d1 = new DateTime($tglSekarang);
+        $d2 = new DateTime($valTglPenarikan);
+        $sisaHariPenarikan = (int)$d1->diff($d2)->format('%r%a');
+    } catch (Exception $e) {
+        $sisaHariPenarikan = 0;
+    }
+}
+
+// Batas Penyusunan Proposal (maksimal 1 bulan setelah tanggal penarikan)
+$valBatasProposal = '';
+if (!empty($valTglPenarikan)) {
+    try {
+        $dtPenarikan = new DateTime($valTglPenarikan);
+        $dtPenarikan->modify('+1 month');
+        $valBatasProposal = $dtPenarikan->format('Y-m-d');
+        $dKp['batas_proposal'] = date('d M Y', strtotime($valBatasProposal));
+    } catch (Exception $e) {
+        $dKp['batas_proposal'] = 'Belum dijadwalkan';
+    }
+}
+$tglBatasProposalIndo = !empty($valBatasProposal) ? tgl_indo($valBatasProposal) : $dKp['batas_proposal'];
 
 /* --- Ambil Status Progres KP dari tabel progres_kp / kp via helper di fungsi.php --- */
 $currentProgres = get_progres_kp($nim);
@@ -399,7 +445,7 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                     </div>
                 </div>
 
-                <!-- Informasi Instansi & Seminar KP -->
+                <!-- Informasi Instansi, Tanggal Mulai, Tanggal Penarikan & Seminar KP -->
                 <div class="pt-4 border-t border-slate-100">
                     <div class="flex flex-wrap items-center gap-3">
                         <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
@@ -412,14 +458,44 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                             </div>
                         </div>
                         <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <i class="fas fa-calendar-plus text-emerald-500 text-sm"></i>
+                            <div>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tanggal Mulai KP</p>
+                                <p class="text-xs font-bold text-slate-700" id="badgeMulaiKp">
+                                    <?= htmlspecialchars($dKp['tgl_mulai']) ?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <i class="fas fa-calendar-days text-amber-500 text-sm"></i>
+                            <div>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tanggal Penarikan</p>
+                                <p class="text-xs font-bold text-slate-700" id="badgePenarikanKp">
+                                    <?= htmlspecialchars($dKp['tgl_penarikan']) ?>
+                                </p>
+                            </div>
+                        </div>
+                        <?php if ($lastProsesId < 11): ?>
+                        <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <i class="fas fa-hourglass-half text-rose-500 text-sm"></i>
+                            <div>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Batas Laporan</p>
+                                <p class="text-xs font-bold text-slate-700" id="badgeBatasProposalKp">
+                                    <?= htmlspecialchars($dKp['batas_proposal']) ?>
+                                </p>
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
                             <i class="fas fa-calendar-check text-sky-500 text-sm"></i>
                             <div>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Jadwal Seminar KP</p>
-                                <p class="text-xs font-bold text-slate-700">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Jadwal Ujian</p>
+                                <p class="text-xs font-bold text-slate-700" id="badgeJadwalSeminarKp">
                                     <?= htmlspecialchars($dKp['jadwal_seminar']) ?>
                                 </p>
                             </div>
                         </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -550,14 +626,14 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
 
                 <!-- Konten Aktivitas SOP -->
                 <div class="space-y-4">
-                    <?php if (strtolower($currentStep['executor']) === 'mahasiswa'): ?>
+                    <?php if (strtolower($currentStep['executor']) === 'mahasiswa' && !in_array((int)$currentStep['urutan'], [6, 7])): ?>
                     <div class="rounded-lg bg-orange-50/60 border border-orange-100 p-4 text-xs text-slate-700 leading-relaxed">
                         <i class="fas fa-info-circle text-orange-500 mr-1.5"></i>
                         Silakan lengkapi berkas dan persyaratan berikut untuk menyelesaikan tahapan <strong><?= htmlspecialchars($currentStep['judul']) ?></strong>.
                     </div>
                     <?php endif; ?>
 
-                    <?php if (strtolower($currentStep['executor']) !== 'mahasiswa' && (int)$currentStep['urutan'] != 2): ?>
+                    <?php if (strtolower($currentStep['executor']) !== 'mahasiswa' && !in_array((int)$currentStep['urutan'], [2, 6, 7, 10])): ?>
                         <div class="p-8 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
                             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-400 mb-3 text-xl">
                                 <i class="fas fa-user-clock"></i>
@@ -742,112 +818,143 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                         </div>
                                     </div>
 
-                                    <!-- Form Pengisian Rencana Kerja Praktek (Sama seperti Case 1) -->
-                                    <form id="formPengajuanKp" class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
-                                        <div class="border-b border-slate-100 pb-3">
-                                            <h5 class="text-xs font-bold uppercase tracking-wider text-slate-700">Formulir Rencana Pelaksanaan Kerja Praktek</h5>
-                                            <p class="text-[11px] text-slate-400 mt-0.5">Semua kolom bertanda bintang (<span class="text-rose-500">*</span>) wajib diisi dengan data valid.</p>
-                                        </div>
-
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <!-- Dosen Penasihat Akademik (PA) -->
-                                            <div class="md:col-span-2">
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Dosen Penasihat Akademik (PA) <span class="text-rose-500">*</span>
-                                                </label>
-                                                <select name="dosen_pa" id="inputDosenPaKp" required
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
-                                                    <option value="">-- Pilih Dosen Penasihat Akademik (PA) --</option>
-                                                    <?php foreach ($listDosenPa as $dsn): ?>
-                                                        <option value="<?= htmlspecialchars((string)$dsn['id']) ?>" <?= (!empty($valDosenPaId) && ($valDosenPaId == $dsn['id'] || (isset($dsn['nip']) && $valDosenPaId == $dsn['nip']))) ? 'selected' : '' ?>>
-                                                            <?= htmlspecialchars($dsn['nama']) ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                                <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Pilih Dosen Penasihat Akademik (PA) Anda untuk menandatangani lembar persetujuan KP.</p>
+                                    <!-- Accordion / Collapsible Container Form Rencana KP di Tahap 2 (Tertutup secara default) -->
+                                    <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                                        <!-- Header Accordion (Bisa diklik untuk Buka / Tutup Formulir) -->
+                                        <div id="headerToggleFormKp" onclick="toggleFormKp()" class="p-4 sm:p-5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/70 transition cursor-pointer select-none">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 shrink-0 text-sm">
+                                                    <i class="fas fa-file-pen"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="flex items-center gap-2">
+                                                        <h5 class="text-xs font-bold uppercase tracking-wider text-slate-800">Formulir Rencana Pelaksanaan Kerja Praktek</h5>
+                                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Tersimpan</span>
+                                                    </div>
+                                                    <p class="text-[11px] text-slate-500 mt-0.5">
+                                                        <?= !empty($valTempat) ? 'Instansi: <strong id="summaryInstansiKp">' . htmlspecialchars($valTempat) . '</strong> • ' : '' ?>Klik untuk melihat atau mengubah data rencana KP
+                                                    </p>
+                                                </div>
                                             </div>
 
-                                            <!-- 1. Jumlah SKS Ditempuh -->
-                                            <div class="md:col-span-2">
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Jumlah SKS yang Telah Ditempuh <span class="text-rose-500">*</span>
-                                                </label>
-                                                <input type="number" name="sks" id="inputSksKp" min="100" max="200" required
-                                                    placeholder="Contoh: 110"
-                                                    value="<?= htmlspecialchars((string)$valSks) ?>"
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
-                                                <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Syarat minimal SKS yang telah ditempuh dan lulus adalah 100 SKS.</p>
-                                            </div>
-
-                                            <!-- 2. Rencana Tanggal Mulai -->
                                             <div>
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Rencana Tanggal Mulai KP <span class="text-rose-500">*</span>
-                                                </label>
-                                                <input type="date" name="tanggal_mulai" id="inputTglMulaiKp" required
-                                                    value="<?= htmlspecialchars((string)$valTglMulai) ?>"
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
-                                            </div>
-
-                                            <!-- 3. Rencana Tanggal Selesai (Otomatis) -->
-                                            <div>
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Rencana Tanggal Selesai KP <span class="text-rose-500">*</span>
-                                                </label>
-                                                <input type="date" name="tanggal_selesai" id="inputTglSelesaiKp" required readonly tabindex="-1"
-                                                    value="<?= htmlspecialchars((string)$valTglSelesai) ?>"
-                                                    class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-medium text-slate-600 outline-none cursor-not-allowed pointer-events-none select-none">
-                                                <p class="text-[11px] text-slate-400 mt-1">
-                                                    <i class="fas fa-lock text-slate-400 mr-1"></i>Otomatis terhitung <?= defined('DURASI_DEFAULT_KP_BULAN') ? (int)DURASI_DEFAULT_KP_BULAN : 2 ?> bulan dari tanggal mulai.
-                                                </p>
-                                            </div>
-
-                                            <!-- 4. Tempat / Instansi KP -->
-                                            <div class="md:col-span-2">
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Tempat / Instansi Kerja Praktek <span class="text-rose-500">*</span>
-                                                </label>
-                                                <input type="text" name="tempat" id="inputTempatKp" required
-                                                    placeholder="Contoh: PT. PLN (Persero) UP3 Gorontalo / Dinas Kominfo"
-                                                    value="<?= htmlspecialchars((string)$valTempat) ?>"
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
-                                            </div>
-
-                                            <!-- 5. Alamat Tempat KP -->
-                                            <div class="md:col-span-2">
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Alamat Lengkap Tempat KP <span class="text-rose-500">*</span>
-                                                </label>
-                                                <textarea name="alamat" id="inputAlamatKp" rows="2" required
-                                                    placeholder="Contoh: Jl. Jendral Sudirman No. 25, Kota Gorontalo"
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition"><?= htmlspecialchars((string)$valAlamat) ?></textarea>
-                                            </div>
-
-                                            <!-- 6. Tujuan Surat -->
-                                            <div class="md:col-span-2">
-                                                <label class="block text-xs font-bold text-slate-700 mb-1">
-                                                    Tujuan Surat (Jabatan / Pimpinan Instansi) <span class="text-rose-500">*</span>
-                                                </label>
-                                                <input type="text" name="tujuan_surat" id="inputTujuanSuratKp" required
-                                                    placeholder="Contoh: Kepala Dinas Komunikasi dan Informatika Provinsi Gorontalo"
-                                                    value="<?= htmlspecialchars((string)$valTujuan) ?>"
-                                                    class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
-                                                <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Pihak pimpinan atau pejabat yang dituju untuk surat pengantar/permohonan pelaksanaan KP.</p>
+                                                <button type="button" id="btnToggleFormKp" onclick="event.stopPropagation(); toggleFormKp();"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 px-3.5 py-2 text-xs font-bold transition cursor-pointer">
+                                                    <span id="txtToggleFormKp">Buka Formulir</span>
+                                                    <i id="iconToggleFormKp" class="fas fa-chevron-down text-[10px] transition-transform duration-200"></i>
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <!-- Tombol Aksi di Case 2: Cetak & Simpan Data (Tidak Otomatis Naik Step) -->
-                                        <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                                            <a href="<?= base_url() ?>/mahasiswa/dokumen/persetujuan-pa/<?= $nim_clean ?>" target="_blank"
-                                                class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 shadow-xs transition cursor-pointer">
-                                                <i class="fas fa-print text-orange-500"></i>Cetak Lembar Persetujuan PA
-                                            </a>
-                                            <button type="submit" id="btnSimpanKpStep2" data-text="Simpan Data"
-                                                class="inline-flex items-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition cursor-pointer">
-                                                <i class="fas fa-save"></i>Simpan Data
-                                            </button>
+                                        <!-- Konten Formulir: Default TERTUTUP (hidden) di Tahap 2 agar hemat tempat -->
+                                        <div id="wrapFormPengajuanKp" class="hidden border-t border-slate-100 p-5 sm:p-6 bg-slate-50/40">
+                                            <form id="formPengajuanKp" class="space-y-4">
+                                                <div class="border-b border-slate-100 pb-3">
+                                                    <h6 class="text-xs font-bold uppercase tracking-wider text-slate-700">Ubah Data Formulir Rencana KP</h6>
+                                                    <p class="text-[11px] text-slate-400 mt-0.5">Semua kolom bertanda bintang (<span class="text-rose-500">*</span>) wajib diisi dengan data valid.</p>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <!-- Dosen Penasihat Akademik (PA) -->
+                                                    <div class="md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Dosen Penasihat Akademik (PA) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <select name="dosen_pa" id="inputDosenPaKp" required
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
+                                                            <option value="">-- Pilih Dosen Penasihat Akademik (PA) --</option>
+                                                            <?php foreach ($listDosenPa as $dsn): ?>
+                                                                <option value="<?= htmlspecialchars((string)$dsn['id']) ?>" <?= (!empty($valDosenPaId) && ($valDosenPaId == $dsn['id'] || (isset($dsn['nip']) && $valDosenPaId == $dsn['nip']))) ? 'selected' : '' ?>>
+                                                                    <?= htmlspecialchars($dsn['nama']) ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Pilih Dosen Penasihat Akademik (PA) Anda untuk menandatangani lembar persetujuan KP.</p>
+                                                    </div>
+
+                                                    <!-- 1. Jumlah SKS Ditempuh -->
+                                                    <div class="md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Jumlah SKS yang Telah Ditempuh <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <input type="number" name="sks" id="inputSksKp" min="100" max="200" required
+                                                            placeholder="Contoh: 110"
+                                                            value="<?= htmlspecialchars((string)$valSks) ?>"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
+                                                        <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Syarat minimal SKS yang telah ditempuh dan lulus adalah 100 SKS.</p>
+                                                    </div>
+
+                                                    <!-- 2. Rencana Tanggal Mulai -->
+                                                    <div>
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Rencana Tanggal Mulai KP <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <input type="date" name="tanggal_mulai" id="inputTglMulaiKp" required
+                                                            value="<?= htmlspecialchars((string)$valTglMulai) ?>"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
+                                                    </div>
+
+                                                    <!-- 3. Rencana Tanggal Selesai (Otomatis) -->
+                                                    <div>
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Rencana Tanggal Selesai KP <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <input type="date" name="tanggal_selesai" id="inputTglSelesaiKp" required readonly tabindex="-1"
+                                                            value="<?= htmlspecialchars((string)$valTglSelesai) ?>"
+                                                            class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-medium text-slate-600 outline-none cursor-not-allowed pointer-events-none select-none">
+                                                        <p class="text-[11px] text-slate-400 mt-1">
+                                                            <i class="fas fa-lock text-slate-400 mr-1"></i>Otomatis terhitung <?= defined('DURASI_DEFAULT_KP_BULAN') ? (int)DURASI_DEFAULT_KP_BULAN : 2 ?> bulan dari tanggal mulai.
+                                                        </p>
+                                                    </div>
+
+                                                    <!-- 4. Tempat / Instansi KP -->
+                                                    <div class="md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Tempat / Instansi Kerja Praktek <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <input type="text" name="tempat" id="inputTempatKp" required
+                                                            placeholder="Contoh: PT. PLN (Persero) UP3 Gorontalo / Dinas Kominfo"
+                                                            value="<?= htmlspecialchars((string)$valTempat) ?>"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
+                                                    </div>
+
+                                                    <!-- 5. Alamat Tempat KP -->
+                                                    <div class="md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Alamat Lengkap Tempat KP <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <textarea name="alamat" id="inputAlamatKp" rows="2" required
+                                                            placeholder="Contoh: Jl. Jendral Sudirman No. 25, Kota Gorontalo"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition"><?= htmlspecialchars((string)$valAlamat) ?></textarea>
+                                                    </div>
+
+                                                    <!-- 6. Tujuan Surat -->
+                                                    <div class="md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                                                            Tujuan Surat (Jabatan / Pimpinan Instansi) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <input type="text" name="tujuan_surat" id="inputTujuanSuratKp" required
+                                                            placeholder="Contoh: Kepala Dinas Komunikasi dan Informatika Provinsi Gorontalo"
+                                                            value="<?= htmlspecialchars((string)$valTujuan) ?>"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-orange-500 focus:bg-white transition">
+                                                        <p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-info-circle mr-1"></i>Pihak pimpinan atau pejabat yang dituju untuk surat pengantar/permohonan pelaksanaan KP.</p>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Tombol Aksi di Case 2: Cetak & Simpan Data (Tidak Otomatis Naik Step) -->
+                                                <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                                                    <button type="button" id="btnCetakPersetujuanPaCase2" data-text="Cetak Lembar Persetujuan PA"
+                                                        class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 shadow-xs transition cursor-pointer">
+                                                        <i class="fas fa-print text-orange-500"></i>Cetak Lembar Persetujuan PA
+                                                    </button>
+                                                    <button type="submit" id="btnSimpanKpStep2" data-text="Simpan Data"
+                                                        class="inline-flex items-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition cursor-pointer">
+                                                        <i class="fas fa-save"></i>Simpan Data
+                                                    </button>
+                                                </div>
+                                            </form>
                                         </div>
-                                    </form>
+                                    </div>
 
                                     <!-- Upload Berkas Step 2 (Jika ada berkas yang dikonfigurasi di persyaratan_berkas_kp) -->
                                     <?php if (!empty($berkasDibutuhkan)): ?>
@@ -904,18 +1011,310 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                                         </div>
                                                         <?php endif; ?>
 
-                                                        <div class="flex items-center gap-2">
-                                                            <input type="file" name="berkas_<?= $b['id'] ?>" data-id="<?= $b['id'] ?>" accept=".pdf"
-                                                                class="input-berkas-sop block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition cursor-pointer border border-slate-200 rounded-lg bg-white p-1">
-                                                            <button type="button" class="btn-upload-single hidden inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition" data-id="<?= $b['id'] ?>">
-                                                                <i class="fas fa-upload"></i>Unggah
-                                                            </button>
-                                                        </div>
+                                                        <input 
+                                                            type="file" 
+                                                            accept=".pdf" 
+                                                            <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                            class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                            data-id="<?= $b['id'] ?>"
+                                                            data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                        >
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
                                         </form>
                                     </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 4:
+                                // Step 4: Unggah Surat dari Instansi Kerja Praktek & Cetak Surat Pernyataan Diterima KP
+                            ?>
+                                <div class="space-y-4">
+                                    <!-- Header Info & Tombol Cetak Surat Pernyataan KP -->
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 flex-shrink-0 text-base">
+                                                <i class="fas fa-print"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-bold text-slate-800">Surat Pernyataan Diterima Kerja Praktek</h4>
+                                                <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                                    Cetak surat pernyataan resmi bahwa mahasiswa bersangkutan benar-benar telah diterima untuk melaksanakan Kerja Praktek di instansi tujuan (<strong><?= !empty($valTempat) ? htmlspecialchars($valTempat) : '-' ?></strong>).
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            id="btnCetakPernyataanKp" 
+                                            data-text="Cetak Surat Pernyataan"
+                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition flex-shrink-0 cursor-pointer"
+                                        >
+                                            <i class="fas fa-print"></i>Cetak Surat Pernyataan
+                                        </button>
+                                    </div>
+
+                                    <!-- Unggah Berkas Persyaratan Tahap 4 (Surat Balasan Instansi / Berkas Lain) -->
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                                <?php foreach ($berkasDibutuhkan as $b): 
+                                                    $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                    $urlFileLama = '';
+                                                    $statusBerkas = 'menunggu';
+                                                    $ketStatus = '';
+
+                                                    if ($sudahAda) {
+                                                        $qLama = query("SELECT file, status, ket FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                        if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                            $dTemp = mysqli_fetch_assoc($qLama);
+                                                            $urlFileLama = url_file($dTemp['file']);
+                                                            $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                            $ketStatus = trim((string)$dTemp['ket']);
+                                                        }
+                                                    }
+                                                ?>
+                                                    <div>
+                                                        <div class="flex items-center justify-between mb-1">
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if ($sudahAda): ?>
+                                                            <div class="flex items-center gap-3">
+                                                                <?php if ($urlFileLama): ?>
+                                                                <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                                <?php endif; ?>
+                                                                
+                                                                <?php if ($statusBerkas === 'diterima'): ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                                <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                                <?php else: ?>
+                                                                    <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                            <?php else: ?>
+                                                            <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                            <?php endif; ?>
+                                                        </div>
+
+                                                        <?php if ($sudahAda && $statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                        <div class="mb-2 p-2 rounded bg-rose-50 border border-rose-100 text-[11px] text-rose-700">
+                                                            <i class="fas fa-exclamation-circle mr-1"></i><strong>Catatan Penolakan:</strong> <?= htmlspecialchars($ketStatus) ?>
+                                                        </div>
+                                                        <?php endif; ?>
+
+                                                        <input 
+                                                            type="file" 
+                                                            accept=".pdf" 
+                                                            <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                            class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                            data-id="<?= $b['id'] ?>"
+                                                            data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                        >
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 6:
+                            case 7:
+                                // Step 6 & 7: Pelaksanaan & Penarikan Kerja Praktek (KP)
+                            ?>
+                                <div class="space-y-4">
+                                    <!-- Informasi Tanggal Penarikan KP -->
+                                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-3 shadow-xs">
+                                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 shrink-0 mt-0.5">
+                                            <i class="fas fa-calendar-days text-sm"></i>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-bold text-amber-950 text-xs">Informasi Tanggal Penarikan:</span>
+                                                <span class="font-semibold text-orange-600 bg-orange-100/80 px-2 py-0.5 rounded text-[11px]"><?= htmlspecialchars($tglPenarikanIndo) ?></span>
+                                            </div>
+                                            <p class="text-amber-800 leading-relaxed text-[11px]">
+                                                <?php if ($isBelumWaktunya): ?>
+                                                    Tanggal penarikan Anda adalah <strong><?= htmlspecialchars($tglPenarikanIndo) ?></strong>. Anda belum bisa melakukan penarikan karena masa pelaksanaan Kerja Praktek masih berlangsung hingga tanggal tersebut.
+                                                <?php elseif ($isSudahWaktunya): ?>
+                                                    Masa pelaksanaan Kerja Praktek telah selesai per <strong><?= htmlspecialchars($tglPenarikanIndo) ?></strong>. Silakan menghubungi Operator Program Studi atau Dosen Pembimbing untuk proses penarikan.
+                                                <?php else: ?>
+                                                    Tanggal penarikan Kerja Praktek Anda belum dijadwalkan dalam sistem. Anda belum dapat memproses penarikan.
+                                                <?php endif; ?>
+                                                <?php if (!empty($valBatasProposal)): ?>
+                                                    <br><span class="text-slate-600 mt-1 inline-block"><i class="fas fa-hourglass-half text-rose-500 mr-1"></i>Batas penyusunan laporan: <strong><?= htmlspecialchars($tglBatasProposalIndo) ?></strong> (maksimal 1 bulan setelah penarikan).</span>
+                                                <?php endif; ?>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Unggah Berkas (Jika Ada yang Dipersyaratkan pada Tahapan Ini) -->
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasDibutuhkan as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php if ($sudahAda && $statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <div class="mb-2 p-2 rounded bg-rose-50 border border-rose-100 text-[11px] text-rose-700">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i><strong>Catatan Penolakan:</strong> <?= htmlspecialchars($ketStatus) ?>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                    >
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 10:
+                                // Step 10: Cetak Lembar Persetujuan Pembimbing & Lembar Asistensi KP (Tidak Menaikkan Step)
+                            ?>
+                                <div class="space-y-4">
+                                    <!-- Tombol Cetak Dokumen KP (Persetujuan Pembimbing & Lembar Asistensi) -->
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 flex-shrink-0 text-base">
+                                                <i class="fas fa-file-signature"></i>
+                                            </div>
+                                            <h4 class="text-sm font-bold text-slate-800">Cetak Dokumen Persetujuan &amp; Asistensi</h4>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
+                                            <button 
+                                                type="button" 
+                                                id="btnCetakAsistensiKp" 
+                                                data-text="Cetak Lembar Asistensi"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 shadow-xs transition flex-1 sm:flex-none cursor-pointer"
+                                            >
+                                                <i class="fas fa-print text-orange-500"></i>Cetak Lembar Asistensi
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                id="btnCetakPersetujuanPembimbingKp" 
+                                                data-text="Cetak Persetujuan Pembimbing"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 shadow-xs transition flex-1 sm:flex-none cursor-pointer"
+                                            >
+                                                <i class="fas fa-print text-orange-500"></i>Cetak Persetujuan Pembimbing
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Unggah Berkas Persyaratan Tahap 10 (Jika Ada) -->
+                                    <?php if (!empty($berkasDibutuhkan)): ?>
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasDibutuhkan as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasSudahDunggah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php if ($sudahAda && $statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <div class="mb-2 p-2 rounded bg-rose-50 border border-rose-100 text-[11px] text-rose-700">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i><strong>Catatan Penolakan:</strong> <?= htmlspecialchars($ketStatus) ?>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                    >
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </form>
                                     <?php endif; ?>
                                 </div>
                             <?php 
@@ -1104,40 +1503,60 @@ function setButtonLoading(btn, isLoading) {
 }
 
 // 1. Auto Upload Berkas saat event Change pada input file
-document.querySelectorAll('.auto-upload-input').forEach(function(input) {
-    input.addEventListener('change', function() {
-        var fileInput = this;
-        var idPersyaratan = this.getAttribute('data-id');
-        var fieldTarget = this.getAttribute('data-field');
-        var badge = document.querySelector('.status-berkas-badge[data-id="' + idPersyaratan + '"]');
+$(document).on('change', '.auto-upload-input, .input-berkas-sop', function() {
+    var fileInput = this;
+    var $input = $(this);
+    var idPersyaratan = $input.attr('data-id');
+    var fieldTarget = $input.attr('data-field') || '';
+    var $badge = $('.status-berkas-badge[data-id="' + idPersyaratan + '"]');
 
-        if (!fileInput.files[0]) return;
+    if (!fileInput.files || !fileInput.files[0]) return;
 
-        if (badge) {
-            badge.className = 'status-berkas-badge text-[10px] font-semibold text-orange-500';
-            badge.innerHTML = '<i class="fas fa-spinner animate-spin"></i> Mengunggah...';
-        }
-        fileInput.setAttribute('disabled', 'disabled');
+    var file = fileInput.files[0];
 
-        var formData = new FormData();
-        formData.append('unggah-berkas-kp', '1');
-        formData.append('id_persyaratan', idPersyaratan);
-        formData.append('field_target', fieldTarget);
-        formData.append('file', fileInput.files[0]);
+    // Validasi format file PDF di sisi client
+    var fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.pdf')) {
+        toast('Format file harus berupa dokumen PDF (.pdf)', 'error');
+        $input.val('');
+        return;
+    }
 
-        fetch(PROSES_URL, {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
+    // Validasi batas ukuran file (maksimal 8 MB)
+    if (file.size > 8 * 1024 * 1024) {
+        toast('Ukuran file maksimal 8 MB', 'error');
+        $input.val('');
+        return;
+    }
+
+    // Tampilkan indikator visual saat proses unggah berlangsung
+    if ($badge.length) {
+        $badge.attr('class', 'status-berkas-badge text-[10px] font-semibold text-orange-500');
+        $badge.html('<i class="fas fa-spinner fa-spin mr-1"></i>Mengunggah...');
+    }
+    fileInput.setAttribute('disabled', 'disabled');
+
+    var formData = new FormData();
+    formData.append('unggah-berkas-kp', '1');
+    formData.append('id_persyaratan', idPersyaratan);
+    formData.append('field_target', fieldTarget);
+    formData.append('file', file);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(data) {
             if (data.status) {
                 toast(data.pesan, 'success');
-                if (badge) {
-                    badge.className = 'status-berkas-badge text-[10px] font-bold text-emerald-600';
-                    badge.innerHTML = '<i class="fas fa-check-circle"></i> Berhasil diunggah';
+                if ($badge.length) {
+                    $badge.attr('class', 'status-berkas-badge text-[10px] font-bold text-emerald-600');
+                    $badge.html('<i class="fas fa-check-circle mr-1"></i>Berhasil diunggah');
                 }
-                fileInput.classList.add('bg-emerald-50', 'border-emerald-200');
+                $input.addClass('bg-emerald-50 border-emerald-200');
 
                 if (data.proses_selesai) {
                     toast('Semua berkas lengkap. Memperbarui progres...', 'success');
@@ -1145,21 +1564,33 @@ document.querySelectorAll('.auto-upload-input').forEach(function(input) {
                 }
             } else {
                 toast(data.pesan, 'error');
-                if (badge) {
-                    badge.className = 'status-berkas-badge text-[10px] font-semibold text-rose-500';
-                    badge.innerHTML = 'Gagal mengunggah';
+                if ($badge.length) {
+                    $badge.attr('class', 'status-berkas-badge text-[10px] font-semibold text-rose-500');
+                    $badge.html('<i class="fas fa-times-circle mr-1"></i>Gagal mengunggah');
                 }
                 fileInput.removeAttribute('disabled');
             }
-        })
-        .catch(err => {
-            toast('Terjadi kesalahan koneksi server.', 'error');
-            if (badge) {
-                badge.className = 'status-berkas-badge text-[10px] font-semibold text-rose-500';
-                badge.innerHTML = 'Gagal koneksi';
+        },
+        error: function(xhr) {
+            var msg = 'Terjadi kesalahan koneksi server.';
+            if (xhr.responseJSON && xhr.responseJSON.pesan) {
+                msg = xhr.responseJSON.pesan;
+            } else if (xhr.responseText) {
+                try {
+                    var parsed = JSON.parse(xhr.responseText);
+                    if (parsed.pesan) msg = parsed.pesan;
+                } catch(e) {
+                    var text = xhr.responseText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                    if (text) msg = text.substring(0, 160);
+                }
+            }
+            toast(msg, 'error');
+            if ($badge.length) {
+                $badge.attr('class', 'status-berkas-badge text-[10px] font-semibold text-rose-500');
+                $badge.html('<i class="fas fa-exclamation-triangle mr-1"></i>Gagal koneksi');
             }
             fileInput.removeAttribute('disabled');
-        });
+        }
     });
 });
 
@@ -1411,6 +1842,18 @@ function kirimPengajuanKp(isCetak, btnElement) {
             if (respon.status) {
                 if (tempat !== '') {
                     $('#badgeInstansiKp').text(tempat);
+                    if ($('#summaryInstansiKp').length) {
+                        $('#summaryInstansiKp').text(tempat);
+                    }
+                }
+                if (respon.tanggal_mulai) {
+                    $('#badgeMulaiKp').text(respon.tanggal_mulai);
+                }
+                if (respon.tanggal_penarikan) {
+                    $('#badgePenarikanKp').text(respon.tanggal_penarikan);
+                }
+                if (respon.batas_proposal) {
+                    $('#badgeBatasProposalKp').text(respon.batas_proposal);
                 }
                 if (respon.buka_tab) {
                     window.open(respon.buka_tab, '_blank');
@@ -1458,5 +1901,144 @@ $(document).on('submit', '#formPengajuanKp', function(e) {
     // Di Step 1 (btnSimpanCetakPa): simpan & cetak (buka dokumen). Di Step 2 (btnSimpanKpStep2): hanya simpan perubahan data tanpa buka tab baru & tanpa naik step
     var isCetak = (btnCetak !== null && !btnSimpan);
     kirimPengajuanKp(isCetak, activeBtn);
+});
+
+// Toggle Buka / Tutup Formulir Rencana KP di Tahap 2
+function toggleFormKp() {
+    var wrap = document.getElementById('wrapFormPengajuanKp');
+    var txt = document.getElementById('txtToggleFormKp');
+    var icon = document.getElementById('iconToggleFormKp');
+    if (!wrap) return;
+
+    if (wrap.classList.contains('hidden')) {
+        wrap.classList.remove('hidden');
+        if (txt) txt.textContent = 'Tutup Formulir';
+        if (icon) icon.classList.add('rotate-180');
+    } else {
+        wrap.classList.add('hidden');
+        if (txt) txt.textContent = 'Buka Formulir';
+        if (icon) icon.classList.remove('rotate-180');
+    }
+}
+window.toggleFormKp = toggleFormKp;
+
+// Cetak Surat Pernyataan Diterima KP (Step 4)
+$(document).on('click', '#btnCetakPernyataanKp', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: {
+            'cetak-pernyataan-kp': 1
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status && respon.buka_tab) {
+                window.open(respon.buka_tab, '_blank');
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+        },
+        complete: function() {
+            setButtonLoading(btn, false);
+        }
+    });
+});
+
+// Cetak Lembar Persetujuan PA di Step 2
+$(document).on('click', '#btnCetakPersetujuanPaCase2', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: {
+            'cetak-persetujuan-pa': 1
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status && respon.buka_tab) {
+                window.open(respon.buka_tab, '_blank');
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+        },
+        complete: function() {
+            setButtonLoading(btn, false);
+        }
+    });
+});
+
+// Cetak Lembar Persetujuan Pembimbing KP di Step 10 (Tanpa Menaikkan Step)
+$(document).on('click', '#btnCetakPersetujuanPembimbingKp', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: {
+            'cetak-persetujuan-pembimbing-kp': 1
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status && respon.buka_tab) {
+                window.open(respon.buka_tab, '_blank');
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+        },
+        complete: function() {
+            setButtonLoading(btn, false);
+        }
+    });
+});
+
+// Cetak Lembar Asistensi KP di Step 10 (Tanpa Menaikkan Step)
+$(document).on('click', '#btnCetakAsistensiKp', function(e) {
+    e.preventDefault();
+    if (this.hasAttribute('disabled')) return;
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    $.ajax({
+        url: PROSES_URL,
+        method: 'POST',
+        data: {
+            'cetak-asistensi-kp': 1
+        },
+        dataType: 'json',
+        success: function(respon) {
+            toast(respon.pesan, respon.status ? 'success' : 'error');
+            if (respon.status && respon.buka_tab) {
+                window.open(respon.buka_tab, '_blank');
+            }
+        },
+        error: function() {
+            toast('Terjadi kesalahan pada server.', 'error');
+        },
+        complete: function() {
+            setButtonLoading(btn, false);
+        }
+    });
 });
 </script>

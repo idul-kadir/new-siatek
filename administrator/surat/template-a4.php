@@ -102,6 +102,11 @@ $nim      = isset($_GET['nim'])      ? (string) $_GET['nim']      : '';
                 require __DIR__ . '/content-surat/surat-penunjukkan-pembimbing-skripsi.php';
                 break;
 
+            case 'surat-penarikan-kp':
+            case 'surat-pengantar-penarikan':
+                require __DIR__ . '/content-surat/surat-penarikan-kp.php';
+                break;
+
             // Jenis surat lain tinggal ditambahkan, contoh:
             // case 'surat-pembimbing':
             //     require __DIR__ . '/content-surat/surat-pembimbing.php';

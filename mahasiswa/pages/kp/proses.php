@@ -9,7 +9,7 @@
 require_once __DIR__ . '/../../../fungsi.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
-$nim_login = $_SESSION['nim'] ?? $_SESSION['username'] ?? $_SESSION['user_id'] ?? '';
+$nim_login = $_SESSION['nim'] ?? $_SESSION['id'] ?? $_SESSION['username'] ?? $_SESSION['user_id'] ?? '';
 if (empty($_SESSION['id']) && !empty($nim_login)) {
     $_SESSION['id'] = $nim_login;
 }
@@ -85,7 +85,7 @@ if (isset($_POST['unggah-berkas-kp'])) {
 
         echo json_encode(['status' => true, 'pesan' => 'Berkas berhasil diunggah', 'proses_selesai' => $prosesSelesai]);
     } else {
-        echo json_encode(['status' => false, 'pesan' => 'Berkas gagal disimpan ke database sementara']);
+        echo json_encode(['status' => false, 'pesan' => 'Berkas gagal disimpan ke database sementara: ' . mysqli_error($GLOBALS['koneksi'])]);
     }
     exit;
 }
@@ -212,14 +212,26 @@ if (isset($_POST['simpan-pengajuan-kp'])) {
         $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pa/' . $nim_clean;
     }
 
+    $batasProposal = '';
+    if (!empty($tgl_selesai)) {
+        try {
+            $dtBatas = new DateTime($tgl_selesai);
+            $dtBatas->modify('+1 month');
+            $batasProposal = $dtBatas->format('d M Y');
+        } catch (Exception $e) {}
+    }
+
     // 11. Berikan respon JSON standar sesuai konvensi php-native-crud
     echo json_encode([
-        'status'    => true,
-        'pesan'     => $naikStep
+        'status'            => true,
+        'pesan'             => $naikStep
             ? 'Data berhasil disimpan dan melanjutkan ke tahap berikutnya'
             : 'Data rencana Kerja Praktek berhasil disimpan',
-        'buka_tab'  => $cetakUrl,
-        'naik_step' => $naikStep
+        'buka_tab'          => $cetakUrl,
+        'naik_step'         => $naikStep,
+        'tanggal_mulai'     => !empty($tgl_mulai) ? date('d M Y', strtotime($tgl_mulai)) : '',
+        'tanggal_penarikan' => !empty($tgl_selesai) ? date('d M Y', strtotime($tgl_selesai)) : '',
+        'batas_proposal'    => $batasProposal
     ]);
     exit;
 }
@@ -303,6 +315,64 @@ if (isset($_POST['cetak-persetujuan-pa'])) {
             : 'Membuka dokumen lembar persetujuan PA',
         'buka_tab'  => $cetakUrl,
         'naik_step' => $naikStep
+    ]);
+    exit;
+}
+
+// ================= CETAK SURAT PERNYATAAN KP (STEP 4) =================
+if (isset($_POST['cetak-pernyataan-kp'])) {
+    if (empty($nim_login)) {
+        echo json_encode(['status' => false, 'pesan' => 'Sesi tidak valid']);
+        exit;
+    }
+
+    $nim_clean = bersihkan($nim_login);
+    $cetakUrl  = base_url() . '/mahasiswa/dokumen/pernyataan-kp/' . $nim_clean;
+
+    echo json_encode([
+        'status'   => true,
+        'pesan'    => 'Dokumen surat pernyataan diterima Kerja Praktek siap dicetak',
+        'buka_tab' => $cetakUrl
+    ]);
+    exit;
+}
+
+// ================= CETAK LEMBAR PERSETUJUAN PEMBIMBING KP (STEP 10) =================
+// Catatan: Aksi ini murni membuka dokumen cetak di tab baru dan TIDAK MENAIKKAN STEP
+if (isset($_POST['cetak-persetujuan-pembimbing-kp']) || isset($_POST['cetak-persetujuan-pembimbing'])) {
+    if (empty($nim_login)) {
+        echo json_encode(['status' => false, 'pesan' => 'Sesi tidak valid']);
+        exit;
+    }
+
+    $nim_clean = bersihkan($nim_login);
+    $cetakUrl  = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing/' . $nim_clean;
+
+    echo json_encode([
+        'status'    => true,
+        'pesan'     => 'Dokumen lembar persetujuan pembimbing Kerja Praktek siap dicetak',
+        'buka_tab'  => $cetakUrl,
+        'naik_step' => false
+    ]);
+    exit;
+}
+
+// ================= CETAK LEMBAR ASISTENSI KP (STEP 10) =================
+// Catatan: Aksi ini murni membuka dokumen cetak di tab baru dan TIDAK MENAIKKAN STEP
+if (isset($_POST['cetak-asistensi-kp']) || isset($_POST['cetak-lembar-asistensi'])) {
+    if (empty($nim_login)) {
+        echo json_encode(['status' => false, 'pesan' => 'Sesi tidak valid']);
+        exit;
+    }
+
+    $nim_clean = bersihkan($nim_login);
+    $cetakUrl  = base_url() . '/mahasiswa/dokumen/lembar-asistensi/' . $nim_clean;
+
+    echo json_encode([
+        'status'    => true,
+        'pesan'     => 'Dokumen lembar asistensi Kerja Praktek siap dicetak',
+        'buka_tab'  => $cetakUrl,
+        'naik_step' => false
     ]);
     exit;
 }

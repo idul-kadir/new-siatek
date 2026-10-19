@@ -758,6 +758,60 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
           });
       });
 
+      // Unggah Ulang / Ganti Berkas Mahasiswa atau Operator dari Drawer
+      $(document).on('change', '.input-ganti-berkas', function(){
+          var fileInput = this;
+          if(!fileInput.files || fileInput.files.length === 0) return;
+
+          var idSyarat = $(fileInput).data('id-syarat');
+          var nim = $(fileInput).data('nim');
+          var row = $(fileInput).closest('.item-berkas-row');
+          var labelBtn = $(fileInput).closest('.btn-upload-ulang-label');
+          var statusTag = row.find('.status-berkas-tag');
+          var linkLihat = row.find('.link-lihat-file');
+
+          var oriLabel = labelBtn.find('.label-txt').text();
+          labelBtn.find('.label-txt').text('Mengunggah...');
+          $(fileInput).prop('disabled', true);
+
+          var formData = new FormData();
+          formData.append('ganti-berkas-kp', '1');
+          formData.append('nim', nim);
+          formData.append('id_persyaratan', idSyarat);
+          formData.append('file', fileInput.files[0]);
+
+          $.ajax({
+              url: PROSES_URL,
+              method: 'POST',
+              data: formData,
+              processData: false,
+              contentType: false,
+              dataType: 'json',
+              success: function(res) {
+                  toast(res.pesan, res.status ? 'success' : 'error');
+                  if(res.status) {
+                      statusTag.removeClass('bg-slate-100 bg-amber-100 bg-rose-100 text-slate-500 text-amber-700 text-rose-700')
+                               .addClass('bg-emerald-100 text-emerald-700')
+                               .text('Tersimpan');
+                      if(res.url_file) {
+                          linkLihat.attr('href', res.url_file).removeClass('hidden');
+                      }
+                      labelBtn.find('.label-txt').text('Unggah Ulang');
+                  } else {
+                      labelBtn.find('.label-txt').text(oriLabel);
+                  }
+              },
+              error: function(xhr, status, err) {
+                  var detail = xhr.responseText ? xhr.responseText.substring(0, 150) : err;
+                  toast('Gagal mengunggah file: ' + detail, 'error');
+                  labelBtn.find('.label-txt').text(oriLabel);
+              },
+              complete: function() {
+                  $(fileInput).prop('disabled', false).val('');
+              }
+          });
+      });
+
       // Lembar Kerja Button Click
       $(document).on('click', '.btnLembarKerja', function(){
           var nim = $(this).data('nim');

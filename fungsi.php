@@ -104,6 +104,12 @@ function upload_file($file, $tabel_asal, $id_file = ''){
     }
   }
 
+  // pastikan folder file/ di root tujuan upload ada
+  $folder_dir = __DIR__ . '/file';
+  if (!is_dir($folder_dir)) {
+    @mkdir($folder_dir, 0777, true);
+  }
+
   // pindahkan file baru ke folder file/ root
   $upload = move_uploaded_file($file['tmp_name'], $folder_tujuan);
   if(!$upload){
@@ -220,7 +226,7 @@ function validasi_file($file, $level = 1){
 // Return: integer nomor proses (jika ada), atau '-' (jika belum ada).
 function get_progres_skripsi($nim) {
     $nim_clean = bersihkan($nim);
-    $q = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
+    $q = query("SELECT proses FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC, proses DESC LIMIT 1");
     if ($q && mysqli_num_rows($q) > 0) {
         $row = mysqli_fetch_assoc($q);
         return (int) $row['proses'];
@@ -233,7 +239,7 @@ function get_progres_skripsi($nim) {
 // Return: integer nomor proses (jika ada), atau '-' (jika belum ada).
 function get_progres_kp($nim) {
     $nim_clean = bersihkan($nim);
-    $q = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC LIMIT 1");
+    $q = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nim_clean' ORDER BY waktu DESC, proses DESC LIMIT 1");
     if ($q && mysqli_num_rows($q) > 0) {
         $row = mysqli_fetch_assoc($q);
         return (int) $row['proses'];
@@ -242,10 +248,10 @@ function get_progres_kp($nim) {
 }
 
 // ================= FUNCTION MAJUKAN / SIMPAN PROGRES KP =================
-function set_progres_kp($nim, $stepBaru) {
+function set_progres_kp($nim, $stepBaru, $waktu = null) {
     $nim_clean = bersihkan($nim);
     $stepBaru  = (int)$stepBaru;
-    $waktu     = time();
+    $waktu     = ($waktu !== null) ? (int)$waktu : time();
     return query("INSERT INTO progres_kp (waktu, proses, mahasiswa) VALUES ($waktu, $stepBaru, '$nim_clean')");
 }
 
@@ -308,23 +314,196 @@ function get_prodi_user() {
     if (!empty($_SESSION['prodi'])) {
         return trim((string)$_SESSION['prodi']);
     }
-    $nip = bersihkan((string)($_SESSION['nip'] ?? $_SESSION['user_id'] ?? ''));
-    if ($nip === '') {
+    $nip      = bersihkan((string)($_SESSION['nip'] ?? ''));
+    $userId   = bersihkan((string)($_SESSION['user_id'] ?? ''));
+    $username = bersihkan((string)($_SESSION['username'] ?? ''));
+    $sessId   = bersihkan((string)($_SESSION['id'] ?? ''));
+
+    $identifiers = array_unique(array_filter([$nip, $userId, $username, $sessId]));
+    if (empty($identifiers)) {
         return '';
     }
+
+    $idListEsc = "'" . implode("','", array_map('bersihkan', $identifiers)) . "'";
+
     $level = (int)($_SESSION['level'] ?? 0);
     if ($level === 5) {
-        $id = bersihkan((string)($_SESSION['id'] ?? ''));
-        $q = query("SELECT kode FROM prodi WHERE (kaprodi = '$nip' AND '$nip' != '') OR (kaprodi = '$id' AND '$id' != '') LIMIT 1");
+        $q = query("SELECT kode FROM prodi WHERE kaprodi IN ($idListEsc) LIMIT 1");
         if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['kode'])) {
             $_SESSION['prodi'] = trim((string)$r['kode']);
             return $_SESSION['prodi'];
         }
     }
-    $qDosen = query("SELECT prodi FROM dosen WHERE nip = '$nip' LIMIT 1");
+
+    $qDosen = query("SELECT prodi FROM dosen WHERE nip IN ($idListEsc) OR id IN ($idListEsc) OR nidn IN ($idListEsc) LIMIT 1");
     if ($qDosen && ($rD = mysqli_fetch_assoc($qDosen)) && !empty($rD['prodi'])) {
         $_SESSION['prodi'] = trim((string)$rD['prodi']);
         return $_SESSION['prodi'];
     }
+
     return '';
 }
+
+// ================= FUNCTION FORMAT TANGGAL INDONESIA =================
+function tgl_indo($tanggal) {
+    if (empty($tanggal) || $tanggal === '0000-00-00') return '-';
+    $bulan = [
+        1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    $timestamp = strtotime($tanggal);
+    if (!$timestamp) return $tanggal;
+    $pecahkan = explode('-', date('Y-m-d', $timestamp));
+    return (int)$pecahkan[2] . ' ' . ($bulan[(int)$pecahkan[1]] ?? '') . ' ' . $pecahkan[0];
+}
+
+// ================= FUNCTION KONFIGURASI STEP PENUNJUKKAN =================
+// Menentukan nomor step SOP untuk penunjukkan pembimbing dan penguji.
+// Skripsi: step 3 (Pembimbing), step 9 (Penguji Hasil), step 17 (Penguji Tutup).
+// Kerja Praktek: step 6 (Pembimbing KP), step 12 (Penguji Seminar KP).
+function get_step_penunjukkan_config() {
+    return [
+        'skripsi' => [
+            'pembimbing'    => [3],
+            'penguji_hasil' => [9],
+            'penguji_tutup' => [17]
+        ],
+        'kp' => [
+            'pembimbing' => [6],
+            'penguji'    => [12]
+        ]
+    ];
+}
+
+// ================= FUNCTION AMBIL ANTRIAN PENUNJUKKAN MAHASISWA =================
+// Mengambil daftar mahasiswa yang sedang menunggu penetapan pembimbing/penguji secara batch (cepat & anti-timeout).
+function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua', $cari = '') {
+    $hasil = [];
+
+    // 1. Skripsi (Step 3 = Pembimbing, Step 9 = Penguji Hasil, Step 17 = Penguji Tutup)
+    if ($kategoriFilter === 'semua' || $kategoriFilter === '' || $kategoriFilter === 'skripsi') {
+        $whereSkr = ["(s.status IS NULL OR s.status = '' OR LOWER(s.status) NOT IN ('tidak aktif', 'alumni', 'kadaluarsa', 'ditolak'))"];
+        if ($filterProdi !== '') {
+            $prodiBersih = bersihkan($filterProdi);
+            $whereSkr[] = "(m.prodi = '$prodiBersih' OR p.kode = '$prodiBersih')";
+        }
+        if ($cari !== '') {
+            $cariBersih = bersihkan($cari);
+            $whereSkr[] = "(s.nim LIKE '%$cariBersih%' OR m.nama LIKE '%$cariBersih%' OR s.judul LIKE '%$cariBersih%')";
+        }
+        $whereSqlSkr = implode(" AND ", $whereSkr);
+
+        $sqlSkr = "SELECT s.nim, s.judul, s.status, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
+                          (SELECT ps.proses FROM progres_skripsi ps WHERE ps.mahasiswa = s.nim ORDER BY ps.waktu DESC, ps.proses DESC LIMIT 1) AS latest_step
+                   FROM skripsi s
+                   LEFT JOIN mahasiswa m ON s.nim = m.nim
+                   LEFT JOIN prodi p ON m.prodi = p.kode
+                   WHERE $whereSqlSkr
+                   ORDER BY s.nim DESC";
+
+        $qSkr = query($sqlSkr);
+        if ($qSkr && mysqli_num_rows($qSkr) > 0) {
+            while ($r = mysqli_fetch_assoc($qSkr)) {
+                $progresNum = (int)($r['latest_step'] ?? 0);
+                if (!in_array($progresNum, [3, 9, 17], true)) {
+                    continue;
+                }
+
+                $nim = trim((string)$r['nim']);
+                $jenisTugas = '';
+                $kebutuhanLabel = '';
+                $tahapanLabel = '';
+
+                if ($progresNum === 3) {
+                    $jenisTugas = 'pembimbing';
+                    $kebutuhanLabel = 'Pembimbing Skripsi';
+                    $tahapanLabel = 'Proposal Skripsi';
+                } elseif ($progresNum === 9) {
+                    $jenisTugas = 'penguji_hasil';
+                    $kebutuhanLabel = 'Penguji Ujian Hasil';
+                    $tahapanLabel = 'Ujian Hasil Skripsi';
+                } elseif ($progresNum === 17) {
+                    $jenisTugas = 'penguji_tutup';
+                    $kebutuhanLabel = 'Penguji Ujian Tutup';
+                    $tahapanLabel = 'Ujian Tutup Skripsi';
+                }
+
+                $hasil[] = [
+                    'sumber'          => 'skripsi',
+                    'nim'             => $nim,
+                    'nama_mhs'        => $r['nama_mhs'] ?: $nim,
+                    'prodi'           => $r['prodi'] ?? '',
+                    'nama_prodi'      => $r['nama_prodi'] ?: ($r['prodi'] ?? '-'),
+                    'judul'           => $r['judul'] ?? '',
+                    'progres'         => $progresNum,
+                    'tahapan_label'   => $tahapanLabel,
+                    'jenis_tugas'     => $jenisTugas,
+                    'kebutuhan_label' => $kebutuhanLabel
+                ];
+            }
+        }
+    }
+
+    // 2. Kerja Praktek (Step 6 = Pembimbing KP, Step 12 = Penguji Seminar KP)
+    if ($kategoriFilter === 'semua' || $kategoriFilter === '' || $kategoriFilter === 'kp') {
+        $whereKp = ["(k.status IS NULL OR k.status = '' OR LOWER(k.status) NOT IN ('tidak aktif', 'alumni', 'kadaluarsa', 'ditolak'))"];
+        if ($filterProdi !== '') {
+            $prodiBersih = bersihkan($filterProdi);
+            $whereKp[] = "(m.prodi = '$prodiBersih' OR p.kode = '$prodiBersih')";
+        }
+        if ($cari !== '') {
+            $cariBersih = bersihkan($cari);
+            $whereKp[] = "(k.nim LIKE '%$cariBersih%' OR m.nama LIKE '%$cariBersih%' OR k.judul LIKE '%$cariBersih%' OR k.tempat LIKE '%$cariBersih%')";
+        }
+        $whereSqlKp = implode(" AND ", $whereKp);
+
+        $sqlKp = "SELECT k.nim, k.judul, k.tempat, k.status, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
+                         (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = k.nim ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS latest_step
+                  FROM kp k
+                  LEFT JOIN mahasiswa m ON k.nim = m.nim
+                  LEFT JOIN prodi p ON m.prodi = p.kode
+                  WHERE $whereSqlKp
+                  ORDER BY k.nim DESC";
+
+        $qKp = query($sqlKp);
+        if ($qKp && mysqli_num_rows($qKp) > 0) {
+            while ($r = mysqli_fetch_assoc($qKp)) {
+                $progresNum = (int)($r['latest_step'] ?? 0);
+                if (!in_array($progresNum, [6, 12], true)) {
+                    continue;
+                }
+
+                $nim = trim((string)$r['nim']);
+                $jenisTugas = '';
+                $kebutuhanLabel = '';
+                $tahapanLabel = '';
+
+                if ($progresNum === 6) {
+                    $jenisTugas = 'pembimbing';
+                    $kebutuhanLabel = 'Pembimbing KP';
+                    $tahapanLabel = 'Pendaftaran KP';
+                } elseif ($progresNum === 12) {
+                    $jenisTugas = 'penguji';
+                    $kebutuhanLabel = 'Penguji Seminar KP';
+                    $tahapanLabel = 'Seminar KP';
+                }
+
+                $judulDisplay = $r['judul'] ?: ($r['tempat'] ? 'Lokasi KP: ' . $r['tempat'] : '-');
+                $hasil[] = [
+                    'sumber'          => 'kp',
+                    'nim'             => $nim,
+                    'nama_mhs'        => $r['nama_mhs'] ?: $nim,
+                    'prodi'           => $r['prodi'] ?? '',
+                    'nama_prodi'      => $r['nama_prodi'] ?: ($r['prodi'] ?? '-'),
+                    'judul'           => $judulDisplay,
+                    'progres'         => $progresNum,
+                    'tahapan_label'   => $tahapanLabel,
+                    'jenis_tugas'     => $jenisTugas,
+                    'kebutuhan_label' => $kebutuhanLabel
+                ];
+            }
+        }
+    }
+
+    return $hasil;
+}
