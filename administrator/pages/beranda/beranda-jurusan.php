@@ -38,9 +38,17 @@ foreach ($prodiList as $pr) {
     }
 }
 
-$pctTE  = $totalMhs > 0 ? round(($mhsTE / $totalMhs) * 100) : 0;
-$pctTK  = $totalMhs > 0 ? round(($mhsTK / $totalMhs) * 100) : 0;
-$pctPTE = $totalMhs > 0 ? max(0, 100 - $pctTE - $pctTK) : 0;
+$rawPctTE  = $totalMhs > 0 ? ($mhsTE / $totalMhs) * 100 : 0;
+$rawPctTK  = $totalMhs > 0 ? ($mhsTK / $totalMhs) * 100 : 0;
+$rawPctPTE = $totalMhs > 0 ? ($mhsPTE / $totalMhs) * 100 : 0;
+
+$pctTxtTE  = number_format($rawPctTE, 1, '.', '') . '%';
+$pctTxtTK  = number_format($rawPctTK, 1, '.', '') . '%';
+$pctTxtPTE = number_format($rawPctPTE, 1, '.', '') . '%';
+
+$barWidthTE  = number_format($rawPctTE, 2, '.', '');
+$barWidthTK  = number_format($rawPctTK, 2, '.', '');
+$barWidthPTE = number_format(max($mhsPTE > 0 ? 1.5 : 0, $rawPctPTE), 2, '.', '');
 
 $qMhsTahunIni = query("SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=" . (int)date('Y'));
 $mhsBaruTahunIni = (int)mysqli_fetch_assoc($qMhsTahunIni)['c'];
@@ -174,13 +182,16 @@ foreach ($jadwalHariIniAdmin as $jItem) {
 }
 $totalHariIni = count($jadwalHariIniAdmin);
 
-// Tren mahasiswa baru 5 tahun
+// Tren mahasiswa baru & kelulusan 5 tahun
 $years = [];
 $mhsPerYear = [];
+$alumniPerYear = [];
 for ($y = date('Y') - 4; $y <= date('Y'); $y++) {
     $years[] = (string)$y;
     $q = query("SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=$y");
     $mhsPerYear[] = (int)mysqli_fetch_assoc($q)['c'];
+    $qA = query("SELECT COUNT(DISTINCT nim) AS c FROM alumni WHERE tahun_lulus = '$y' OR YEAR(tanggal_lulus) = $y");
+    $alumniPerYear[] = (int)mysqli_fetch_assoc($qA)['c'];
 }
 
 // Distribusi per prodi
@@ -295,9 +306,9 @@ if ($qSidang) {
     }
 }
 
-// Berita
+// Berita (Maksimal 5 Data Terbaru)
 $beritaItems = [];
-$qBerita = query("SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 3");
+$qBerita = query("SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 5");
 if ($qBerita) {
     while ($b = mysqli_fetch_assoc($qBerita)) { $beritaItems[] = $b; }
 }
@@ -527,9 +538,9 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
 
             <!-- Combined Progress Bar Tri-Warna Resmi -->
             <div class="w-full h-3 overflow-hidden rounded-full bg-slate-100 flex mb-4">
-                <div class="h-full bg-[#1a365d] transition-all" style="width: <?= $pctTE ?>%" title="<?= htmlspecialchars($labelTE) ?>: <?= $pctTE ?>%"></div>
-                <div class="h-full bg-[#f97316] transition-all" style="width: <?= $pctTK ?>%" title="<?= htmlspecialchars($labelTK) ?>: <?= $pctTK ?>%"></div>
-                <div class="h-full bg-[#94a3b8] transition-all" style="width: <?= $pctPTE ?>%" title="<?= htmlspecialchars($labelPTE) ?>: <?= $pctPTE ?>%"></div>
+                <div class="h-full bg-[#1a365d] transition-all" style="width: <?= $barWidthTE ?>%" title="<?= htmlspecialchars($labelTE) ?>: <?= $pctTxtTE ?>"></div>
+                <div class="h-full bg-[#f97316] transition-all" style="width: <?= $barWidthTK ?>%" title="<?= htmlspecialchars($labelTK) ?>: <?= $pctTxtTK ?>"></div>
+                <div class="h-full bg-[#0ea5e9] transition-all" style="width: <?= $barWidthPTE ?>%; min-width: <?= $mhsPTE > 0 ? '8px' : '0' ?>;" title="<?= htmlspecialchars($labelPTE) ?>: <?= $pctTxtPTE ?>"></div>
             </div>
 
             <!-- 3 Kartu Rincian Prodi -->
@@ -541,7 +552,7 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
                             <h4 class="text-xs font-semibold text-slate-800 truncate" title="<?= htmlspecialchars($labelTE) ?>"><?= htmlspecialchars($labelTE) ?></h4>
                             <span class="font-bold font-mono text-slate-900 text-sm"><?= f($mhsTE) ?></span>
                         </div>
-                        <p class="text-[11px] text-slate-500 mt-0.5"><?= $pctTE ?>% dari total jurusan</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5"><?= $pctTxtTE ?> dari total jurusan</p>
                     </div>
                 </div>
 
@@ -552,18 +563,18 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
                             <h4 class="text-xs font-semibold text-slate-800 truncate" title="<?= htmlspecialchars($labelTK) ?>"><?= htmlspecialchars($labelTK) ?></h4>
                             <span class="font-bold font-mono text-slate-900 text-sm"><?= f($mhsTK) ?></span>
                         </div>
-                        <p class="text-[11px] text-slate-500 mt-0.5"><?= $pctTK ?>% dari total jurusan</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5"><?= $pctTxtTK ?> dari total jurusan</p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/60">
-                    <span class="flex h-3 w-3 rounded-full bg-[#94a3b8] shrink-0"></span>
+                    <span class="flex h-3 w-3 rounded-full bg-[#0ea5e9] shrink-0"></span>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center justify-between">
                             <h4 class="text-xs font-semibold text-slate-800 truncate" title="<?= htmlspecialchars($labelPTE) ?>"><?= htmlspecialchars($labelPTE) ?></h4>
                             <span class="font-bold font-mono text-slate-900 text-sm"><?= f($mhsPTE) ?></span>
                         </div>
-                        <p class="text-[11px] text-slate-500 mt-0.5"><?= $pctPTE ?>% dari total jurusan</p>
+                        <p class="text-[11px] text-sky-600 font-medium mt-0.5"><?= $pctTxtPTE ?> dari total jurusan</p>
                     </div>
                 </div>
             </div>
@@ -647,16 +658,19 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
                         <h2 class="text-sm font-bold text-slate-800">Tren Pendaftaran Mahasiswa</h2>
                         <p class="text-xs text-slate-500 mt-0.5">Intake 5 tahun terakhir</p>
                     </div>
-                    <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Tahunan</span>
+                    <span class="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded">Mahasiswa Baru</span>
                 </div>
                 <div style="height:200px"><canvas id="enrollmentChart"></canvas></div>
             </div>
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="mb-4">
-                    <h2 class="text-sm font-bold text-slate-800">Proporsi Program Studi</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Berdasarkan mahasiswa aktif</p>
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Tren Kelulusan / Alumni</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Jumlah lulusan 5 tahun terakhir</p>
+                    </div>
+                    <span class="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200/60 px-2 py-0.5 rounded">Alumni</span>
                 </div>
-                <div style="height:200px"><canvas id="concentrationChart"></canvas></div>
+                <div style="height:200px"><canvas id="alumniChart"></canvas></div>
             </div>
         </section>
 
@@ -702,37 +716,34 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
                             data-target="panel-jadwal-<?= strtolower($h) ?>"
                             data-is-today="<?= $isToday ? '1' : '0' ?>">
                         <span><?= ucfirst(strtolower($h)) ?></span>
-                        <?php if ($isToday): ?>
-                            <span class="px-1.5 py-0.2 rounded-full bg-orange-500 text-white text-[9px] font-extrabold uppercase">Hari Ini</span>
-                        <?php else: ?>
-                            <span class="text-[10px] opacity-70">(<?= $countH ?>)</span>
-                        <?php endif; ?>
+                        <span class="text-[10px] opacity-70">(<?= $countH ?>)</span>
                     </button>
                 <?php endforeach; ?>
             </div>
 
+            <?php
+            // Default filter aktif: berlangsung -> akan datang -> selesai
+            $defaultFilterStatus = ($countBerlangsung > 0) ? 'berlangsung' : (($countAkanDatang > 0) ? 'akan_datang' : 'selesai');
+            ?>
             <!-- Sub-filter Status Real-Time (Khusus Hari Ini) -->
             <div id="subFilterHariIni" class="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5 bg-slate-50/60 border-b border-slate-100 text-xs">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                    <button type="button" class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-bold bg-[#1a365d] text-white shadow-2xs transition" data-status="semua">
-                        Semua (<?= $totalHariIni ?>)
+                    <button type="button" 
+                            class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold transition flex items-center gap-1.5 <?= $defaultFilterStatus === 'berlangsung' ? 'bg-[#1a365d] text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100' ?>" 
+                            data-status="berlangsung">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 <?= $countBerlangsung > 0 ? 'animate-pulse' : '' ?>"></span>
+                        Sedang Berlangsung (<?= $countBerlangsung ?>)
                     </button>
-                    <?php if ($countBerlangsung > 0): ?>
-                        <button type="button" class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition flex items-center gap-1" data-status="berlangsung">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Sedang Berlangsung (<?= $countBerlangsung ?>)
-                        </button>
-                    <?php endif; ?>
-                    <?php if ($countAkanDatang > 0): ?>
-                        <button type="button" class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition" data-status="akan_datang">
-                            Akan Datang (<?= $countAkanDatang ?>)
-                        </button>
-                    <?php endif; ?>
-                    <?php if ($countSelesai > 0): ?>
-                        <button type="button" class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition" data-status="selesai">
-                            Selesai (<?= $countSelesai ?>)
-                        </button>
-                    <?php endif; ?>
+                    <button type="button" 
+                            class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold transition <?= $defaultFilterStatus === 'akan_datang' ? 'bg-[#1a365d] text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100' ?>" 
+                            data-status="akan_datang">
+                        Akan Datang (<?= $countAkanDatang ?>)
+                    </button>
+                    <button type="button" 
+                            class="btn-filter-status px-2.5 py-1 rounded-md text-[11px] font-semibold transition <?= $defaultFilterStatus === 'selesai' ? 'bg-[#1a365d] text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100' ?>" 
+                            data-status="selesai">
+                        Selesai (<?= $countSelesai ?>)
+                    </button>
                 </div>
                 <div class="text-[11px] text-slate-400 font-medium">
                     <?php if ($countBerlangsung > 0): ?>
@@ -777,7 +788,7 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
                                 $rowBg = 'bg-slate-50/40 hover:bg-slate-50 opacity-75';
                             }
                         ?>
-                        <div class="p-3.5 px-5 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 baris-jadwal <?= $rowBg ?> <?= $borderLeft ?>"
+                        <div class="p-3.5 px-5 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 baris-jadwal <?= $rowBg ?> <?= $borderLeft ?> <?= ($isHariIni && $statusWaktu !== $defaultFilterStatus) ? 'hidden' : '' ?>"
                              data-status="<?= $statusWaktu ?>">
                             
                             <div class="flex items-start gap-3.5 min-w-0 flex-1">
@@ -858,6 +869,18 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
 
                         </div>
                         <?php endforeach; ?>
+                        <?php
+                        $adaMatchAwal = false;
+                        foreach ($listJadwalH as $cekJ) {
+                            if (($cekJ['status_waktu'] ?? '') === $defaultFilterStatus) {
+                                $adaMatchAwal = true;
+                                break;
+                            }
+                        }
+                        ?>
+                        <div class="filter-empty-notice px-5 py-8 text-center text-xs text-slate-400 <?= ($isHariIni && !$adaMatchAwal) ? '' : 'hidden' ?>">
+                            Tidak ada sesi perkuliahan dengan status ini.
+                        </div>
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
@@ -1024,50 +1047,47 @@ $nowMinutes = (int)date('H') * 60 + (int)date('i');
             </div>
         </section>
 
-    </div>
-</div>
-
-<!-- ============ BERITA & INFORMASI JURUSAN ============ -->
-<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm mt-5">
-    <div class="mb-4 flex items-center justify-between">
-        <div>
-            <h2 class="text-base font-semibold text-slate-800">Berita &amp; Informasi Jurusan</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Publikasi dan edaran resmi terkini</p>
-        </div>
-        <a href="/redesain-siatek/administrator/jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">
-            Semua Berita &rarr;
-        </a>
-    </div>
-    <?php if (count($beritaItems) === 0): ?>
-        <p class="py-8 text-center text-xs text-slate-400">Belum ada berita jurusan terbaru.</p>
-    <?php else: ?>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        <?php foreach ($beritaItems as $b):
-            $tanggalParsed = strtotime($b['tanggal']);
-            $tanggalTxt = $tanggalParsed ? date('d M Y', $tanggalParsed) : '';
-        ?>
-        <a href="/redesain-siatek/administrator/jurusan-berita" class="group flex flex-col justify-between p-4 rounded-lg border border-slate-200/80 bg-white hover:border-orange-200 hover:shadow-2xs transition">
-            <div>
-                <span class="inline-flex items-center text-[11px] font-medium text-slate-400 mb-2">
-                    <i class="far fa-clock mr-1 text-slate-400"></i><?= htmlspecialchars($tanggalTxt) ?>
-                </span>
-                <h3 class="text-sm font-semibold text-slate-800 group-hover:text-orange-600 transition line-clamp-2 leading-snug">
-                    <?= htmlspecialchars($b['judul']) ?>
-                </h3>
-                <?php if (!empty($b['deskripsi'])): ?>
-                <p class="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                    <?= htmlspecialchars($b['deskripsi']) ?>
-                </p>
+        <!-- 4. Berita & Informasi Jurusan -->
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 bg-slate-50/70">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Berita &amp; Informasi</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Publikasi dan edaran resmi terkini</p>
+                </div>
+                <a href="/redesain-siatek/administrator/jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">
+                    Semua &rarr;
+                </a>
+            </div>
+            <div class="p-4">
+                <?php if (count($beritaItems) === 0): ?>
+                    <p class="py-6 text-center text-xs text-slate-400">Belum ada berita jurusan terbaru.</p>
+                <?php else: ?>
+                <div class="space-y-3">
+                    <?php foreach ($beritaItems as $b):
+                        $tanggalParsed = strtotime($b['tanggal']);
+                        $tanggalTxt = $tanggalParsed ? date('d M Y', $tanggalParsed) : '';
+                    ?>
+                    <a href="/redesain-siatek/administrator/jurusan-berita" class="group block p-3 rounded-lg border border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200 transition">
+                        <span class="inline-flex items-center text-[10px] font-medium text-slate-400">
+                            <i class="far fa-clock mr-1 text-slate-400"></i><?= htmlspecialchars($tanggalTxt) ?>
+                        </span>
+                        <h4 class="text-xs font-bold text-slate-800 group-hover:text-orange-600 transition line-clamp-2 mt-1 leading-snug">
+                            <?= htmlspecialchars($b['judul']) ?>
+                        </h4>
+                        <?php if (!empty($b['deskripsi'])): ?>
+                        <p class="mt-1 text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            <?= htmlspecialchars($b['deskripsi']) ?>
+                        </p>
+                        <?php endif; ?>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
                 <?php endif; ?>
             </div>
-            <span class="mt-3 text-xs font-semibold text-orange-600 flex items-center gap-1 group-hover:gap-1.5 transition-all">
-                Baca selengkapnya &rarr;
-            </span>
-        </a>
-        <?php endforeach; ?>
+        </section>
+
     </div>
-    <?php endif; ?>
-</section>
+</div>
 
 <!-- Data untuk Chart.js & Script Interaktivitas Jadwal Dinamis -->
 <script>
@@ -1075,6 +1095,10 @@ window.__berandaData = {
     enrollment: {
         labels: <?= json_encode($years) ?>,
         values: <?= json_encode($mhsPerYear) ?>
+    },
+    alumni: {
+        labels: <?= json_encode($years) ?>,
+        values: <?= json_encode($alumniPerYear) ?>
     },
     concentration: {
         labels: <?= json_encode($concLabels) ?>,
@@ -1128,14 +1152,22 @@ document.addEventListener('DOMContentLoaded', function() {
             if (subFilter) {
                 if (isToday) {
                     subFilter.classList.remove('hidden');
+                    const activeFilterBtn = subFilter.querySelector('.btn-filter-status.bg-\\[\\#1a365d\\]');
+                    if (activeFilterBtn) {
+                        activeFilterBtn.click();
+                    }
                 } else {
                     subFilter.classList.add('hidden');
+                    if (targetPanel) {
+                        const emptyNotice = targetPanel.querySelector('.filter-empty-notice');
+                        if (emptyNotice) emptyNotice.classList.add('hidden');
+                    }
                 }
             }
         });
     });
 
-    // 3. Sub-filter Status Real-Time (Semua, Sedang Berlangsung, Akan Datang, Selesai)
+    // 3. Sub-filter Status Real-Time (Sedang Berlangsung, Akan Datang, Selesai)
     const filterBtns = document.querySelectorAll('.btn-filter-status');
     filterBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -1144,22 +1176,33 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset styling tombol filter
             filterBtns.forEach(b => {
                 b.classList.remove('bg-[#1a365d]', 'text-white', 'shadow-2xs');
-                b.classList.add('bg-white', 'text-slate-700');
+                b.classList.add('bg-white', 'text-slate-700', 'border', 'border-slate-200');
             });
-            this.classList.remove('bg-white', 'text-slate-700', 'text-slate-500', 'text-slate-600');
+            this.classList.remove('bg-white', 'text-slate-700', 'text-slate-500', 'text-slate-600', 'border', 'border-slate-200');
             this.classList.add('bg-[#1a365d]', 'text-white', 'shadow-2xs');
 
             // Filter baris kelas di panel aktif
             const activePanel = document.querySelector('.panel-jadwal-hari:not(.hidden)');
             if (activePanel) {
+                let matchCount = 0;
                 activePanel.querySelectorAll('.baris-jadwal').forEach(row => {
                     const rowStatus = row.getAttribute('data-status');
-                    if (status === 'semua' || rowStatus === status) {
+                    if (rowStatus === status) {
                         row.classList.remove('hidden');
+                        matchCount++;
                     } else {
                         row.classList.add('hidden');
                     }
                 });
+
+                const emptyNotice = activePanel.querySelector('.filter-empty-notice');
+                if (emptyNotice) {
+                    if (matchCount === 0) {
+                        emptyNotice.classList.remove('hidden');
+                    } else {
+                        emptyNotice.classList.add('hidden');
+                    }
+                }
             }
         });
     });

@@ -115,7 +115,7 @@ if (!function_exists('beranda_pick_color')) {
         $n = strtolower($nama);
         if (strpos($n, 'komputer') !== false) return '#f97316';   // Orange SIATEK (Teknik Komputer)
         if (strpos($n, 'rekayasa') !== false || strpos($n, 'vokasional') !== false || strpos($n, 'pendidikan') !== false) {
-            return '#94a3b8';                                      // Slate SIATEK (Pend. Vokasional Rekayasa Elektro)
+            return '#0ea5e9';                                      // Sky Blue SIATEK (Pend. Vokasional Rekayasa Elektro)
         }
         if (strpos($n, 'elektro')  !== false) return '#1a365d';   // Navy SIATEK (Teknik Elektro)
         return '#64748b';                                          // Default Slate

@@ -66,7 +66,7 @@ $activePage = $activePage ?? '';
 
                 }
 
-                $showMenuVerifikasi = in_array($userLevel, [3, 4, 6, 9], true) && !($userLevel === 3 && $userProdi === '');
+                $showMenuVerifikasi = in_array($userLevel, [3, 4, 9], true) && !($userLevel === 3 && $userProdi === '');
                 if (false) {
 
                 }

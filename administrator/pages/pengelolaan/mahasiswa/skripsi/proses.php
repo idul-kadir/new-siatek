@@ -360,7 +360,7 @@ if(isset($_POST['muat-lembar-kerja'])){
 
                         case 11:
                             // Form Khusus: SOP 11 (Unggah File Komponen Ujian Hasil) - Style & auto-upload event change persis portal mahasiswa
-                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 11 ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
+                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 11 AND status = 'aktif' ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
                             $listSyarat = [];
                             if($qSyarat){
                                 while($sRow = mysqli_fetch_assoc($qSyarat)){
@@ -533,7 +533,7 @@ if(isset($_POST['muat-lembar-kerja'])){
 
                         case 19:
                             // Form Khusus: SOP 19 (Unggah File Komponen / Lembar Penilaian Ujian Tutup)
-                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 19 ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
+                            $qSyarat = query("SELECT id, nama_berkas FROM persyaratan_berkas_skripsi WHERE progres = 19 AND status = 'aktif' ORDER BY CASE WHEN nama_berkas LIKE '%Berita Acara%' THEN 0 ELSE 1 END ASC, nama_berkas ASC");
                             $listSyarat = [];
                             if($qSyarat){
                                 while($sRow = mysqli_fetch_assoc($qSyarat)){
@@ -944,7 +944,7 @@ if(isset($_POST['proses-lembar-kerja'])){
 
             case 11:
                 // SOP 11: Unggah Berkas Komponen Ujian Hasil
-                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 11");
+                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 11 AND status = 'aktif'");
                 $suksesUpload = 0;
                 $waktuSistem = time();
 
@@ -984,10 +984,10 @@ if(isset($_POST['proses-lembar-kerja'])){
                     query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
 
                     // Cek apakah mahasiswa sudah mengunggah semua persyaratan di step 12
-                    $qTotal12 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 12");
+                    $qTotal12 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 12 AND status = 'aktif'");
                     $jmlTotal12 = ($qTotal12 && mysqli_num_rows($qTotal12) > 0) ? (int)mysqli_fetch_assoc($qTotal12)['total'] : 0;
 
-                    $qValid12 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12)");
+                    $qValid12 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12 AND status = 'aktif')");
                     $jmlValid12 = ($qValid12 && mysqli_num_rows($qValid12) > 0) ? (int)mysqli_fetch_assoc($qValid12)['cnt'] : 0;
 
                     if($jmlTotal12 > 0 && $jmlValid12 >= $jmlTotal12){
@@ -1077,7 +1077,7 @@ if(isset($_POST['proses-lembar-kerja'])){
 
             case 19:
                 // SOP 19: Unggah Berkas Komponen / Lembar Penilaian Ujian Tutup
-                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 19");
+                $qSyarat = query("SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 19 AND status = 'aktif'");
                 $suksesUpload = 0;
 
                 if($qSyarat){
@@ -1114,10 +1114,10 @@ if(isset($_POST['proses-lembar-kerja'])){
                     query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
 
                     // Cek apakah mahasiswa sudah mengunggah semua persyaratan di step 20
-                    $qTotal20 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 20");
+                    $qTotal20 = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = 20 AND status = 'aktif'");
                     $jmlTotal20 = ($qTotal20 && mysqli_num_rows($qTotal20) > 0) ? (int)mysqli_fetch_assoc($qTotal20)['total'] : 0;
 
-                    $qValid20 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20)");
+                    $qValid20 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20 AND status = 'aktif')");
                     $jmlValid20 = ($qValid20 && mysqli_num_rows($qValid20) > 0) ? (int)mysqli_fetch_assoc($qValid20)['cnt'] : 0;
 
                     if($jmlTotal20 > 0 && $jmlValid20 >= $jmlTotal20){
@@ -1211,15 +1211,15 @@ if(isset($_POST['unggah-komponen-per-item'])){
     }
 
     // Cari progres dari persyaratan yang diunggah (misal 11 untuk Ujian Hasil, 19 untuk Ujian Tutup)
-    $qProgSyarat = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = $idSyarat LIMIT 1");
+    $qProgSyarat = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = $idSyarat AND status = 'aktif' LIMIT 1");
     $progresSyarat = ($qProgSyarat && mysqli_num_rows($qProgSyarat) > 0) ? (int)mysqli_fetch_assoc($qProgSyarat)['progres'] : 11;
     $progresSelanjutnya = $progresSyarat + 1;
 
     // Cek apakah seluruh berkas untuk SOP progres ini sudah lengkap diunggah mahasiswa ini
-    $qTotalSyarat = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSyarat");
+    $qTotalSyarat = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSyarat AND status = 'aktif'");
     $totalSyarat = $qTotalSyarat ? (int)mysqli_fetch_assoc($qTotalSyarat)['total'] : 6;
 
-    $qUploaded = query("SELECT COUNT(DISTINCT b.id_persyaratan) AS total FROM berkas_skripsi b JOIN persyaratan_berkas_skripsi p ON b.id_persyaratan = p.id WHERE p.progres = $progresSyarat AND b.nim = '$nim'");
+    $qUploaded = query("SELECT COUNT(DISTINCT b.id_persyaratan) AS total FROM berkas_skripsi b JOIN persyaratan_berkas_skripsi p ON b.id_persyaratan = p.id WHERE p.progres = $progresSyarat AND p.status = 'aktif' AND b.nim = '$nim'");
     $totalUploaded = $qUploaded ? (int)mysqli_fetch_assoc($qUploaded)['total'] : 0;
 
     $selesaiSemua = ($totalSyarat > 0 && $totalUploaded >= $totalSyarat);
@@ -1235,10 +1235,10 @@ if(isset($_POST['unggah-komponen-per-item'])){
 
         // Setelah naik step, langsung cek apakah mahasiswa sudah mengunggah semua persyaratan di step tersebut (12 atau 20)
         if((int)$currProg === $progresSelanjutnya){
-            $qTotalNext = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya");
+            $qTotalNext = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya AND status = 'aktif'");
             $jmlTotalNext = ($qTotalNext && mysqli_num_rows($qTotalNext) > 0) ? (int)mysqli_fetch_assoc($qTotalNext)['total'] : 0;
 
-            $qValidNext = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya)");
+            $qValidNext = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = $progresSelanjutnya AND status = 'aktif')");
             $jmlValidNext = ($qValidNext && mysqli_num_rows($qValidNext) > 0) ? (int)mysqli_fetch_assoc($qValidNext)['cnt'] : 0;
 
             if($jmlTotalNext > 0 && $jmlValidNext >= $jmlTotalNext){
@@ -1414,7 +1414,7 @@ if(isset($_POST['ambil-arsip-riwayat'])){
 
     // Ambil master seluruh persyaratan berkas skripsi dikelompokkan berdasarkan nomor progres (SOP)
     $masterSyarat = [];
-    $qMs = query("SELECT id, nama_berkas, progres FROM persyaratan_berkas_skripsi ORDER BY progres ASC, id ASC");
+    $qMs = query("SELECT id, nama_berkas, progres FROM persyaratan_berkas_skripsi WHERE status = 'aktif' ORDER BY progres ASC, id ASC");
     if($qMs){
         while($ms = mysqli_fetch_assoc($qMs)){
             $masterSyarat[(int)$ms['progres']][] = $ms;

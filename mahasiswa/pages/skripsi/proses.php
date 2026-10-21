@@ -70,7 +70,7 @@ if (isset($_POST['unggah-berkas-skripsi'])) {
 
     if ($simpan) {
         // Ambil progres dari berkas persyaratan yang sedang diunggah
-        $qProgBerkas   = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$id_persyaratan' LIMIT 1");
+        $qProgBerkas   = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$id_persyaratan' AND status = 'aktif' LIMIT 1");
         $progresBerkas = ($qProgBerkas && mysqli_num_rows($qProgBerkas) > 0) ? (int)mysqli_fetch_assoc($qProgBerkas)['progres'] : 0;
 
         $prosesSelesai = false;
@@ -81,10 +81,10 @@ if (isset($_POST['unggah-berkas-skripsi'])) {
         // progres mahasiswa TIDAK BOLEH lompat.
         if ($progresBerkas > 0 && $stepProgres === $progresBerkas) {
             // Cek apakah semua berkas persyaratan untuk step ini sudah diunggah dan TIDAK ditolak
-            $qSelesai = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres'");
+            $qSelesai = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres' AND status = 'aktif'");
             $jmlTotal = ($qSelesai && mysqli_num_rows($qSelesai) > 0) ? (int)mysqli_fetch_assoc($qSelesai)['total'] : 0;
 
-            $qValid = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim_clean' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres')");
+            $qValid = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_skripsi WHERE nim = '$nim_clean' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$stepProgres' AND status = 'aktif')");
             $jmlValid = ($qValid && mysqli_num_rows($qValid) > 0) ? (int)mysqli_fetch_assoc($qValid)['cnt'] : 0;
 
             // Jika SEMUA berkas sudah diunggah dan tidak ada yang berstatus 'ditolak'

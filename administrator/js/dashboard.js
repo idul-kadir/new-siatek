@@ -58,7 +58,13 @@
                         cornerRadius: 10,
                         displayColors: false,
                         borderColor: 'rgba(249,115,22,0.35)',
-                        borderWidth: 1
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function (c) {
+                                return ' Mahasiswa Baru: ' + c.parsed.y + ' orang';
+                            }
+                        }
+
                     }
                 },
                 scales: {
@@ -70,6 +76,75 @@
                         beginAtZero: true,
                         grid: { color: gridLine, drawBorder: false },
                         ticks: { color: tickColor, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // ============= ALUMNI LINE CHART (TREN KELULUSAN 5 TAHUN) =============
+    var alumniCanvas = document.getElementById('alumniChart');
+    if (alumniCanvas && data && data.alumni) {
+        var ctxA = alumniCanvas.getContext('2d');
+        var skyBlue = '#0ea5e9';
+        var gradSky = ctxA.createLinearGradient(0, 0, 0, 260);
+        gradSky.addColorStop(0, 'rgba(14,165,233,0.30)');
+        gradSky.addColorStop(1, 'rgba(14,165,233,0.00)');
+
+        new Chart(ctxA, {
+            type: 'line',
+            data: {
+                labels: data.alumni.labels,
+                datasets: [{
+                    label: 'Kelulusan / Alumni',
+                    data: data.alumni.values,
+                    borderColor: skyBlue,
+                    backgroundColor: gradSky,
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: skyBlue,
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: skyBlue
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: tooltipBg,
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
+                        borderColor: 'rgba(14,165,233,0.35)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function (c) {
+                                return ' Kelulusan: ' + c.parsed.y + ' orang';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: tickColor, font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridLine, drawBorder: false },
+                        ticks: { 
+                            color: tickColor, 
+                            font: { size: 11 },
+                            precision: 0
+                        }
                     }
                 }
             }

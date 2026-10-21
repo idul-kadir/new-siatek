@@ -301,7 +301,7 @@ $berkasDibutuhkan = [];
 $berkasSudahDunggah = [];
 $nim_clean = bersihkan($nim);
 if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
-    $qBerkas = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId' ORDER BY id ASC");
+    $qBerkas = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId' AND status = 'aktif' ORDER BY id ASC");
     if ($qBerkas && mysqli_num_rows($qBerkas) > 0) {
         while ($b = mysqli_fetch_assoc($qBerkas)) {
             $berkasDibutuhkan[] = $b;
@@ -309,7 +309,7 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && $lastProsesId > 0) {
     }
     
     // Cek berkas yang sudah ada di temp_skripsi untuk progres ini
-    $qSudah = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId')");
+    $qSudah = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = '$lastProsesId' AND status = 'aktif')");
     if ($qSudah && mysqli_num_rows($qSudah) > 0) {
         while ($t = mysqli_fetch_assoc($qSudah)) {
             $berkasSudahDunggah[] = (int) $t['id_persyaratan'];
@@ -322,13 +322,13 @@ $berkasStep12 = [];
 $berkasStep12Sudah = [];
 if ($hasSkripsiRecord && !$isSkripsiInactive && ($lastProsesId == 11 || $lastProsesId == 12)) {
     // Ambil berkas koreksi tepat pada progres = 12
-    $qB12 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 12 ORDER BY id ASC");
+    $qB12 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 12 AND status = 'aktif' ORDER BY id ASC");
     if ($qB12 && mysqli_num_rows($qB12) > 0) {
         while ($b = mysqli_fetch_assoc($qB12)) {
             $berkasStep12[] = $b;
         }
     }
-    $qSudah12 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12)");
+    $qSudah12 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 12 AND status = 'aktif')");
     if ($qSudah12 && mysqli_num_rows($qSudah12) > 0) {
         while ($t = mysqli_fetch_assoc($qSudah12)) {
             $berkasStep12Sudah[] = (int) $t['id_persyaratan'];
@@ -341,13 +341,13 @@ $berkasStep20 = [];
 $berkasStep20Sudah = [];
 if ($hasSkripsiRecord && !$isSkripsiInactive && ($lastProsesId == 19 || $lastProsesId == 20)) {
     // Ambil berkas koreksi tepat pada progres = 20
-    $qB20 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 20 ORDER BY id ASC");
+    $qB20 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_skripsi WHERE progres = 20 AND status = 'aktif' ORDER BY id ASC");
     if ($qB20 && mysqli_num_rows($qB20) > 0) {
         while ($b = mysqli_fetch_assoc($qB20)) {
             $berkasStep20[] = $b;
         }
     }
-    $qSudah20 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20)");
+    $qSudah20 = query("SELECT id_persyaratan FROM temp_skripsi WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_skripsi WHERE progres = 20 AND status = 'aktif')");
     if ($qSudah20 && mysqli_num_rows($qSudah20) > 0) {
         while ($t = mysqli_fetch_assoc($qSudah20)) {
             $berkasStep20Sudah[] = (int) $t['id_persyaratan'];

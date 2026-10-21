@@ -19,8 +19,8 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
     // Lepas session lock segera agar request ringan & tidak memblokir navigasi
     session_write_close();
 
-    // Hanya level 3, 4, 6, dan 9 yang memiliki wewenang verifikasi
-    if (!in_array($userLevel, [3, 4, 6, 9], true)) {
+    // Hanya level 3, 4, dan 9 yang memiliki wewenang verifikasi
+    if (!in_array($userLevel, [3, 4, 9], true)) {
         echo json_encode([
             'status'       => true,
             'total_berkas' => 0,
@@ -45,6 +45,7 @@ if (isset($_POST['cek-notifikasi']) || isset($_GET['cek-notifikasi'])) {
     }
 
     $condVerifikasiSkripsi = "ts.status = 'menunggu' 
+        AND pbs.status = 'aktif'
         AND pbs.progres IN (1, 4, 7, 12, 15, 20)
         AND (
             SELECT proses FROM progres_skripsi 
@@ -184,7 +185,8 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                         JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                         LEFT JOIN mahasiswa m ON ts.nim = m.nim
                         LEFT JOIN prodi p ON m.prodi = p.kode
-                        WHERE pbs.progres IN (1, 4, 7, 12, 15, 20)
+                        WHERE pbs.status = 'aktif'
+                          AND pbs.progres IN (1, 4, 7, 12, 15, 20)
                           AND (
                               SELECT proses FROM progres_skripsi 
                               WHERE mahasiswa = ts.nim 
@@ -295,7 +297,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                               JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
                               LEFT JOIN sop_skripsi sop ON sop.no = (pbs.progres + 1)
                               LEFT JOIN files f ON ts.file = f.id
-                              WHERE ts.nim = '$nimMhs' AND pbs.progres IN (1, 4, 7, 12, 15, 20) " . ($status !== '' ? "AND ts.status = '$status'" : "") . " 
+                              WHERE ts.nim = '$nimMhs' AND pbs.status = 'aktif' AND pbs.progres IN (1, 4, 7, 12, 15, 20) " . ($status !== '' ? "AND ts.status = '$status'" : "") . " 
                               ORDER BY pbs.id ASC";
             }
             $qBerkas = query($sqlBerkas);
@@ -616,27 +618,27 @@ if (isset($_POST['verifikasi-berkas'])) {
             $nimMhs = $rowB['nim'];
             $idPersyaratan = $rowB['id_persyaratan'];
 
-            $qProg = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$idPersyaratan' LIMIT 1");
+            $qProg = query("SELECT progres FROM persyaratan_berkas_skripsi WHERE id = '$idPersyaratan' AND status = 'aktif' LIMIT 1");
             if ($qProg && mysqli_num_rows($qProg) > 0) {
                 $progresUnggah = (int)mysqli_fetch_assoc($qProg)['progres'];
                 $tahapAdmin = $progresUnggah + 1;
 
-                $qTotal = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$progresUnggah'");
+                $qTotal = query("SELECT COUNT(*) AS total FROM persyaratan_berkas_skripsi WHERE progres = '$progresUnggah' AND status = 'aktif'");
                 $totalWajib = ($qTotal && mysqli_num_rows($qTotal) > 0) ? (int)mysqli_fetch_assoc($qTotal)['total'] : 0;
 
                 $qDiterima = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                     JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                                    WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'diterima'");
+                                    WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND pbs.status = 'aktif' AND ts.status = 'diterima'");
                 $totalDiterima = ($qDiterima && mysqli_num_rows($qDiterima) > 0) ? (int)mysqli_fetch_assoc($qDiterima)['total'] : 0;
 
                 $qSelesaiVerifikasi = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                              JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                                             WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status IN ('diterima', 'ditolak')");
+                                             WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND pbs.status = 'aktif' AND ts.status IN ('diterima', 'ditolak')");
                 $totalSelesaiVerifikasi = ($qSelesaiVerifikasi && mysqli_num_rows($qSelesaiVerifikasi) > 0) ? (int)mysqli_fetch_assoc($qSelesaiVerifikasi)['total'] : 0;
 
                 $qDitolak = query("SELECT COUNT(*) AS total FROM temp_skripsi ts 
                                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                                   WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'ditolak'");
+                                   WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND pbs.status = 'aktif' AND ts.status = 'ditolak'");
                 $totalDitolak = ($qDitolak && mysqli_num_rows($qDitolak) > 0) ? (int)mysqli_fetch_assoc($qDitolak)['total'] : 0;
 
                 if ($totalWajib > 0 && $totalSelesaiVerifikasi >= $totalWajib) {
@@ -653,7 +655,7 @@ if (isset($_POST['verifikasi-berkas'])) {
                     } elseif ($totalDiterima >= $totalWajib) {
                         $qGetTemp = query("SELECT ts.id_persyaratan, ts.nim, ts.file FROM temp_skripsi ts 
                                            JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                                           WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND ts.status = 'diterima'");
+                                           WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND pbs.status = 'aktif' AND ts.status = 'diterima'");
                         if ($qGetTemp && mysqli_num_rows($qGetTemp) > 0) {
                             while ($rowT = mysqli_fetch_assoc($qGetTemp)) {
                                 $idP  = bersihkan($rowT['id_persyaratan']);
@@ -669,7 +671,7 @@ if (isset($_POST['verifikasi-berkas'])) {
                             }
                             query("DELETE ts FROM temp_skripsi ts 
                                    JOIN persyaratan_berkas_skripsi pbs ON ts.id_persyaratan = pbs.id 
-                                   WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah'");
+                                   WHERE ts.nim = '$nimMhs' AND pbs.progres = '$progresUnggah' AND pbs.status = 'aktif'");
                         }
 
                         $waktu = time();
