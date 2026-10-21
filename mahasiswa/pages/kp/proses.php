@@ -270,6 +270,10 @@ if (isset($_POST['ubah-judul-kp'])) {
         echo json_encode(['status' => false, 'pesan' => 'Judul Kerja Praktek baru dapat ditulis atau diubah setelah melewati Tahap 2']);
         exit;
     }
+    if ((int)$progresSekarang >= 16) {
+        echo json_encode(['status' => false, 'pesan' => 'Kerja Praktek telah selesai. Judul Kerja Praktek sudah tidak dapat diubah lagi']);
+        exit;
+    }
 
     $update = query("UPDATE kp SET judul = '$judul' WHERE nim = '$nim_clean'");
 

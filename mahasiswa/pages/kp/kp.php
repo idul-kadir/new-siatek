@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../../fungsi.php';
 mysqli_set_charset($GLOBALS['koneksi'], 'utf8mb4');
 $nim = $_SESSION['nim'] ?? $_SESSION['username'] ?? $_SESSION['user_id'] ?? '';
+$nim_clean = bersihkan($nim);
 
 /* --- Ambil Data Utama Mahasiswa & Kerja Praktek --- */
 $dMhs = ['nama' => '', 'prodi' => '', 'angkatan' => '', 'pa' => '', 'nip_pa' => ''];
@@ -17,14 +18,17 @@ $dKp  = [
     'nip_pemb'            => '-',
     'penguji_1'           => 'Belum Ditentukan',
     'penguji_2'           => 'Belum Ditentukan',
+    'penguji_3'           => 'Belum Ditentukan',
     'tgl_mulai'           => 'Belum dijadwalkan',
     'tgl_selesai'         => 'Belum dijadwalkan',
     'tgl_penarikan'       => 'Belum dijadwalkan',
     'batas_proposal'      => 'Belum dijadwalkan',
     'jadwal_seminar'      => 'Belum dijadwalkan',
     'jam_seminar'         => '-',
-    'ruangan_seminar'     => '-'
+    'ruangan_seminar'     => '-',
+    'no_undangan'         => '-'
 ];
+$dPengujiKp = [1 => '', 2 => '', 3 => ''];
 $progresSaatIni = 'Menunggu data SOP';
 
 // Ambil Mahasiswa
@@ -113,6 +117,9 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
     if (!empty($rowKp['ruangan'])) {
         $dKp['ruangan_seminar'] = $rowKp['ruangan'];
     }
+    if (!empty($rowKp['no_undangan'])) {
+        $dKp['no_undangan'] = $rowKp['no_undangan'];
+    }
 
     // Ambil Pembimbing dari tabel surat_penunjukkan (keterangan PEMBIMBING KP)
     $idSuratBimb = (int)($rowKp['surat_penunjukkan_pembimbing'] ?? 0);
@@ -136,18 +143,25 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
     // Ambil Penguji Seminar KP (keterangan PENGUJI KP)
     $idSuratPeng = (int)($rowKp['surat_penunjukkan_penguji'] ?? 0);
     $qSuratPeng = ($idSuratPeng > 0)
-        ? query("SELECT penguji1, penguji2 FROM surat_penunjukkan WHERE id = $idSuratPeng LIMIT 1")
-        : query("SELECT penguji1, penguji2 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan LIKE '%PENGUJI%KP%' ORDER BY id DESC LIMIT 1");
+        ? query("SELECT * FROM surat_penunjukkan WHERE id = $idSuratPeng LIMIT 1")
+        : query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND (keterangan LIKE '%PENGUJI%KP%' OR keterangan LIKE '%SEMINAR%KP%') ORDER BY id DESC LIMIT 1");
     if ($qSuratPeng && mysqli_num_rows($qSuratPeng) > 0) {
         $spg = mysqli_fetch_assoc($qSuratPeng);
-        if (!empty($spg['penguji1'])) {
-            $qP1 = query("SELECT nama FROM dosen WHERE id = '{$spg['penguji1']}' OR nip = '{$spg['penguji1']}' LIMIT 1");
-            $dKp['penguji_1'] = ($qP1 && mysqli_num_rows($qP1) > 0) ? mysqli_fetch_assoc($qP1)['nama'] : $spg['penguji1'];
+        for ($i = 1; $i <= 3; $i++) {
+            $valPeng = trim((string)($spg["penguji$i"] ?? ''));
+            if ($valPeng !== '') {
+                $qP = query("SELECT nama FROM dosen WHERE id = '$valPeng' OR nip = '$valPeng' LIMIT 1");
+                $namaP = ($qP && mysqli_num_rows($qP) > 0) ? mysqli_fetch_assoc($qP)['nama'] : $valPeng;
+                $dKp["penguji_$i"] = $namaP;
+                $dPengujiKp[$i]    = $namaP;
+            }
         }
-        if (!empty($spg['penguji2'])) {
-            $qP2 = query("SELECT nama FROM dosen WHERE id = '{$spg['penguji2']}' OR nip = '{$spg['penguji2']}' LIMIT 1");
-            $dKp['penguji_2'] = ($qP2 && mysqli_num_rows($qP2) > 0) ? mysqli_fetch_assoc($qP2)['nama'] : $spg['penguji2'];
-        }
+    }
+
+    // Fallback Penguji 1: Jika belum diatur di surat penunjukkan penguji, default ke Pembimbing KP
+    if (empty($dPengujiKp[1]) && !empty($dKp['pembimbing']) && $dKp['pembimbing'] !== 'Belum Ditentukan' && $dKp['pembimbing'] !== '-') {
+        $dPengujiKp[1]    = $dKp['pembimbing'];
+        $dKp['penguji_1'] = $dKp['pembimbing'];
     }
 }
 
@@ -164,23 +178,23 @@ if (!empty($rowKp)) {
     $valSks        = $rowKp['sks'] ?? '';
     $rawMulai      = !empty($rowKp['tanggal_mulai']) && $rowKp['tanggal_mulai'] !== '0000-00-00'
                        ? $rowKp['tanggal_mulai']
-                       : ($rowKp['tgl_start'] ?? '');
+                       : (!empty($rowKp['tgl_start']) && $rowKp['tgl_start'] !== '0000-00-00' ? $rowKp['tgl_start'] : '');
     if (!empty($rawMulai) && $rawMulai !== '0000-00-00') {
         $valTglMulai = date('Y-m-d', strtotime($rawMulai));
         $dKp['tgl_mulai'] = date('d M Y', strtotime($rawMulai));
     }
-    $rawSelesai    = !empty($rowKp['tanggal_selesai']) && $rowKp['tanggal_selesai'] !== '0000-00-00'
-                       ? $rowKp['tanggal_selesai']
-                       : ($rowKp['tanggal_penarikan'] ?? '');
+
+    // Tanggal Selesai & Tanggal Penarikan KP (UTAMAKAN tanggal_selesai dari tabel kp sebagai sumber data utama)
+    $rawSelesai = !empty($rowKp['tanggal_selesai']) && $rowKp['tanggal_selesai'] !== '0000-00-00'
+                    ? $rowKp['tanggal_selesai']
+                    : (!empty($rowKp['tanggal_penarikan']) && $rowKp['tanggal_penarikan'] !== '0000-00-00' ? $rowKp['tanggal_penarikan'] : '');
     if (!empty($rawSelesai) && $rawSelesai !== '0000-00-00') {
         $valTglSelesai = date('Y-m-d', strtotime($rawSelesai));
         $dKp['tgl_selesai'] = date('d M Y', strtotime($rawSelesai));
     }
 
-    // Tanggal Penarikan KP
-    $rawPenarikan  = !empty($rowKp['tanggal_penarikan']) && $rowKp['tanggal_penarikan'] !== '0000-00-00'
-                       ? $rowKp['tanggal_penarikan']
-                       : (!empty($rowKp['tanggal_selesai']) && $rowKp['tanggal_selesai'] !== '0000-00-00' ? $rowKp['tanggal_selesai'] : '');
+    // Tanggal Penarikan KP mengacu pada tanggal_selesai
+    $rawPenarikan = $rawSelesai;
     if (!empty($rawPenarikan) && $rawPenarikan !== '0000-00-00') {
         $dKp['tgl_penarikan'] = date('d M Y', strtotime($rawPenarikan));
     }
@@ -202,11 +216,13 @@ if (!empty($valTglMulai) && empty($valTglSelesai)) {
 }
 
 // Hitung status tanggal penarikan untuk informasi di Step 7
-$valTglPenarikan = '';
-if (!empty($rawPenarikan) && $rawPenarikan !== '0000-00-00') {
-    $valTglPenarikan = date('Y-m-d', strtotime($rawPenarikan));
-} elseif (!empty($valTglSelesai) && $valTglSelesai !== '0000-00-00') {
-    $valTglPenarikan = $valTglSelesai;
+$valTglPenarikan = !empty($valTglSelesai) ? $valTglSelesai : (!empty($rawPenarikan) ? date('Y-m-d', strtotime($rawPenarikan)) : '');
+
+// Sinkronkan ke kolom tanggal_penarikan di database jika berbeda dengan tanggal_selesai
+if (!empty($valTglPenarikan) && !empty($nim_clean)) {
+    if (!empty($rowKp['tanggal_penarikan']) && $rowKp['tanggal_penarikan'] !== $valTglPenarikan) {
+        query("UPDATE kp SET tanggal_penarikan = '$valTglPenarikan' WHERE nim = '$nim_clean'");
+    }
 }
 
 $tglPenarikanIndo  = !empty($valTglPenarikan) ? tgl_indo($valTglPenarikan) : $dKp['tgl_penarikan'];
@@ -241,22 +257,113 @@ $tglBatasProposalIndo = !empty($valBatasProposal) ? tgl_indo($valBatasProposal) 
 /* --- Ambil Status Progres KP dari tabel progres_kp / kp via helper di fungsi.php --- */
 $currentProgres = get_progres_kp($nim);
 $lastProsesId = ($currentProgres !== '-') ? (int)$currentProgres : 0;
+$nim_clean = bersihkan($nim);
+
+/* --- Ambil Riwayat Waktu Penyelesaian SOP dari progres_kp --- */
+$riwayatWaktuSop = [];
+if (!empty($nim_clean)) {
+    try {
+        $qProgWaktu = query("SELECT * FROM progres_kp WHERE mahasiswa = '$nim_clean' ORDER BY waktu ASC, id ASC");
+        if ($qProgWaktu) {
+            while ($pr = mysqli_fetch_assoc($qProgWaktu)) {
+                $pNo = (int)($pr['proses'] ?? $pr['progres'] ?? 0);
+                $tUnix = 0;
+                if (!empty($pr['waktu']) && is_numeric($pr['waktu']) && (int)$pr['waktu'] > 0) {
+                    $tUnix = (int)$pr['waktu'];
+                } elseif (!empty($pr['waktu']) && strtotime((string)$pr['waktu']) > 0) {
+                    $tUnix = strtotime((string)$pr['waktu']);
+                } elseif (!empty($pr['id']) && is_numeric($pr['id']) && (int)$pr['id'] > 1000000000) {
+                    $tUnix = (int)$pr['id'];
+                }
+                if ($pNo > 0 && $tUnix > 0) {
+                    $riwayatWaktuSop[$pNo] = $tUnix;
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+$formatWaktuSop = function($timeUnix) {
+    if (!$timeUnix || !is_numeric($timeUnix) || (int)$timeUnix <= 0) return '';
+    $bulanIndo = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
+    ];
+    $t = (int)$timeUnix;
+    $d = date('d', $t);
+    $m = (int)date('n', $t);
+    $y = date('Y', $t);
+    $b = $bulanIndo[$m] ?? date('M', $t);
+    $jam = date('H:i', $t);
+    if ($jam !== '00:00') {
+        return "$d $b $y, $jam";
+    }
+    return "$d $b $y";
+};
+
+$getWaktuSelesaiSop = function($noSop, $riwayatWaktuSop, $lastProsesId) {
+    // 1. Cek waktu transisi ke tahap berikutnya jika ada (misal selesai SOP 1 saat masuk SOP 2)
+    if (isset($riwayatWaktuSop[$noSop + 1]) && $riwayatWaktuSop[$noSop + 1] > 0) {
+        return $riwayatWaktuSop[$noSop + 1];
+    }
+    // 2. Cek waktu tercatat pada tahap tersebut
+    if (isset($riwayatWaktuSop[$noSop]) && $riwayatWaktuSop[$noSop] > 0) {
+        return $riwayatWaktuSop[$noSop];
+    }
+    // 3. Cari catatan proses berikutnya yang terdekat
+    foreach ($riwayatWaktuSop as $p => $w) {
+        if ($p >= $noSop && $w > 0) {
+            return $w;
+        }
+    }
+    if (!empty($riwayatWaktuSop)) {
+        return end($riwayatWaktuSop);
+    }
+    return 0;
+};
+
+/**
+ * Helper untuk mendeteksi nama Dosen Penguji dari nama berkas persyaratan (misal: "Lembar Koreksi 1", "Lembar Koreksi 2").
+ */
+$getNamaPengujiBerkas = function($namaBerkas) use (&$dPengujiKp, &$dKp) {
+    if (stripos($namaBerkas, 'koreksi') === false && stripos($namaBerkas, 'penguji') === false && stripos($namaBerkas, 'penilaian') === false && stripos($namaBerkas, 'revisi') === false) {
+        return '';
+    }
+    preg_match('/(\d+)/', $namaBerkas, $m);
+    $noPenguji = isset($m[1]) ? (int)$m[1] : 1;
+    if (!empty($dPengujiKp[$noPenguji]) && $dPengujiKp[$noPenguji] !== 'Belum Ditentukan' && $dPengujiKp[$noPenguji] !== '-') {
+        return $dPengujiKp[$noPenguji];
+    }
+    if (!empty($dKp["penguji_$noPenguji"]) && $dKp["penguji_$noPenguji"] !== 'Belum Ditentukan' && $dKp["penguji_$noPenguji"] !== '-') {
+        return $dKp["penguji_$noPenguji"];
+    }
+    if ($noPenguji === 1 && !empty($dKp['pembimbing']) && $dKp['pembimbing'] !== 'Belum Ditentukan' && $dKp['pembimbing'] !== '-') {
+        return $dKp['pembimbing'];
+    }
+    return '';
+};
 
 /* --- Ambil data alur SOP Kerja Praktek via helper get_sop_kp_list() di fungsi.php --- */
 $steps = [];
 $rawSop = get_sop_kp_list();
+$isKpSelesai = ($lastProsesId >= 16);
+
 foreach ($rawSop as $row) {
     $noSop = (int)$row['no'];
 
     if ($lastProsesId == 0) {
         $st = ($noSop == 1) ? 'aktif' : 'menunggu';
     } else {
-        if ($noSop < $lastProsesId) {
-            $st = 'selesai';
-        } elseif ($noSop == $lastProsesId) {
-            $st = 'aktif';
+        if ($isKpSelesai) {
+            $st = ($noSop <= 16) ? 'selesai' : 'menunggu';
         } else {
-            $st = 'menunggu';
+            if ($noSop < $lastProsesId) {
+                $st = 'selesai';
+            } elseif ($noSop == $lastProsesId) {
+                $st = 'aktif';
+            } else {
+                $st = 'menunggu';
+            }
         }
     }
 
@@ -265,20 +372,31 @@ foreach ($rawSop as $row) {
         $progresSaatIni = $judulFormatted;
     }
 
+    $waktuSelesaiUnix = ($st === 'selesai') ? $getWaktuSelesaiSop($noSop, $riwayatWaktuSop, $lastProsesId) : 0;
+    $waktuSelesaiLabel = ($waktuSelesaiUnix > 0) ? $formatWaktuSop($waktuSelesaiUnix) : '';
+
     $eks = !empty($row['eksekutor']) ? $row['eksekutor'] : 'Mahasiswa';
     $steps[] = [
-        'id'       => $noSop,
-        'urutan'   => $noSop,
-        'judul'    => $judulFormatted,
-        'desc'     => 'Eksekutor: ' . ucfirst(strtolower($eks)),
-        'executor' => ucfirst(strtolower($eks)),
-        'status'   => $st,
+        'id'                  => $noSop,
+        'urutan'              => $noSop,
+        'judul'               => $judulFormatted,
+        'desc'                => 'Eksekutor: ' . ucfirst(strtolower($eks)),
+        'executor'            => ucfirst(strtolower($eks)),
+        'status'              => $st,
+        'waktu_selesai_unix'  => $waktuSelesaiUnix,
+        'waktu_selesai_label' => $waktuSelesaiLabel,
     ];
 }
 
 $total    = count($steps);
 $selesai  = count(array_filter($steps, fn($s) => $s['status'] === 'selesai'));
 $progres  = $total > 0 ? round($selesai / $total * 100) : 0;
+
+if ($isKpSelesai) {
+    $selesai        = $total;
+    $progres        = 100;
+    $progresSaatIni = 'Kerja Praktek Selesai';
+}
 
 /* Ambil step aktif saat ini untuk Lembar Kerja */
 $currentStep = null;
@@ -290,14 +408,14 @@ foreach ($steps as $s) {
 }
 if (!$currentStep && !empty($steps)) {
     $currentStep = $steps[$total - 1];
-    $progresSaatIni = 'Semua tahapan selesai';
+    $progresSaatIni = $isKpSelesai ? 'Kerja Praktek Selesai' : 'Semua tahapan selesai';
 }
 
 /* Flag Kondisi Status Pendaftaran KP (Persis seperti Skripsi) */
 $hasKpRecord  = ($statusKpDb !== null);
 $isKpInactive = ($statusKpDb === 'tidak aktif' || $statusKpDb === 'nonaktif');
 $hasProgres   = ($currentProgres !== '-');
-$canEditJudul = ($hasKpRecord && !$isKpInactive && $lastProsesId > 2);
+$canEditJudul = ($hasKpRecord && !$isKpInactive && $lastProsesId > 2 && !$isKpSelesai);
 
 /* --- Ambil Persyaratan Berkas sesuai progres saat ini (Persis Skripsi) --- */
 $berkasDibutuhkan   = [];
@@ -318,6 +436,55 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
         }
     }
 }
+
+/* --- Khusus Step 13 & 14: Load Berkas Persyaratan Progres 14 --- */
+$berkasStep14 = [];
+$berkasStep14Sudah = [];
+if ($hasKpRecord && !$isKpInactive && ($lastProsesId == 13 || $lastProsesId == 14)) {
+    $qB14 = query("SELECT id, nama_berkas, tabel, field FROM persyaratan_berkas_kp WHERE progres = 14 ORDER BY id ASC");
+    if ($qB14 && mysqli_num_rows($qB14) > 0) {
+        while ($b = mysqli_fetch_assoc($qB14)) {
+            $berkasStep14[] = $b;
+        }
+    }
+    $qSudah14 = query("SELECT id_persyaratan FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_kp WHERE progres = 14)");
+    if ($qSudah14 && mysqli_num_rows($qSudah14) > 0) {
+        while ($t = mysqli_fetch_assoc($qSudah14)) {
+            $berkasStep14Sudah[] = (int)$t['id_persyaratan'];
+        }
+    }
+
+    // Jika step saat ini SUDAH step 14 dan SEMUA berkas progres 14 sudah lengkap di temp_kp (dan tidak ditolak), otomatis naik ke step 15
+    if ($lastProsesId == 14 && count($berkasStep14) > 0) {
+        $qValid14 = query("SELECT COUNT(DISTINCT id_persyaratan) AS cnt FROM temp_kp WHERE nim = '$nim_clean' AND status != 'ditolak' AND id_persyaratan IN (SELECT id FROM persyaratan_berkas_kp WHERE progres = 14)");
+        $jmlValid14 = ($qValid14 && mysqli_num_rows($qValid14) > 0) ? (int)mysqli_fetch_assoc($qValid14)['cnt'] : 0;
+        if ($jmlValid14 >= count($berkasStep14)) {
+            set_progres_kp($nim_clean, 15);
+            $lastProsesId = 15;
+            $currentProgres = 15;
+            // Update juga status steps dan currentStep agar langsung menampilkan step 15
+            foreach ($steps as &$stItem) {
+                if ($stItem['urutan'] < 15) {
+                    $stItem['status'] = 'selesai';
+                } elseif ($stItem['urutan'] == 15) {
+                    $stItem['status'] = 'aktif';
+                    $currentStep = $stItem;
+                    $progresSaatIni = $stItem['judul'];
+                } else {
+                    $stItem['status'] = 'menunggu';
+                }
+            }
+            unset($stItem);
+            $selesai = count(array_filter($steps, fn($s) => $s['status'] === 'selesai'));
+            $progres = $total > 0 ? round($selesai / $total * 100) : 0;
+        }
+    }
+}
+
+/* --- Deteksi Batch Ujian yang Sedang Aktif via fungsi.php --- */
+$batchUjianAktif  = get_batch_ujian_aktif();
+$dataPesertaBatch = ($batchUjianAktif && !empty($nim_clean)) ? get_status_peserta_batch($nim_clean, $batchUjianAktif['id']) : null;
+$isTerdaftarBatch = ($dataPesertaBatch !== null);
 ?>
 
 <style>
@@ -387,11 +554,63 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                     <p class="text-xs text-slate-500">Lembar Kerja Aktivitas Kerja Praktek Sesuai Prosedur SOP</p>
                 </div>
             </div>
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                <i class="fas fa-list-check"></i><?= $selesai ?>/<?= $total ?> SOP Selesai
+            <span class="inline-flex items-center gap-1.5 rounded-full <?= $isKpSelesai ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700' ?> px-3 py-1 text-xs font-bold">
+                <i class="fas <?= $isKpSelesai ? 'fa-check-double text-emerald-600' : 'fa-list-check' ?>"></i><?= $selesai ?>/<?= $total ?> SOP Selesai
             </span>
         </div>
     </section>
+
+    <!-- ===== Banner Notifikasi Informasi Batch Ujian Aktif ===== -->
+    <?php if ($batchUjianAktif && $hasKpRecord && !$isKpInactive && $lastProsesId < 16): ?>
+    <section class="mb-5 reveal">
+        <div class="rounded-xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 text-base">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-bold text-slate-800">Batch Ujian Sedang Dibuka</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                            <span class="relative flex h-1.5 w-1.5">
+                                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            </span>
+                            Periode Aktif
+                        </span>
+                        <span class="text-[11px] text-slate-300 hidden sm:inline">&bull;</span>
+                        <span class="text-[11px] text-slate-600 font-medium">
+                            <?= htmlspecialchars($batchUjianAktif['periode_display']) ?>
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        <?php if ($isTerdaftarBatch): ?>
+                            <span class="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                                <i class="fas fa-check-circle text-emerald-500"></i>Anda telah terdaftar sebagai peserta dalam batch ujian ini.
+                            </span>
+                            <?php if (!empty($dataPesertaBatch['tanggal']) && $dataPesertaBatch['tanggal'] !== '0000-00-00'): ?>
+                                <span class="text-slate-600 ml-1">· Jadwal: <?= tgl_indo($dataPesertaBatch['tanggal']) ?><?= !empty($dataPesertaBatch['jam']) ? ' (' . tampil($dataPesertaBatch['jam']) . ')' : '' ?><?= !empty($dataPesertaBatch['ruang']) ? ' Ruang ' . tampil($dataPesertaBatch['ruang']) : '' ?></span>
+                            <?php else: ?>
+                                <span class="text-slate-400 ml-1">(Menunggu penetapan jadwal detail)</span>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <?php if ($lastProsesId >= 10): ?>
+                                Pendaftaran seminar KP sedang berlangsung. Pastikan berkas dan persyaratan seminar Anda telah lengkap sebelum periode batch ditutup.
+                            <?php else: ?>
+                                Periode pendaftaran ujian sedang aktif di jurusan. Terus selesaikan tahapan Kerja Praktek Anda sesuai SOP yang berjalan.
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-600">
+                    <i class="fas fa-hourglass-half text-orange-500 text-[10px]"></i><?= htmlspecialchars($batchUjianAktif['sisa_hari_label']) ?>
+                </span>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <!-- ===== Panel Informasi Kerja Praktek ===== -->
     <section class="mb-6 reveal">
@@ -612,28 +831,67 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold">
-                                <i class="fas fa-clipboard-check"></i>
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full <?= $isKpSelesai ? 'bg-emerald-500' : 'bg-orange-500' ?> text-white text-xs font-bold">
+                                <i class="fas <?= $isKpSelesai ? 'fa-check' : 'fa-clipboard-check' ?>"></i>
                             </span>
-                            <h3 class="text-base font-bold text-slate-800"><?= htmlspecialchars($currentStep['judul']) ?></h3>
+                            <h3 class="text-base font-bold text-slate-800"><?= $isKpSelesai ? 'Kerja Praktek Selesai' : htmlspecialchars($currentStep['judul']) ?></h3>
                         </div>
-                        <p class="text-xs text-slate-500 mt-1">Eksekutor SOP: <strong class="text-orange-600"><?= htmlspecialchars($currentStep['executor']) ?></strong></p>
+                        <p class="text-xs text-slate-500 mt-1">
+                            <?php if ($isKpSelesai): ?>
+                                Status Alur: <strong class="text-emerald-600">Seluruh Rangkaian SOP Selesai</strong>
+                            <?php else: ?>
+                                Eksekutor SOP: <strong class="text-orange-600"><?= htmlspecialchars($currentStep['executor']) ?></strong>
+                            <?php endif; ?>
+                        </p>
                     </div>
-                    <span class="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                        Aktif
+                    <span class="inline-flex items-center gap-1 rounded-full <?= $isKpSelesai ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700' ?> px-3 py-1 text-xs font-bold">
+                        <?= $isKpSelesai ? '<i class="fas fa-check-circle text-emerald-600 text-[10px]"></i> Selesai' : 'Aktif' ?>
                     </span>
                 </div>
 
                 <!-- Konten Aktivitas SOP -->
                 <div class="space-y-4">
-                    <?php if (strtolower($currentStep['executor']) === 'mahasiswa' && !in_array((int)$currentStep['urutan'], [6, 7])): ?>
+                    <?php if ($isKpSelesai): ?>
+                        <!-- Card Apresiasi Penyelesaian Kerja Praktek (Step 16) -->
+                        <div class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/50 p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white text-2xl shadow-lg shadow-emerald-500/25">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <div class="space-y-2">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                                    <i class="fas fa-check-circle text-emerald-600"></i> Kerja Praktek Selesai
+                                </span>
+                                <h3 class="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight">
+                                    Selamat! Anda Telah Berhasil Menyelesaikan Kerja Praktek
+                                </h3>
+                                <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+                                    Terima kasih dan apresiasi setinggi-tingginya atas dedikasi, kedisiplinan, dan kerja keras luar biasa yang telah Anda tunjukkan selama proses pelaksanaan, seminar, hingga penyelesaian berkas administrasi Kerja Praktek. Perjalanan ini adalah pencapaian istimewa yang patut Anda banggakan!
+                                </p>
+                            </div>
+
+                            <div class="rounded-xl border border-emerald-200/90 bg-emerald-50/90 p-4 max-w-md mx-auto text-left flex items-start gap-3">
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white text-sm shadow-sm">
+                                    <i class="fas fa-circle-check"></i>
+                                </div>
+                                <div class="text-xs text-emerald-950 leading-relaxed">
+                                    <strong class="font-bold block text-emerald-900 mb-0.5">Status: Selesai &amp; Terverifikasi</strong>
+                                    Seluruh tahapan pembimbingan, penilaian seminar, pengumpulan berkas akhir, dan pengesahan nilai Kerja Praktek telah dinyatakan lengkap serta terverifikasi secara resmi oleh Program Studi.
+                                </div>
+                            </div>
+
+                            <div class="pt-2 text-[11px] text-slate-400 font-medium">
+                                <i class="fas fa-check-circle text-emerald-500 mr-1"></i>Seluruh tahapan SOP Kerja Praktek (Step 1 s.d. Step 16) telah tuntas diselesaikan dengan baik.
+                            </div>
+                        </div>
+                    <?php else: ?>
+                    <?php if (strtolower($currentStep['executor']) === 'mahasiswa' && !in_array((int)$currentStep['urutan'], [6, 7, 13, 14])): ?>
                     <div class="rounded-lg bg-orange-50/60 border border-orange-100 p-4 text-xs text-slate-700 leading-relaxed">
                         <i class="fas fa-info-circle text-orange-500 mr-1.5"></i>
                         Silakan lengkapi berkas dan persyaratan berikut untuk menyelesaikan tahapan <strong><?= htmlspecialchars($currentStep['judul']) ?></strong>.
                     </div>
                     <?php endif; ?>
 
-                    <?php if (strtolower($currentStep['executor']) !== 'mahasiswa' && !in_array((int)$currentStep['urutan'], [2, 6, 7, 10])): ?>
+                    <?php if (strtolower($currentStep['executor']) !== 'mahasiswa' && !in_array((int)$currentStep['urutan'], [2, 6, 7, 10, 13, 14])): ?>
                         <div class="p-8 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50">
                             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-400 mb-3 text-xl">
                                 <i class="fas fa-user-clock"></i>
@@ -1130,16 +1388,16 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                             ?>
                                 <div class="space-y-4">
                                     <!-- Informasi Tanggal Penarikan KP -->
-                                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-3 shadow-xs">
-                                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 shrink-0 mt-0.5">
-                                            <i class="fas fa-calendar-days text-sm"></i>
+                                    <div class="rounded-xl border <?= $isSudahWaktunya ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900' ?> p-4 text-xs flex items-start gap-3 shadow-xs">
+                                        <div class="flex h-8 w-8 items-center justify-center rounded-lg <?= $isSudahWaktunya ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600' ?> shrink-0 mt-0.5">
+                                            <i class="fas <?= $isSudahWaktunya ? 'fa-calendar-check' : 'fa-calendar-days' ?> text-sm"></i>
                                         </div>
                                         <div class="space-y-1">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="font-bold text-amber-950 text-xs">Informasi Tanggal Penarikan:</span>
-                                                <span class="font-semibold text-orange-600 bg-orange-100/80 px-2 py-0.5 rounded text-[11px]"><?= htmlspecialchars($tglPenarikanIndo) ?></span>
+                                                <span class="font-bold <?= $isSudahWaktunya ? 'text-emerald-950' : 'text-amber-950' ?> text-xs">Informasi Tanggal Penarikan:</span>
+                                                <span class="font-semibold <?= $isSudahWaktunya ? 'text-emerald-700 bg-emerald-100/80' : 'text-orange-600 bg-orange-100/80' ?> px-2 py-0.5 rounded text-[11px]"><?= htmlspecialchars($tglPenarikanIndo) ?></span>
                                             </div>
-                                            <p class="text-amber-800 leading-relaxed text-[11px]">
+                                            <p class="<?= $isSudahWaktunya ? 'text-emerald-800' : 'text-amber-800' ?> leading-relaxed text-[11px]">
                                                 <?php if ($isBelumWaktunya): ?>
                                                     Tanggal penarikan Anda adalah <strong><?= htmlspecialchars($tglPenarikanIndo) ?></strong>. Anda belum bisa melakukan penarikan karena masa pelaksanaan Kerja Praktek masih berlangsung hingga tanggal tersebut.
                                                 <?php elseif ($isSudahWaktunya): ?>
@@ -1173,12 +1431,20 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                                         $ketStatus = trim((string)$dTemp['ket']);
                                                     }
                                                 }
+                                                $namaDosenPenguji = $getNamaPengujiBerkas($b['nama_berkas']);
                                             ?>
                                                 <div>
                                                     <div class="flex items-center justify-between mb-1">
-                                                        <label class="block text-xs font-bold text-slate-700">
-                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
-                                                        </label>
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if (!empty($namaDosenPenguji)): ?>
+                                                            <p class="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                                                                <i class="fas fa-user-tie text-orange-500 text-[10px]"></i>Dosen Penguji: <strong class="text-slate-800"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                            </p>
+                                                            <?php endif; ?>
+                                                        </div>
                                                         <?php if ($sudahAda): ?>
                                                         <div class="flex items-center gap-3">
                                                             <?php if ($urlFileLama): ?>
@@ -1272,12 +1538,20 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                                         $ketStatus = trim((string)$dTemp['ket']);
                                                     }
                                                 }
+                                                $namaDosenPenguji = $getNamaPengujiBerkas($b['nama_berkas']);
                                             ?>
                                                 <div>
                                                     <div class="flex items-center justify-between mb-1">
-                                                        <label class="block text-xs font-bold text-slate-700">
-                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
-                                                        </label>
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if (!empty($namaDosenPenguji)): ?>
+                                                            <p class="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                                                                <i class="fas fa-user-tie text-orange-500 text-[10px]"></i>Dosen Penguji: <strong class="text-slate-800"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                            </p>
+                                                            <?php endif; ?>
+                                                        </div>
                                                         <?php if ($sudahAda): ?>
                                                         <div class="flex items-center gap-3">
                                                             <?php if ($urlFileLama): ?>
@@ -1320,6 +1594,183 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                             <?php 
                                 break;
 
+                            case 13:
+                                // Step 13: Unggah Berkas Persyaratan Step 14 Lebih Awal
+                            ?>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Unggah Berkas Persyaratan (Step 14)</h4>
+                                            <p class="text-[11px] text-slate-500">Anda dapat mencicil mengunggah semua berkas persyaratan tahap 14 terlebih dahulu.</p>
+                                        </div>
+                                        <span class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">Dapat Diunggah Lebih Awal</span>
+                                    </div>
+
+                                    <?php if (!empty($berkasStep14)): ?>
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($berkasStep14 as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $berkasStep14Sudah);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                                $namaDosenPenguji = $getNamaPengujiBerkas($b['nama_berkas']);
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if (!empty($namaDosenPenguji)): ?>
+                                                            <p class="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                                                                <i class="fas fa-user-tie text-orange-500 text-[10px]"></i>Dosen Penguji: <strong class="text-slate-800"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                            </p>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php if ($sudahAda && $statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <div class="mb-2 p-2 rounded bg-rose-50 border border-rose-100 text-[11px] text-rose-700">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i><strong>Catatan Penolakan:</strong> <?= htmlspecialchars($ketStatus) ?>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                    >
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </form>
+                                    <?php else: ?>
+                                    <p class="text-xs text-slate-400 italic py-2">Belum ada berkas persyaratan yang dikonfigurasi untuk tahapan 14.</p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php 
+                                break;
+
+                            case 14:
+                                // Step 14: Unggah Berkas Persyaratan KP (Progres 14)
+                            ?>
+                                <div class="space-y-4">
+                                    <div class="rounded-lg bg-orange-50/60 border border-orange-100 p-4 text-xs text-slate-700 leading-relaxed">
+                                        <i class="fas fa-info-circle text-orange-500 mr-1.5"></i>
+                                        Silakan lengkapi seluruh berkas persyaratan berikut untuk menyelesaikan tahapan <strong><?= htmlspecialchars($currentStep['judul']) ?></strong>. Setelah seluruh berkas diunggah, tahapan ini akan otomatis selesai dan berlanjut ke tahap berikutnya.
+                                    </div>
+
+                                    <?php 
+                                    $listBerkas14 = !empty($berkasStep14) ? $berkasStep14 : $berkasDibutuhkan;
+                                    $listSudah14  = !empty($berkasStep14Sudah) ? $berkasStep14Sudah : $berkasSudahDunggah;
+                                    if (!empty($listBerkas14)): 
+                                    ?>
+                                    <form id="formSopKerja" method="post" enctype="multipart/form-data" class="space-y-4">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                                            <?php foreach ($listBerkas14 as $b): 
+                                                $sudahAda = in_array((int)$b['id'], $listSudah14);
+                                                $urlFileLama = '';
+                                                $statusBerkas = 'menunggu';
+                                                $ketStatus = '';
+
+                                                if ($sudahAda) {
+                                                    $qLama = query("SELECT file, status, ket FROM temp_kp WHERE nim = '$nim_clean' AND id_persyaratan = '{$b['id']}' LIMIT 1");
+                                                    if ($qLama && mysqli_num_rows($qLama) > 0) {
+                                                        $dTemp = mysqli_fetch_assoc($qLama);
+                                                        $urlFileLama = url_file($dTemp['file']);
+                                                        $statusBerkas = strtolower(trim((string)$dTemp['status']));
+                                                        $ketStatus = trim((string)$dTemp['ket']);
+                                                    }
+                                                }
+                                                $namaDosenPenguji = $getNamaPengujiBerkas($b['nama_berkas']);
+                                            ?>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-700">
+                                                                <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                            </label>
+                                                            <?php if (!empty($namaDosenPenguji)): ?>
+                                                            <p class="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                                                                <i class="fas fa-user-tie text-orange-500 text-[10px]"></i>Dosen Penguji: <strong class="text-slate-800"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                            </p>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php if ($sudahAda): ?>
+                                                        <div class="flex items-center gap-3">
+                                                            <?php if ($urlFileLama): ?>
+                                                            <a href="<?= $urlFileLama ?>" target="_blank" class="text-[10px] font-bold text-orange-600 hover:underline"><i class="fas fa-eye mr-1"></i>Lihat File</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($statusBerkas === 'diterima'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-emerald-600" data-id="<?= $b['id'] ?>"><i class="fas fa-check-circle mr-1"></i>Diterima</span>
+                                                            <?php elseif ($statusBerkas === 'ditolak'): ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-rose-600" data-id="<?= $b['id'] ?>"><i class="fas fa-times-circle mr-1"></i>Ditolak</span>
+                                                            <?php else: ?>
+                                                                <span class="status-berkas-badge text-[10px] font-bold text-amber-600" data-id="<?= $b['id'] ?>"><i class="fas fa-clock mr-1"></i>Menunggu Verifikasi</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php else: ?>
+                                                        <span class="status-berkas-badge text-[10px] font-semibold text-slate-400" data-id="<?= $b['id'] ?>">Belum diunggah</span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php if ($sudahAda && $statusBerkas === 'ditolak' && $ketStatus !== ''): ?>
+                                                    <div class="mb-2 p-2 rounded bg-rose-50 border border-rose-100 text-[11px] text-rose-700">
+                                                        <i class="fas fa-exclamation-circle mr-1"></i><strong>Catatan Penolakan:</strong> <?= htmlspecialchars($ketStatus) ?>
+                                                    </div>
+                                                    <?php endif; ?>
+
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".pdf" 
+                                                        <?= $statusBerkas === 'diterima' ? 'disabled' : '' ?>
+                                                        class="auto-upload-input w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-white focus:bg-white focus:outline-none transition <?= $statusBerkas === 'diterima' ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed opacity-75' : ($statusBerkas === 'ditolak' ? 'bg-rose-50 border-rose-200' : ($sudahAda ? 'bg-amber-50 border-amber-200' : '')) ?>" 
+                                                        data-id="<?= $b['id'] ?>"
+                                                        data-field="<?= htmlspecialchars($b['field'] ?? '') ?>"
+                                                    >
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </form>
+                                    <?php else: ?>
+                                    <p class="text-xs text-slate-400 italic py-2">Belum ada berkas persyaratan yang dikonfigurasi untuk tahapan 14.</p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php 
+                                break;
+
                             default:
                                 // Tahapan Kerja Praktek Mahasiswa Lainnya
                             ?>
@@ -1341,12 +1792,20 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                                     $ketStatus = trim((string)$dTemp['ket']);
                                                 }
                                             }
+                                            $namaDosenPenguji = $getNamaPengujiBerkas($b['nama_berkas']);
                                         ?>
                                             <div>
                                                 <div class="flex items-center justify-between mb-1">
-                                                    <label class="block text-xs font-bold text-slate-700">
-                                                        <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
-                                                    </label>
+                                                    <div>
+                                                        <label class="block text-xs font-bold text-slate-700">
+                                                            <?= htmlspecialchars($b['nama_berkas']) ?> (PDF) <span class="text-rose-500">*</span>
+                                                        </label>
+                                                        <?php if (!empty($namaDosenPenguji)): ?>
+                                                        <p class="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                                                            <i class="fas fa-user-tie text-orange-500 text-[10px]"></i>Dosen Penguji: <strong class="text-slate-800"><?= htmlspecialchars($namaDosenPenguji) ?></strong>
+                                                        </p>
+                                                        <?php endif; ?>
+                                                    </div>
                                                     <?php if ($sudahAda): ?>
                                                     <div class="flex items-center gap-3">
                                                         <?php if ($urlFileLama): ?>
@@ -1399,6 +1858,7 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                         ?>
 
                     <?php endif; ?>
+                    <?php endif; // akhir if isKpSelesai ?>
                 </div>
                 <?php endif; ?>
 
@@ -1412,10 +1872,10 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
             <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-slate-600">Progress Alur SOP</span>
-                    <span class="text-xs font-bold text-orange-600"><?= $progres ?>%</span>
+                    <span class="text-xs font-bold <?= $isKpSelesai ? 'text-emerald-600' : 'text-orange-600' ?>"><?= $progres ?>%</span>
                 </div>
                 <div class="progres-bar-track">
-                    <div class="progres-bar-fill" style="width:<?= $progres ?>%;"></div>
+                    <div class="progres-bar-fill <?= $isKpSelesai ? '!bg-emerald-500' : '' ?>" style="width:<?= $progres ?>%;"></div>
                 </div>
                 <p class="mt-2 text-[11px] text-slate-400"><?= $selesai ?> dari <?= $total ?> langkah SOP selesai.</p>
             </div>
@@ -1458,6 +1918,13 @@ if ($hasKpRecord && !$isKpInactive && $lastProsesId > 0) {
                                     <span class="text-[9px] font-semibold text-slate-500"><?= htmlspecialchars($s['executor']) ?></span>
                                 </div>
                                 <h4 class="text-xs font-bold text-slate-800 leading-snug mt-0.5"><?= htmlspecialchars($s['judul']) ?></h4>
+                                <?php if ($s['status'] === 'selesai' && !empty($s['waktu_selesai_label'])): ?>
+                                <div class="mt-1.5">
+                                    <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                                        <i class="fas fa-check-circle text-emerald-600 text-[9px]"></i> Selesai: <?= htmlspecialchars($s['waktu_selesai_label']) ?>
+                                    </span>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <?php endforeach; ?>

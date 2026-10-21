@@ -333,8 +333,9 @@ if ($isLevel3 && $userProdi !== '') {
                     container.innerHTML = '<div class="acc-empty text-center py-4">Gagal memuat data: ' + (respon.pesan || '') + '</div>';
                 }
             },
-            error: function() {
-                container.innerHTML = '<div class="acc-empty text-center py-4">Terjadi kesalahan pada server</div>';
+            error: function(xhr, status, err) {
+                var detail = xhr.responseText ? xhr.responseText.substring(0, 200) : (err || '');
+                container.innerHTML = '<div class="acc-empty text-center py-4">Terjadi kesalahan pada server' + (detail ? ': ' + detail : '') + '</div>';
             }
         });
     }

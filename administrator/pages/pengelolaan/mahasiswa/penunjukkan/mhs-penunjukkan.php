@@ -11,7 +11,7 @@ if (!$sudahLogin) {
 
 // Hak akses: Level 3 (Operator Prodi), 4 (Operator Jurusan), 5 (Kaprodi), 6, dan 9
 $userLevel = (int)($_SESSION['level'] ?? 0);
-$allowedLevels = [3, 4, 5, 6, 9];
+$allowedLevels = [5, 6, 9];
 
 if (!in_array($userLevel, $allowedLevels, true)) {
     http_response_code(403);
@@ -33,7 +33,7 @@ if (!in_array($userLevel, $allowedLevels, true)) {
 }
 
 // Khusus Operator Prodi (Level 3) & Kaprodi (Level 5), wajib sesuai prodi yang diampu
-$isFilterProdi = in_array($userLevel, [3, 5], true);
+$isFilterProdi = ($userLevel === 5);
 $userProdi     = $isFilterProdi ? get_prodi_user() : '';
 $namaProdiUser = '';
 if ($isFilterProdi && $userProdi !== '') {
@@ -76,6 +76,11 @@ if ($isFilterProdi && $userProdi !== '') {
     z-index: 40;
     pointer-events: none;
     box-shadow: 0 2px 6px rgba(15, 23, 42, .25);
+  }
+
+  .modal-overlay {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
   }
 
   .content-scroll {
@@ -251,62 +256,72 @@ if ($isFilterProdi && $userProdi !== '') {
     </div>
   </section>
 
-  <!-- ===== Modal Penunjukkan Dosen ===== -->
+  <!-- ===== Modal Penunjukkan Dosen (Style Kerja Praktek 1:1) ===== -->
   <div class="modal-overlay" id="modalPenunjukkan" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative border border-slate-200">
-      
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden">
       <!-- Header Modal -->
-      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-            <i class="fas fa-file-signature"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-slate-800 text-sm leading-snug" id="modalJudulTugas">Penunjukkan Dosen</h3>
-            <p class="text-xs text-slate-500" id="modalSubJudul">Tetapkan dosen pembimbing atau penguji</p>
-          </div>
-        </div>
-        <button type="button" class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2" data-modal-close>&times;</button>
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <h6 class="font-semibold text-slate-900 text-[15px]">
+            <i class="fas fa-file-signature mr-2 text-[#f97316]"></i>
+            <span id="modalJudulTugas">Penunjukkan Dosen</span>
+        </h6>
+        <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
       </div>
 
-      <!-- Info Mahasiswa -->
-      <div class="bg-slate-50/70 border-b border-slate-100 px-5 py-3 text-xs text-slate-700">
-        <div>
-          <span class="font-bold text-slate-800 text-sm block" id="mhsNama">-</span>
-          <span class="text-slate-500 font-mono text-xs mt-0.5 block" id="mhsNimProdi">-</span>
+      <!-- Konten Modal -->
+      <div class="p-6 max-h-[75vh] overflow-y-auto space-y-4">
+        <!-- Informasi Mahasiswa (Sama persis dengan Lembar Kerja KP) -->
+        <div class="rounded-lg bg-orange-50 p-4 border border-orange-100">
+            <h4 class="font-bold text-orange-800 text-sm mb-3"><i class="fas fa-user-graduate mr-2"></i>Informasi Mahasiswa</h4>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <p class="text-orange-600">NIM: <span class="font-semibold text-slate-800" id="mhsNim">-</span></p>
+                <p class="text-orange-600">Nama: <span class="font-semibold text-slate-800" id="mhsNama">-</span></p>
+                <p class="text-orange-600">Program Studi: <span class="font-semibold text-slate-800" id="mhsProdi">-</span></p>
+                <p class="text-orange-600">Kategori: <span class="font-semibold text-slate-800" id="mhsKategori">-</span></p>
+                <p class="text-orange-600 col-span-2">Judul: <span class="font-semibold text-slate-800" id="mhsJudul">-</span></p>
+            </div>
         </div>
-        <p class="text-slate-600 mt-2 text-xs leading-relaxed" id="mhsJudul">-</p>
+
+        <!-- Tugas Header -->
+        <h5 class="font-bold text-slate-800 text-[14px] border-b border-slate-200 pb-2">
+            <i class="fas fa-tasks mr-1.5 text-slate-400"></i>Tugas: <span id="modalSubJudul">Penunjukkan Dosen</span>
+        </h5>
+
+        <!-- Form Aksi Lembar Kerja Penunjukkan -->
+        <form id="formPenunjukkan" class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <input type="hidden" name="simpan-penunjukkan" value="1">
+            <input type="hidden" name="nim" id="inNim">
+            <input type="hidden" name="sumber" id="inSumber">
+            <input type="hidden" name="jenis_tugas" id="inJenisTugas">
+            <input type="hidden" name="progres_sekarang" id="inProgres">
+
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-slate-600 mb-2 flex items-center justify-between">
+                    <span>No. Surat Penunjukkan <span class="text-rose-500">*</span></span>
+                    <span class="text-[11px] font-normal text-slate-400"><i class="fas fa-lock text-slate-400 mr-1"></i>Otomatis (Terkunci)</span>
+                </label>
+                <div class="relative">
+                    <i class="far fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                    <input type="text" name="no_surat" id="inNoSurat" required readonly
+                           data-pembimbing="<?= tampil(get_nomor_surat('surat penunjukkan pembimbing')) ?>"
+                           data-penguji="<?= tampil(get_nomor_surat('surat penunjukkan penguji')) ?>"
+                           class="w-full rounded-md border border-slate-200 bg-slate-100/90 pl-8 pr-8 py-2 text-xs font-semibold text-slate-700 outline-none cursor-not-allowed select-none"
+                           placeholder="Memuat nomor surat otomatis...">
+                    <i class="fas fa-lock absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400" title="Nomor surat otomatis tidak dapat diedit"></i>
+                </div>
+            </div>
+
+            <!-- Dynamic Dosen Fields -->
+            <div id="dynamicDosenFields" class="space-y-3 mb-4">
+                <div class="py-6 text-center"><div class="spinner-slate mx-auto"></div></div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-200">
+                <button type="button" class="px-4 py-2 text-xs rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition" data-modal-close>Batal</button>
+                <button type="submit" id="btnSimpanPenunjukkan" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm transition" data-text="Buat Surat">Buat Surat</button>
+            </div>
+        </form>
       </div>
-
-      <!-- Form Body -->
-      <form id="formPenunjukkan" class="p-5 space-y-4">
-        <input type="hidden" name="simpan-penunjukkan" value="1">
-        <input type="hidden" name="nim" id="inNim">
-        <input type="hidden" name="sumber" id="inSumber">
-        <input type="hidden" name="jenis_tugas" id="inJenisTugas">
-        <input type="hidden" name="progres_sekarang" id="inProgres">
-
-        <!-- Nomor Surat -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">
-            Nomor Surat Penunjukkan <span class="text-rose-500">*</span>
-          </label>
-          <input type="text" name="no_surat" id="inNoSurat" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white" placeholder="Contoh: 123/UN47.B5/TU/2026" required>
-        </div>
-
-        <!-- Dynamic Dosen Fields -->
-        <div id="dynamicDosenFields" class="space-y-3">
-          <div class="py-6 text-center"><div class="spinner-slate mx-auto"></div></div>
-        </div>
-
-        <!-- Footer Buttons -->
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" class="px-4 py-2 text-xs rounded-lg border border-slate-200 text-slate-600 font-medium hover:bg-slate-100 transition" data-modal-close>Batal</button>
-          <button type="submit" id="btnSimpanPenunjukkan" class="px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm transition disabled:opacity-50" data-text="Tetapkan Penunjukkan">
-            Tetapkan Penunjukkan
-          </button>
-        </div>
-      </form>
 
     </div>
   </div>
@@ -467,33 +482,43 @@ if ($isFilterProdi && $userProdi !== '') {
     $('#inSumber').val(sumber);
     $('#inJenisTugas').val(jenisTugas);
     $('#inProgres').val(progres);
-    $('#inNoSurat').val('');
 
+    // Ambil nomor surat default sesuai jenis tugas: 'surat penunjukkan pembimbing' atau 'surat penunjukkan penguji'
+    var isPembimbing = (jenisTugas === 'pembimbing');
+    var defaultNomor = isPembimbing ? ($('#inNoSurat').attr('data-pembimbing') || $('#inNoSurat').data('pembimbing')) : ($('#inNoSurat').attr('data-penguji') || $('#inNoSurat').data('penguji'));
+    if (defaultNomor && defaultNomor !== 'Tidak Ditemukan') {
+      $('#inNoSurat').val(defaultNomor);
+    } else {
+      $('#inNoSurat').val('').attr('placeholder', 'Memuat nomor surat otomatis...');
+    }
+
+    $('#mhsNim').text(nim);
     $('#mhsNama').text(nama);
-    $('#mhsNimProdi').text(nim + ' • ' + prodi);
+    $('#mhsProdi').text(prodi || '-');
+    $('#mhsKategori').text(sumber === 'kp' ? 'Kerja Praktek' : 'Skripsi');
     $('#mhsJudul').text(judul || '-');
 
     var judulModal = 'Penunjukkan Dosen';
-    var subJudul = 'Tetapkan dosen pembimbing atau penguji';
+    var subJudul = 'Penunjukkan Dosen';
 
     if (sumber === 'skripsi') {
       if (jenisTugas === 'pembimbing') {
         judulModal = 'Penunjukkan Pembimbing Skripsi';
-        subJudul = 'Tetapkan Dosen Pembimbing 1 dan Pembimbing 2';
+        subJudul = 'Penunjukkan Dosen Pembimbing Skripsi';
       } else if (jenisTugas === 'penguji_hasil') {
         judulModal = 'Penunjukkan Penguji Ujian Hasil';
-        subJudul = 'Tetapkan Dosen Penguji Ujian Hasil Skripsi (1-5 orang)';
+        subJudul = 'Penunjukkan Dosen Penguji Ujian Hasil Skripsi';
       } else if (jenisTugas === 'penguji_tutup') {
         judulModal = 'Penunjukkan Penguji Ujian Tutup';
-        subJudul = 'Tetapkan Dosen Penguji Ujian Tutup / Komprehensif (1-5 orang)';
+        subJudul = 'Penunjukkan Dosen Penguji Ujian Tutup Skripsi';
       }
     } else if (sumber === 'kp') {
       if (jenisTugas === 'pembimbing') {
         judulModal = 'Penunjukkan Pembimbing Kerja Praktek';
-        subJudul = 'Tetapkan Dosen Pembimbing Kerja Praktek';
+        subJudul = 'Penunjukkan Dosen Pembimbing KP';
       } else if (jenisTugas === 'penguji') {
         judulModal = 'Penunjukkan Penguji Seminar KP';
-        subJudul = 'Tetapkan Dosen Penguji Seminar KP';
+        subJudul = 'Penunjukkan Dosen Penguji Seminar KP';
       }
     }
 
@@ -521,6 +546,15 @@ if ($isFilterProdi && $userProdi !== '') {
           return;
         }
 
+        // Auto-fill nomor surat otomatis dari get_nomor_surat
+        if (res.no_surat && res.no_surat !== 'Tidak Ditemukan') {
+          $('#inNoSurat').val(res.no_surat);
+        } else if (defaultNomor && defaultNomor !== 'Tidak Ditemukan') {
+          $('#inNoSurat').val(defaultNomor);
+        } else {
+          $('#inNoSurat').attr('placeholder', 'Nomor surat otomatis...');
+        }
+
         var listDosen = res.list_dosen || [];
         var saran = res.saran_dosen || {};
 
@@ -533,69 +567,56 @@ if ($isFilterProdi && $userProdi !== '') {
           return opts;
         }
 
+        function renderDosenField(name, labelText, isRequired, recText, selectedVal) {
+          var reqStar = isRequired ? ' <span class="text-rose-500">*</span>' : '';
+          var reqAttr = isRequired ? ' required' : '';
+          var recLabel = recText ? ' <span class="text-orange-600 font-normal">(' + recText + ')</span>' : '';
+
+          return '<div>' +
+                   '<label class="block text-xs font-semibold text-slate-600 mb-1">' + labelText + reqStar + recLabel + '</label>' +
+                   '<select name="' + name + '" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400"' + reqAttr + '>' +
+                     renderSelectOptions(selectedVal) +
+                   '</select>' +
+                 '</div>';
+        }
+
         var htmlFields = '';
 
         if (sumber === 'skripsi') {
           if (jenisTugas === 'pembimbing') {
-            htmlFields += '<div>' +
-                            '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Pembimbing 1 <span class="text-rose-500">*</span></label>' +
-                            '<select name="pembimbing1" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white" required>' +
-                              renderSelectOptions(saran.pembimbing1 || '') +
-                            '</select>' +
-                          '</div>' +
-                          '<div>' +
-                            '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Pembimbing 2</label>' +
-                            '<select name="pembimbing2" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">' +
-                              renderSelectOptions(saran.pembimbing2 || '') +
-                            '</select>' +
-                          '</div>';
+            htmlFields += renderDosenField('pembimbing1', 'Dosen Pembimbing 1', true, '', saran.pembimbing1 || '');
+            htmlFields += renderDosenField('pembimbing2', 'Dosen Pembimbing 2', false, '', saran.pembimbing2 || '');
           } else if (jenisTugas === 'penguji_hasil' || jenisTugas === 'penguji_tutup') {
             for (var i = 1; i <= 5; i++) {
-              var labelRec = '';
+              var recText = '';
               var curVal = saran['penguji' + i] || '';
-              if (jenisTugas === 'penguji_hasil' && i === 1 && curVal) labelRec = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 1)</span>';
-              if (jenisTugas === 'penguji_hasil' && i === 2 && curVal) labelRec = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 2)</span>';
-              var isReq = (i === 1) ? ' required' : '';
-              var star = (i === 1) ? ' <span class="text-rose-500">*</span>' : '';
+              if (jenisTugas === 'penguji_hasil' && i === 1 && curVal) recText = 'Disarankan: Pembimbing 1';
+              if (jenisTugas === 'penguji_hasil' && i === 2 && curVal) recText = 'Disarankan: Pembimbing 2';
+              var isReq = (i === 1);
 
-              htmlFields += '<div>' +
-                              '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Penguji ' + i + star + labelRec + '</label>' +
-                              '<select name="penguji' + i + '" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white"' + isReq + '>' +
-                                renderSelectOptions(curVal) +
-                              '</select>' +
-                            '</div>';
+              htmlFields += renderDosenField('penguji' + i, 'Dosen Penguji ' + i, isReq, recText, curVal);
             }
           }
         } else if (sumber === 'kp') {
           if (jenisTugas === 'pembimbing') {
-            htmlFields += '<div>' +
-                            '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Pembimbing KP <span class="text-rose-500">*</span></label>' +
-                            '<select name="pembimbing1" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white" required>' +
-                              renderSelectOptions(saran.pembimbing1 || '') +
-                            '</select>' +
-                          '</div>';
+            htmlFields += renderDosenField('pembimbing1', 'Dosen Pembimbing KP', true, '', saran.pembimbing1 || '');
           } else if (jenisTugas === 'penguji') {
             var curP1 = saran.penguji1 || '';
-            var labelRecP1 = curP1 ? ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing KP)</span>' : '';
-            htmlFields += '<div>' +
-                            '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Penguji 1 <span class="text-rose-500">*</span>' + labelRecP1 + '</label>' +
-                            '<select name="penguji1" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white" required>' +
-                              renderSelectOptions(curP1) +
-                            '</select>' +
-                          '</div>' +
-                          '<div>' +
-                            '<label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Penguji 2</label>' +
-                            '<select name="penguji2" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:bg-white">' +
-                              renderSelectOptions('') +
-                            '</select>' +
-                          '</div>';
+            var curP2 = saran.penguji2 || '';
+            var curP3 = saran.penguji3 || '';
+            var recP1 = curP1 ? 'Disarankan: Pembimbing KP' : '';
+
+            htmlFields += renderDosenField('penguji1', 'Dosen Penguji 1', true, recP1, curP1);
+            htmlFields += renderDosenField('penguji2', 'Dosen Penguji 2', false, '', curP2);
+            htmlFields += renderDosenField('penguji3', 'Dosen Penguji 3', false, '', curP3);
           }
         }
 
         container.html(htmlFields);
       },
-      error: function() {
-        container.html('<p class="text-xs text-rose-500 text-center">Gagal terhubung ke server.</p>');
+      error: function(xhr, status, error) {
+        console.error('AJAX error ambil-detail-penunjukkan:', status, error, xhr.responseText);
+        container.html('<p class="text-xs text-rose-500 text-center">Gagal memuat data penunjukkan (' + (error || status) + ').</p>');
       }
     });
   });
@@ -603,6 +624,12 @@ if ($isFilterProdi && $userProdi !== '') {
   // ================= CLOSE MODAL =================
   $(document).on('click', '[data-modal-close]', function() {
     $('.modal-overlay').removeClass('show');
+  });
+
+  $(document).on('click', '.modal-overlay', function(e) {
+    if ($(e.target).closest('.bg-white').length === 0) {
+      $(this).removeClass('show');
+    }
   });
 
   // ================= SUBMIT FORM =================
@@ -626,8 +653,17 @@ if ($isFilterProdi && $userProdi !== '') {
           toast(res.pesan || 'Gagal menyimpan penunjukkan', 'error');
         }
       },
-      error: function() {
-        toast('Terjadi kesalahan pada server saat menyimpan penunjukkan', 'error');
+      error: function(xhr) {
+        var msg = 'Terjadi kesalahan pada server saat menyimpan penunjukkan';
+        if (xhr.responseJSON && xhr.responseJSON.pesan) {
+          msg = xhr.responseJSON.pesan;
+        } else if (xhr.responseText) {
+          try {
+            var parsed = JSON.parse(xhr.responseText);
+            if (parsed && parsed.pesan) msg = parsed.pesan;
+          } catch (e) {}
+        }
+        toast(msg, 'error');
       },
       complete: function() {
         setButtonLoading(btn, false);

@@ -22,12 +22,12 @@ if (!$sudahLogin) {
 
 // Cek hak akses: Level 3 (Operator Prodi), 4 (Operator Jurusan), 5 (Kaprodi), 6, dan 9
 $userLevel = (int)($_SESSION['level'] ?? 0);
-if (!in_array($userLevel, [3, 4, 5, 6, 9], true)) {
+if (!in_array($userLevel, [5, 6, 9], true)) {
     echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: Anda tidak memiliki izin untuk aksi ini']);
     exit;
 }
 
-$isFilterProdi = in_array($userLevel, [3, 5], true);
+$isFilterProdi = ($userLevel === 5);
 $userProdi     = $isFilterProdi ? get_prodi_user() : '';
 
 // Lepas session lock segera agar request polling dan AJAX concurrent tidak saling tunggu
@@ -96,7 +96,7 @@ if (isset($_POST['ambil-tabel-antrian'])) {
             <thead class="sticky top-0 z-10 bg-slate-900 text-xs text-white">
                 <tr>
                     <th class="py-3.5 px-5 font-semibold uppercase tracking-wider">Mahasiswa</th>
-                    <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Kategori &amp; Tahapan</th>
+                    <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Kategori</th>
                     <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Judul</th>
                     <th class="py-3.5 px-4 font-semibold uppercase tracking-wider">Kebutuhan</th>
                     <th class="py-3.5 px-5 font-semibold uppercase tracking-wider">Aksi</th>
@@ -132,7 +132,6 @@ if (isset($_POST['ambil-tabel-antrian'])) {
                         <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $badgeBg ?>">
                             <?= $badgeTeks ?>
                         </span>
-                        <p class="mt-1 text-xs text-slate-500 leading-snug"><?= tampil($row['tahapan_label']) ?></p>
                     </td>
                     <td class="px-4 py-4 text-slate-600">
                         <p class="text-sm leading-snug"><?= tampil($row['judul'] ?: '-') ?></p>
@@ -192,69 +191,115 @@ if (isset($_POST['ambil-detail-penunjukkan'])) {
         }
     }
 
-    // List dosen aktif sesuai aturan konvensi
     $listDosen = [];
-    $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND (status IS NULL OR LOWER(status) = 'aktif' OR status = '' OR status = '1') ORDER BY nama ASC");
-    if (!$qDosen || mysqli_num_rows($qDosen) === 0) {
-        $qDosen = query("SELECT id, nama FROM dosen ORDER BY nama ASC");
-    }
-    if ($qDosen) {
-        while ($d = mysqli_fetch_assoc($qDosen)) {
-            $listDosen[] = ['id' => $d['id'], 'nama' => $d['nama']];
+    $saranDosen = [];
+
+    try {
+        // List dosen aktif sesuai aturan konvensi
+        $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND (status IS NULL OR LOWER(status) = 'aktif' OR status = '' OR status = '1') ORDER BY nama ASC");
+        if (!$qDosen || mysqli_num_rows($qDosen) === 0) {
+            $qDosen = query("SELECT id, nama FROM dosen ORDER BY nama ASC");
+        }
+        if ($qDosen) {
+            while ($d = mysqli_fetch_assoc($qDosen)) {
+                $listDosen[] = ['id' => $d['id'], 'nama' => $d['nama']];
+            }
+        }
+
+        if ($sumber === 'skripsi') {
+            if ($jenisTugas === 'penguji_hasil') {
+                // Saran: Penguji 1 & 2 mengacu ke Pembimbing 1 & 2 sebelumnya
+                $qBimb = query("SELECT sp.pembimbing1, sp.pembimbing2 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_pembimbing = sp.id WHERE s.nim = '$nim' LIMIT 1");
+                $rBimb = $qBimb ? mysqli_fetch_assoc($qBimb) : null;
+                if (!$rBimb) {
+                    $qBimb2 = query("SELECT pembimbing1, pembimbing2 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING SKRIPSI' ORDER BY id DESC LIMIT 1");
+                    $rBimb = $qBimb2 ? mysqli_fetch_assoc($qBimb2) : null;
+                }
+                if ($rBimb) {
+                    $saranDosen['penguji1'] = (string)($rBimb['pembimbing1'] ?? '');
+                    $saranDosen['penguji2'] = (string)($rBimb['pembimbing2'] ?? '');
+                }
+            } elseif ($jenisTugas === 'penguji_tutup') {
+                // Saran: Ambil penguji 1-5 dari Penguji Hasil sebelumnya
+                $qHasil = query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id WHERE s.nim = '$nim' LIMIT 1");
+                $rHasil = $qHasil ? mysqli_fetch_assoc($qHasil) : null;
+                if (!$rHasil) {
+                    $qHasil2 = query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1");
+                    $rHasil = $qHasil2 ? mysqli_fetch_assoc($qHasil2) : null;
+                }
+                if ($rHasil) {
+                    $saranDosen['penguji1'] = (string)($rHasil['penguji1'] ?? '');
+                    $saranDosen['penguji2'] = (string)($rHasil['penguji2'] ?? '');
+                    $saranDosen['penguji3'] = (string)($rHasil['penguji3'] ?? '');
+                    $saranDosen['penguji4'] = (string)($rHasil['penguji4'] ?? '');
+                    $saranDosen['penguji5'] = (string)($rHasil['penguji5'] ?? '');
+                }
+            }
+        } elseif ($sumber === 'kp') {
+            if ($jenisTugas === 'penguji') {
+                // Saran: Penguji 1 KP disarankan mengacu ke Pembimbing KP sebelumnya
+                $pembimbingKpId = '';
+
+                // 1. Cek langsung dari surat_penunjukkan keterangan PEMBIMBING KP
+                $qSp = query("SELECT pembimbing1 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1");
+                if ($qSp && $rSp = mysqli_fetch_assoc($qSp)) {
+                    $pembimbingKpId = $rSp['pembimbing1'] ?? '';
+                }
+
+                // 2. Jika belum ketemu, cek dari surat_penunjukkan_pembimbing di tabel kp
+                if (empty($pembimbingKpId)) {
+                    $qKp = query("SELECT surat_penunjukkan_pembimbing FROM kp WHERE nim = '$nim' LIMIT 1");
+                    if ($qKp && $rKp = mysqli_fetch_assoc($qKp)) {
+                        $idS = (int)($rKp['surat_penunjukkan_pembimbing'] ?? 0);
+                        if ($idS > 0) {
+                            $qSp2 = query("SELECT pembimbing1 FROM surat_penunjukkan WHERE id = $idS LIMIT 1");
+                            if ($qSp2 && $rSp2 = mysqli_fetch_assoc($qSp2)) {
+                                $pembimbingKpId = $rSp2['pembimbing1'] ?? '';
+                            }
+                        }
+                    }
+                }
+
+                // Pastikan nilai saran penguji 1 cocok dengan dosen.id (jika nilai tersimpan berupa NIP)
+                if (!empty($pembimbingKpId)) {
+                    $valSafe = bersihkan($pembimbingKpId);
+                    $qCekDosen = query("SELECT id FROM dosen WHERE id = '$valSafe' OR nip = '$valSafe' LIMIT 1");
+                    if ($qCekDosen && $rDosen = mysqli_fetch_assoc($qCekDosen)) {
+                        $saranDosen['penguji1'] = (string)$rDosen['id'];
+                    } else {
+                        $saranDosen['penguji1'] = (string)$pembimbingKpId;
+                    }
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        // Fallback: pastikan list_dosen tetap terisi jika terjadi error
+        if (empty($listDosen)) {
+            $qFallback = query("SELECT id, nama FROM dosen ORDER BY nama ASC");
+            if ($qFallback) {
+                while ($df = mysqli_fetch_assoc($qFallback)) {
+                    $listDosen[] = ['id' => $df['id'], 'nama' => $df['nama']];
+                }
+            }
         }
     }
 
-    $saranDosen = [];
-    if ($sumber === 'skripsi') {
-        if ($jenisTugas === 'penguji_hasil') {
-            // Saran: Penguji 1 & 2 mengacu ke Pembimbing 1 & 2 sebelumnya
-            $qBimb = query("SELECT sp.pembimbing1, sp.pembimbing2 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_pembimbing = sp.id WHERE s.nim = '$nim' LIMIT 1");
-            $rBimb = $qBimb ? mysqli_fetch_assoc($qBimb) : null;
-            if (!$rBimb) {
-                $qBimb2 = query("SELECT pembimbing1, pembimbing2 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING SKRIPSI' ORDER BY id DESC LIMIT 1");
-                $rBimb = $qBimb2 ? mysqli_fetch_assoc($qBimb2) : null;
-            }
-            if ($rBimb) {
-                $saranDosen['penguji1'] = (string)($rBimb['pembimbing1'] ?? '');
-                $saranDosen['penguji2'] = (string)($rBimb['pembimbing2'] ?? '');
-            }
-        } elseif ($jenisTugas === 'penguji_tutup') {
-            // Saran: Ambil penguji 1-5 dari Penguji Hasil sebelumnya
-            $qHasil = query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id WHERE s.nim = '$nim' LIMIT 1");
-            $rHasil = $qHasil ? mysqli_fetch_assoc($qHasil) : null;
-            if (!$rHasil) {
-                $qHasil2 = query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1");
-                $rHasil = $qHasil2 ? mysqli_fetch_assoc($qHasil2) : null;
-            }
-            if ($rHasil) {
-                $saranDosen['penguji1'] = (string)($rHasil['penguji1'] ?? '');
-                $saranDosen['penguji2'] = (string)($rHasil['penguji2'] ?? '');
-                $saranDosen['penguji3'] = (string)($rHasil['penguji3'] ?? '');
-                $saranDosen['penguji4'] = (string)($rHasil['penguji4'] ?? '');
-                $saranDosen['penguji5'] = (string)($rHasil['penguji5'] ?? '');
-            }
-        }
-    } elseif ($sumber === 'kp') {
-        if ($jenisTugas === 'penguji') {
-            // Saran: Penguji 1 KP mengacu ke Pembimbing KP sebelumnya
-            $qBimbKp = query("SELECT sp.pembimbing1 FROM surat_penunjukkan sp WHERE sp.nim = '$nim' AND sp.keterangan = 'PEMBIMBING KP' ORDER BY sp.id DESC LIMIT 1");
-            $rBimbKp = $qBimbKp ? mysqli_fetch_assoc($qBimbKp) : null;
-            if (!$rBimbKp) {
-                $qBimbKp2 = query("SELECT pembimbing FROM kp WHERE nim = '$nim' LIMIT 1");
-                $rBimbKp = $qBimbKp2 ? mysqli_fetch_assoc($qBimbKp2) : null;
-                if ($rBimbKp && !empty($rBimbKp['pembimbing'])) {
-                    $saranDosen['penguji1'] = (string)$rBimbKp['pembimbing'];
-                }
-            } else {
-                $saranDosen['penguji1'] = (string)($rBimbKp['pembimbing1'] ?? '');
-            }
+    // Auto-generate nomor surat sesuai jenis penunjukkan
+    $jenisSurat = ($jenisTugas === 'pembimbing') ? 'surat penunjukkan pembimbing' : 'surat penunjukkan penguji';
+    $noSuratOtomatis = '';
+    if (function_exists('get_nomor_surat')) {
+        $noSuratOtomatis = get_nomor_surat($jenisSurat);
+        if ($noSuratOtomatis === 'Tidak Ditemukan') {
+            $noSuratOtomatis = '';
         }
     }
 
     echo json_encode([
         'status'      => true,
         'list_dosen'  => $listDosen,
-        'saran_dosen' => $saranDosen
+        'saran_dosen' => $saranDosen,
+        'no_surat'    => $noSuratOtomatis,
+        'jenis_surat' => $jenisSurat
     ]);
     exit;
 }
@@ -265,14 +310,20 @@ if (isset($_POST['simpan-penunjukkan'])) {
     $sumber          = bersihkan($_POST['sumber'] ?? '');
     $jenisTugas      = bersihkan($_POST['jenis_tugas'] ?? '');
     $progresSekarang = (int)($_POST['progres_sekarang'] ?? 0);
-    $noSurat         = bersihkan($_POST['no_surat'] ?? '');
+    $noSuratTeks     = bersihkan($_POST['no_surat'] ?? '');
 
     if ($nim === '' || $sumber === '' || $jenisTugas === '') {
         echo json_encode(['status' => false, 'pesan' => 'Data identitas penunjukkan tidak lengkap']);
         exit;
     }
 
-    if ($noSurat === '') {
+    // Pastikan nomor surat terisi; jika kosong dari form, ambil dari get_nomor_surat($kategori)
+    $kategoriNomor = ($jenisTugas === 'pembimbing') ? 'surat penunjukkan pembimbing' : 'surat penunjukkan penguji';
+    if ($noSuratTeks === '' || $noSuratTeks === 'Tidak Ditemukan') {
+        $noSuratTeks = get_nomor_surat($kategoriNomor);
+    }
+
+    if ($noSuratTeks === '' || $noSuratTeks === 'Tidak Ditemukan') {
         echo json_encode(['status' => false, 'pesan' => 'Nomor surat penunjukkan wajib diisi']);
         exit;
     }
@@ -289,145 +340,238 @@ if (isset($_POST['simpan-penunjukkan'])) {
 
     $waktuSistem     = time();
     $tanggalSekarang = date('Y-m-d');
-    $idSurat         = $waktuSistem;
 
-    if ($sumber === 'skripsi') {
-        if ($jenisTugas === 'pembimbing') {
-            $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
-            $pembimbing2 = bersihkan($_POST['pembimbing2'] ?? '');
+    // Helper ID unik untuk surat_penunjukkan baru (anti-collision)
+    $dapatkanIdSuratBaru = function() use ($waktuSistem) {
+        $idCandidate = $waktuSistem;
+        while (true) {
+            $cekSp = query("SELECT id FROM surat_penunjukkan WHERE id = $idCandidate LIMIT 1");
+            if (!$cekSp || mysqli_num_rows($cekSp) === 0) {
+                break;
+            }
+            $idCandidate++;
+        }
+        return $idCandidate;
+    };
 
-            if ($pembimbing1 === '') {
-                echo json_encode(['status' => false, 'pesan' => 'Dosen Pembimbing 1 wajib dipilih']);
+    try {
+        if ($sumber === 'skripsi') {
+            if ($jenisTugas === 'pembimbing') {
+                $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
+                $pembimbing2 = bersihkan($_POST['pembimbing2'] ?? '');
+
+                if ($pembimbing1 === '') {
+                    echo json_encode(['status' => false, 'pesan' => 'Dosen Pembimbing 1 wajib dipilih']);
+                    exit;
+                }
+
+                // Masukkan teks nomor surat ke tabel nomor_surat, ambil integer ID-nya
+                $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Pembimbing Skripsi - $nim");
+                if ($idNomorSurat <= 0) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat penunjukkan pembimbing skripsi']);
+                    exit;
+                }
+
+                // Cek apakah sudah pernah ada surat penunjukkan pembimbing skripsi sebelumnya
+                $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING SKRIPSI' ORDER BY id DESC LIMIT 1");
+                if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
+                    $idSurat = (int)$rCek['id'];
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, pembimbing1 = '$pembimbing1', pembimbing2 = '$pembimbing2', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                } else {
+                    $idSurat = $dapatkanIdSuratBaru();
+                    $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, pembimbing2, tanggal, keterangan) 
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$pembimbing1', '$pembimbing2', '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
+                }
+
+                if ($ins) {
+                    query("UPDATE skripsi SET penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
+                    if ($progresSekarang <= 3) {
+                        $waktuProgres = $waktuSistem + 1;
+                        query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, 4, '$nim')");
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Pembimbing Skripsi berhasil disimpan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan pembimbing skripsi']);
+                }
+                exit;
+
+            } elseif ($jenisTugas === 'penguji_hasil') {
+                $penguji1 = bersihkan($_POST['penguji1'] ?? '');
+                $penguji2 = bersihkan($_POST['penguji2'] ?? '');
+                $penguji3 = bersihkan($_POST['penguji3'] ?? '');
+                $penguji4 = bersihkan($_POST['penguji4'] ?? '');
+                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
+
+                if ($penguji1 === '') {
+                    echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
+                    exit;
+                }
+
+                $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Hasil Skripsi - $nim");
+                if ($idNomorSurat <= 0) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat penguji hasil skripsi']);
+                    exit;
+                }
+
+                $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1");
+                if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
+                    $idSurat = (int)$rCek['id'];
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', penguji4 = '$penguji4', penguji5 = '$penguji5', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                } else {
+                    $idSurat = $dapatkanIdSuratBaru();
+                    $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI HASIL')");
+                }
+
+                if ($ins) {
+                    query("UPDATE skripsi SET penunjukkan_hasil = '$idSurat' WHERE nim = '$nim'");
+                    if ($progresSekarang <= 9) {
+                        $waktuProgres = $waktuSistem + 1;
+                        query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, 10, '$nim')");
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Hasil berhasil disimpan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji hasil']);
+                }
+                exit;
+
+            } elseif ($jenisTugas === 'penguji_tutup') {
+                $penguji1 = bersihkan($_POST['penguji1'] ?? '');
+                $penguji2 = bersihkan($_POST['penguji2'] ?? '');
+                $penguji3 = bersihkan($_POST['penguji3'] ?? '');
+                $penguji4 = bersihkan($_POST['penguji4'] ?? '');
+                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
+
+                if ($penguji1 === '') {
+                    echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
+                    exit;
+                }
+
+                $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Tutup Skripsi - $nim");
+                if ($idNomorSurat <= 0) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat penguji tutup skripsi']);
+                    exit;
+                }
+
+                $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI TUTUP' ORDER BY id DESC LIMIT 1");
+                if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
+                    $idSurat = (int)$rCek['id'];
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', penguji4 = '$penguji4', penguji5 = '$penguji5', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                } else {
+                    $idSurat = $dapatkanIdSuratBaru();
+                    $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI TUTUP')");
+                }
+
+                if ($ins) {
+                    query("UPDATE skripsi SET penunjukkan_tutup = '$idSurat' WHERE nim = '$nim'");
+                    if ($progresSekarang <= 17) {
+                        $waktuProgres = $waktuSistem + 1;
+                        query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, 18, '$nim')");
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Ujian Tutup berhasil disimpan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji tutup']);
+                }
                 exit;
             }
 
-            // Simpan ke surat_penunjukkan
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, pembimbing2, tanggal, keterangan) 
-                          VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$pembimbing2', '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
+        } elseif ($sumber === 'kp') {
+            if ($jenisTugas === 'pembimbing') {
+                $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
 
-            if ($ins) {
-                query("UPDATE skripsi SET penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
-                $progresBaru = 4;
-                $waktuProgres = $waktuSistem + 1;
-                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
+                if ($pembimbing1 === '') {
+                    echo json_encode(['status' => false, 'pesan' => 'Dosen Pembimbing KP wajib dipilih']);
+                    exit;
+                }
 
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Pembimbing Skripsi berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan pembimbing: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
+                $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Pembimbing KP - $nim");
+                if ($idNomorSurat <= 0) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat pembimbing KP']);
+                    exit;
+                }
 
-        } elseif ($jenisTugas === 'penguji_hasil') {
-            $penguji1 = bersihkan($_POST['penguji1'] ?? '');
-            $penguji2 = bersihkan($_POST['penguji2'] ?? '');
-            $penguji3 = bersihkan($_POST['penguji3'] ?? '');
-            $penguji4 = bersihkan($_POST['penguji4'] ?? '');
-            $penguji5 = bersihkan($_POST['penguji5'] ?? '');
+                $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING KP' ORDER BY id DESC LIMIT 1");
+                if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
+                    $idSurat = (int)$rCek['id'];
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, pembimbing1 = '$pembimbing1', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                } else {
+                    $idSurat = $dapatkanIdSuratBaru();
+                    $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, tanggal, keterangan) 
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$pembimbing1', '$tanggalSekarang', 'PEMBIMBING KP')");
+                }
 
-            if ($penguji1 === '') {
-                echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
+                if ($ins) {
+                    query("UPDATE kp SET surat_penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
+                    if ($progresSekarang <= 6) {
+                        $waktuProgres = $waktuSistem + 1;
+                        set_progres_kp($nim, 7, $waktuProgres);
+                    }
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Pembimbing KP berhasil disimpan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan pembimbing KP']);
+                }
+                exit;
+
+            } elseif ($jenisTugas === 'penguji') {
+                $penguji1 = bersihkan($_POST['penguji1'] ?? '');
+                $penguji2 = bersihkan($_POST['penguji2'] ?? '');
+                $penguji3 = bersihkan($_POST['penguji3'] ?? '');
+
+                if ($penguji1 === '') {
+                    echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 Seminar KP wajib dipilih']);
+                    exit;
+                }
+
+                $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Seminar KP - $nim");
+                if ($idNomorSurat <= 0) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat penguji seminar KP']);
+                    exit;
+                }
+
+                $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND (keterangan = 'PENGUJI KP' OR keterangan LIKE '%PENGUJI%KP%') ORDER BY id DESC LIMIT 1");
+                if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
+                    $idSurat = (int)$rCek['id'];
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                } else {
+                    $idSurat = $dapatkanIdSuratBaru();
+                    $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, tanggal, keterangan) 
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$tanggalSekarang', 'PENGUJI KP')");
+                }
+
+                if ($ins) {
+                    query("UPDATE kp SET surat_penunjukkan_penguji = '$idSurat' WHERE nim = '$nim'");
+
+                    echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Seminar KP berhasil disimpan']);
+                } else {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji seminar KP']);
+                }
                 exit;
             }
-
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
-                          VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI HASIL')");
-
-            if ($ins) {
-                query("UPDATE skripsi SET penunjukkan_hasil = '$idSurat' WHERE nim = '$nim'");
-                $progresBaru = 10;
-                $waktuProgres = $waktuSistem + 1;
-                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
-
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Hasil berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji hasil: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
-
-        } elseif ($jenisTugas === 'penguji_tutup') {
-            $penguji1 = bersihkan($_POST['penguji1'] ?? '');
-            $penguji2 = bersihkan($_POST['penguji2'] ?? '');
-            $penguji3 = bersihkan($_POST['penguji3'] ?? '');
-            $penguji4 = bersihkan($_POST['penguji4'] ?? '');
-            $penguji5 = bersihkan($_POST['penguji5'] ?? '');
-
-            if ($penguji1 === '') {
-                echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
-                exit;
-            }
-
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
-                          VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI TUTUP')");
-
-            if ($ins) {
-                query("UPDATE skripsi SET penunjukkan_tutup = '$idSurat' WHERE nim = '$nim'");
-                $progresBaru = 18;
-                $waktuProgres = $waktuSistem + 1;
-                query("INSERT INTO progres_skripsi (waktu, proses, mahasiswa) VALUES ($waktuProgres, $progresBaru, '$nim')");
-
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Ujian Tutup berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji tutup: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
         }
 
-    } elseif ($sumber === 'kp') {
-        if ($jenisTugas === 'pembimbing') {
-            $pembimbing1 = bersihkan($_POST['pembimbing1'] ?? '');
+        echo json_encode(['status' => false, 'pesan' => 'Jenis penunjukkan tidak dikenali']);
+        exit;
 
-            if ($pembimbing1 === '') {
-                echo json_encode(['status' => false, 'pesan' => 'Dosen Pembimbing KP wajib dipilih']);
-                exit;
-            }
-
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, tanggal, keterangan) 
-                          VALUES ($idSurat, '$noSurat', '$nim', '$pembimbing1', '$tanggalSekarang', 'PEMBIMBING KP')");
-
-            if ($ins) {
-                query("UPDATE kp SET surat_penunjukkan_pembimbing = '$idSurat' WHERE nim = '$nim'");
-                $progresBaru = 7;
-                $waktuProgres = $waktuSistem + 1;
-                set_progres_kp($nim, $progresBaru, $waktuProgres);
-
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Pembimbing KP berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan pembimbing KP: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
-
-        } elseif ($jenisTugas === 'penguji') {
-            $penguji1 = bersihkan($_POST['penguji1'] ?? '');
-            $penguji2 = bersihkan($_POST['penguji2'] ?? '');
-
-            if ($penguji1 === '') {
-                echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 Seminar KP wajib dipilih']);
-                exit;
-            }
-
-            $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, tanggal, keterangan) 
-                          VALUES ($idSurat, '$noSurat', '$nim', '$penguji1', '$penguji2', '$tanggalSekarang', 'PENGUJI KP')");
-
-            if ($ins) {
-                query("UPDATE kp SET surat_penunjukkan_penguji = '$idSurat' WHERE nim = '$nim'");
-                $progresBaru = 13;
-                $waktuProgres = $waktuSistem + 1;
-                set_progres_kp($nim, $progresBaru, $waktuProgres);
-
-                echo json_encode(['status' => true, 'pesan' => 'Surat penunjukkan Penguji Seminar KP berhasil dibuat']);
-            } else {
-                echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan penunjukkan penguji seminar KP: ' . mysqli_error($GLOBALS['koneksi'])]);
-            }
-            exit;
-        }
+    } catch (\Throwable $e) {
+        echo json_encode([
+            'status' => false,
+            'pesan'  => 'Gagal menyimpan penunjukkan: ' . $e->getMessage()
+        ]);
+        exit;
     }
-
-    echo json_encode(['status' => false, 'pesan' => 'Jenis penunjukkan tidak dikenali']);
-    exit;
 }
 
 // ================= CEK BADGE LIVE PENUNJUKKAN =================
 if (isset($_POST['cek-badge-penunjukkan'])) {
+    if ($isFilterProdi && $userProdi === '') {
+        echo json_encode(['status' => true, 'total_menunggu' => 0]);
+        exit;
+    }
     $filterProdi = $isFilterProdi ? $userProdi : '';
     try {
         $antrian = ambil_antrian_penunjukkan($filterProdi, 'semua', '');

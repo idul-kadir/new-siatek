@@ -1,568 +1,214 @@
 <?php
 /**
- * Halaman Beranda " Dasbor utama (Tailwind).
+ * Halaman Beranda — Dasbor Utama SIATEK
  *
- * LATAR TERANG dengan komposisi tegas & proporsional:
- *   - Hero band navy (panel, bukan latar halaman) sebagai momen "wow".
- *   - 4 kartu metrik ringkas + mini-sparkline data real.
- *   - Grafik, antrean dokumen + agenda (proporsi asimetris), berita.
+ * Mengimplementasikan arsitektur Multi-Peran Adaptif:
+ *   - Admin / Pimpinan Jurusan & Kaprodi (Level 9, 6, 5) -> beranda-admin.php
+ *   - Dosen Pengajar & Pembimbing (Level 1)               -> beranda-dosen.php
+ *   - Operator Program Studi & Jurusan (Level 3, 4)      -> beranda-operator.php
  */
 
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../koneksi.php';
+if (!function_exists('query')) {
+    require_once __DIR__ . '/../../../fungsi.php';
+}
 
 /* ================================================================
-   DATA (semua opsional; fallback 0 jika tabel kosong)
+   IDENTIFIKASI PERAN & MODE TAMPILAN
    ================================================================ */
+$userLevel = (int)($_SESSION['level'] ?? 0);
+$tipeLogin = strtolower(trim((string)($_SESSION['tipe_login'] ?? '')));
+$userProdi = function_exists('get_prodi_user') ? get_prodi_user() : trim((string)($_SESSION['prodi'] ?? ''));
+$nmUser    = trim((string)($_SESSION['nama'] ?? '')) !== '' ? $_SESSION['nama'] : 'Pengguna';
 
-// --- Mahasiswa aktif per prodi (7 tahun terakhir) ---
-$qProdi = mysqli_query($koneksi, "SELECT * FROM prodi ORDER BY nama");
-$prodiList = [];
-$totalMhs = 0;
-$aktifSince = date('Y') - 7;
-while ($p = mysqli_fetch_assoc($qProdi)) {
-    $q = mysqli_query($koneksi,
-        "SELECT COUNT(*) AS c FROM mahasiswa
-         WHERE prodi='" . mysqli_real_escape_string($koneksi, $p['kode']) . "'
-           AND angkatan >= " . (int)$aktifSince . " AND status='Aktif'");
-    $p['mahasiswa'] = (int)mysqli_fetch_assoc($q)['c'];
-    $prodiList[] = $p;
-    $totalMhs += (int)$p['mahasiswa'];
-}
+// Label peran & Default role view
+if ($tipeLogin === 'superadmin' || $userLevel === 9) {
+    $roleTeks = 'Super Admin';
+    $defaultRoleView = 'superadmin';
+} elseif ($userLevel === 6) {
+    $roleTeks = 'Pengelola Jurusan';
+    // Cek di tabel jurusan: Ketua Jurusan (kajur) atau Sekretaris Jurusan (sekjur)
+    $idSession  = bersihkan((string)($_SESSION['id'] ?? ''));
+    $nipSession = bersihkan((string)($_SESSION['nip'] ?? $_SESSION['user_id'] ?? ''));
+    $qJur = query("
+        SELECT j.kajur, j.sekjur,
+               d1.nip AS nip_kajur, d2.nip AS nip_sekjur
+        FROM jurusan j
+        LEFT JOIN dosen d1 ON j.kajur = d1.id
+        LEFT JOIN dosen d2 ON j.sekjur = d2.id
+        LIMIT 1
+    ");
+    if ($qJur && ($rJur = mysqli_fetch_assoc($qJur))) {
+        $isKajur = ($idSession !== '' && (string)$rJur['kajur'] === $idSession)
+                || ($nipSession !== '' && ((string)$rJur['kajur'] === $nipSession || (string)($rJur['nip_kajur'] ?? '') === $nipSession));
+        $isSekjur = ($idSession !== '' && (string)$rJur['sekjur'] === $idSession)
+                || ($nipSession !== '' && ((string)$rJur['sekjur'] === $nipSession || (string)($rJur['nip_sekjur'] ?? '') === $nipSession));
 
-// --- Mahasiswa baru tahun berjalan & total keseluruhan ---
-$qMhsTahunIni = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=" . (int)date('Y'));
-$mhsBaruTahunIni = (int)mysqli_fetch_assoc($qMhsTahunIni)['c'];
-$qMhsTotal = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa");
-$mhsTotalSemua = (int)mysqli_fetch_assoc($qMhsTotal)['c'];
-
-// --- Dosen aktif ---
-$qDosenAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM dosen WHERE status='aktif'");
-$dosenAktif = (int)mysqli_fetch_assoc($qDosenAktif)['c'];
-
-// --- Skripsi / KP aktif ---
-$qSkripsiAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM skripsi WHERE status='aktif'");
-$skripsiAktif = (int)mysqli_fetch_assoc($qSkripsiAktif)['c'];
-$qKpAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM kp WHERE status='aktif'");
-$kpAktif = (int)mysqli_fetch_assoc($qKpAktif)['c'];
-
-// --- Surat penunjukkan belum ditandatangani ---
-$qTTDPending = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM surat_penunjukkan WHERE ttd='' OR ttd IS NULL");
-$ttdPendingTotal = (int)mysqli_fetch_assoc($qTTDPending)['c'];
-$qTTD = mysqli_query($koneksi,
-    "SELECT sp.*, m.nama FROM surat_penunjukkan sp
-     LEFT JOIN mahasiswa m ON sp.nim=m.nim
-     WHERE sp.ttd='' OR sp.ttd IS NULL ORDER BY sp.id DESC LIMIT 6");
-$ttdItems = [];
-while ($t = mysqli_fetch_assoc($qTTD)) { $ttdItems[] = $t; }
-
-// --- Tren mahasiswa baru 5 tahun ---
-$years = [];
-$mhsPerYear = [];
-for ($y = date('Y') - 4; $y <= date('Y'); $y++) {
-    $years[] = (string)$y;
-    $q = mysqli_query($koneksi, "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=$y");
-    $mhsPerYear[] = (int)mysqli_fetch_assoc($q)['c'];
-}
-
-// --- Distribusi per prodi (label ringkas) ---
-// Warna dipetakan berdasarkan nama prodi:
-//   Teknik Elektro -> navy, Teknik Komputer -> oranye, lainnya (Pendidikan) -> emerald.
-function beranda_pick_color(string $nama): string {
-    $n = strtolower($nama);
-    if (strpos($n, 'pendidikan') !== false) return '#10b981';   // emerald
-    if (strpos($n, 'komputer')   !== false) return '#f97316';   // orange
-    if (strpos($n, 'elektro')    !== false) return '#1a365d';   // navy
-    return '#38bdf8';                                            // fallback sky
-}
-$concLabels = [];
-$concValues = [];
-$concColors = [];
-foreach ($prodiList as $pr) {
-    $namaRingkas = preg_replace('/^S1\s+/i', '', $pr['nama']);
-    $namaRingkas = str_ireplace('Pendidikan Vokasional ', '', $namaRingkas);
-    $namaRingkas = trim($namaRingkas);
-    if ($namaRingkas === '') $namaRingkas = $pr['nama'];
-    $concLabels[] = $namaRingkas;
-    $concValues[] = (int)$pr['mahasiswa'];
-    $concColors[] = beranda_pick_color($pr['nama']);
-}
-
-// --- Agenda mendatang (tanggal unix) ---
-$qAgenda = mysqli_query($koneksi,
-    "SELECT a.*, d.nama AS penulis FROM agenda a
-     LEFT JOIN dosen d ON a.penulis=d.nip
-     WHERE a.tanggal > " . time() . " ORDER BY a.tanggal ASC LIMIT 4");
-$agendaItems = [];
-if ($qAgenda) {
-    while ($g = mysqli_fetch_assoc($qAgenda)) { $agendaItems[] = $g; }
-}
-if (count($agendaItems) === 0) {
-    $agendaItems = [
-        ['tanggal' => time() + 86400,     'tanggal_fmt' => date('d M Y', time() + 86400),     'agenda' => 'Rapat Koordinasi Jurusan',   'penulis' => ''],
-        ['tanggal' => time() + 3 * 86400, 'tanggal_fmt' => date('d M Y', time() + 3 * 86400), 'agenda' => 'Audit Mutu Internal Prodi', 'penulis' => ''],
-        ['tanggal' => time() + 7 * 86400, 'tanggal_fmt' => date('d M Y', time() + 7 * 86400), 'agenda' => 'Sidang Proposal Skripsi',   'penulis' => ''],
-    ];
-}
-
-// --- Berita jurusan terbaru ---
-$beritaItems = [];
-$qBerita = mysqli_query($koneksi,
-    "SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 3");
-if ($qBerita) {
-    while ($b = mysqli_fetch_assoc($qBerita)) { $beritaItems[] = $b; }
-}
-
-// --- Mahasiswa per angkatan: jumlah sedang KP & skripsi (status='aktif') ---
-$perAngkatan = [];
-$tahunSekarang = (int)date('Y');
-$qAngkatan = mysqli_query($koneksi,
-    "SELECT m.angkatan, COUNT(DISTINCT m.nim) AS total
-     FROM mahasiswa m
-     GROUP BY m.angkatan
-     ORDER BY m.angkatan DESC");
-if ($qAngkatan) {
-    while ($a = mysqli_fetch_assoc($qAngkatan)) {
-        $ang = (int)$a['angkatan'];
-        // jumlah mahasiswa angkatan ini yang sedang KP aktif
-        $qKpA = mysqli_query($koneksi,
-            "SELECT COUNT(DISTINCT k.nim) AS c
-             FROM kp k JOIN mahasiswa m ON k.nim=m.nim
-             WHERE k.status='aktif' AND m.angkatan=$ang");
-        $kpAktifAng = $qKpA ? (int)mysqli_fetch_assoc($qKpA)['c'] : 0;
-        // jumlah mahasiswa angkatan ini yang sedang skripsi aktif
-        $qSkA = mysqli_query($koneksi,
-            "SELECT COUNT(DISTINCT s.nim) AS c
-             FROM skripsi s JOIN mahasiswa m ON s.nim=m.nim
-             WHERE s.status='aktif' AND m.angkatan=$ang");
-        $skAktifAng = $qSkA ? (int)mysqli_fetch_assoc($qSkA)['c'] : 0;
-        // jumlah mahasiswa angkatan ini yang sudah berstatus alumni
-        $qAlmAng = mysqli_query($koneksi,
-            "SELECT COUNT(*) AS c FROM mahasiswa WHERE angkatan=$ang AND status='Alumni'");
-        $alumniAng = $qAlmAng ? (int)mysqli_fetch_assoc($qAlmAng)['c'] : 0;
-        $perAngkatan[] = [
-            'angkatan' => $ang,
-            'total'    => (int)$a['total'],
-            'kp'       => $kpAktifAng,
-            'skripsi'  => $skAktifAng,
-            'alumni'   => $alumniAng,
-        ];
+        if ($isKajur) {
+            $roleTeks = 'Ketua Jurusan';
+        } elseif ($isSekjur) {
+            $roleTeks = 'Sekretaris Jurusan';
+        } else {
+            $roleTeks = 'Pengelola Jurusan';
+        }
     }
-}
-// tampilkan 7 angkatan terakhir dengan logika awal tahun akademik (agustus):
-// - Januari-Juli    : tahun berjalan -7 s/d tahun berjalan -1 (mis. 2026 -> 2019-2025)
-// - Agustus-Desember: tahun berjalan -6 s/d tahun berjalan (mis. 2026 -> 2020-2026)
-if ((int)date('n') >= 8) {
-    $minang = $tahunSekarang - 6;
-    $maxang = $tahunSekarang;
+    $defaultRoleView = 'jurusan';
+} elseif ($userLevel === 5) {
+    $roleTeks = 'Ketua Program Studi (Kaprodi)';
+    $defaultRoleView = 'prodi';
+} elseif ($userLevel === 3 || $userLevel === 4) {
+    $roleTeks = 'Operator Akademik';
+    $defaultRoleView = 'operator';
 } else {
-    $minang = $tahunSekarang - 7;
-    $maxang = $tahunSekarang - 1;
+    $roleTeks = 'Dosen Pengajar & Pembimbing';
+    $defaultRoleView = 'dosen';
 }
-$perAngkatanTampil = [];
-foreach ($perAngkatan as $pa) {
-    if ($pa['angkatan'] >= $minang && $pa['angkatan'] <= $maxang) {
-        $perAngkatanTampil[] = $pa;
+
+// Pratinjau Super Admin (Level 9) & Mode Ganda Pengelola Jurusan (Level 6):
+$requestedView = strtolower(trim((string)($_GET['view'] ?? '')));
+$validViews    = ['superadmin', 'jurusan', 'prodi', 'operator', 'dosen', 'admin'];
+if ($userLevel === 9 && in_array($requestedView, $validViews, true)) {
+    // Backward compatibility: jika param 'admin', arahkan ke jurusan
+    $activeRoleView = ($requestedView === 'admin') ? 'jurusan' : $requestedView;
+} elseif ($userLevel === 6) {
+    // Pengelola Jurusan (Kajur / Sekjur) dapat beralih antara Mode Jurusan dan Mode Dosen
+    if (in_array($requestedView, ['jurusan', 'dosen'], true)) {
+        $_SESSION['beranda_view_level6'] = $requestedView;
     }
+    $activeRoleView = $_SESSION['beranda_view_level6'] ?? $defaultRoleView;
+} else {
+    $activeRoleView = $defaultRoleView;
 }
-// urutkan ascending (tertua dahulu)
-usort($perAngkatanTampil, fn($x, $y) => $x['angkatan'] <=> $y['angkatan']);
 
 /* ================================================================
-   HELPERS
+   HELPERS & FORMATTING
    ================================================================ */
 $hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 $bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 $today_label = $hari[(int)date('w')] . ', ' . (int)date('d') . ' ' . $bulan[(int)date('n')] . ' ' . date('Y');
 
-// format ribuan
-function f($n){ return number_format((int)$n, 0, ',', '.'); }
-
-// bangun path poligon mini-sparkline dari array data real
-function spark_path(array $vals, int $w = 120, int $h = 36): string {
-    $n = count($vals);
-    if ($n === 0) return '';
-    $max = max(1, max($vals));
-    $min = min($vals);
-    $span = max(1, $max - $min);
-    $pts = [];
-    foreach ($vals as $i => $v) {
-        $x = $n === 1 ? $w / 2 : ($i / ($n - 1)) * $w;
-        $y = $h - (($v - $min) / $span) * ($h - 4) - 2;
-        $pts[] = round($x, 1) . ',' . round($y, 1);
-    }
-    return implode(' ', $pts);
+if (!function_exists('f')) {
+    function f($n){ return number_format((int)$n, 0, ',', '.'); }
 }
-$spark = spark_path($mhsPerYear);
+
+if (!function_exists('spark_path')) {
+    function spark_path(array $vals, int $w = 120, int $h = 36): string {
+        $n = count($vals);
+        if ($n === 0) return '';
+        $max = max(1, max($vals));
+        $min = min($vals);
+        $span = max(1, $max - $min);
+        $pts = [];
+        foreach ($vals as $i => $v) {
+            $x = $n === 1 ? $w / 2 : ($i / ($n - 1)) * $w;
+            $y = $h - (($v - $min) / $span) * ($h - 4) - 2;
+            $pts[] = round($x, 1) . ',' . round($y, 1);
+        }
+        return implode(' ', $pts);
+    }
+}
+
+if (!function_exists('beranda_pick_color')) {
+    function beranda_pick_color(string $nama): string {
+        $n = strtolower($nama);
+        if (strpos($n, 'komputer') !== false) return '#f97316';   // Orange SIATEK (Teknik Komputer)
+        if (strpos($n, 'rekayasa') !== false || strpos($n, 'vokasional') !== false || strpos($n, 'pendidikan') !== false) {
+            return '#94a3b8';                                      // Slate SIATEK (Pend. Vokasional Rekayasa Elektro)
+        }
+        if (strpos($n, 'elektro')  !== false) return '#1a365d';   // Navy SIATEK (Teknik Elektro)
+        return '#64748b';                                          // Default Slate
+    }
+}
 ?>
 
 <style>
-    .tile-orange { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
-    .tile-sky    { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); }
-    .tile-emerald{ background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
-    .tile-rose   { background: linear-gradient(135deg, #be123c 0%, #fb7185 100%); }
-    .tile-violet { background: linear-gradient(135deg, #6d28d9 0%, #a78bfa 100%); }
-
-    /* corak (pattern) halus di atas gradien tile metrik */
-    .tile-corak {
-        position: relative;
-        overflow: hidden;
-    }
-    .tile-corak::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background-image:
-            radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);
-        background-size: 12px 12px;
-        opacity: .35;
-        mix-blend-mode: overlay;
-    }
-    .tile-corak::after {
-        content: "";
-        position: absolute;
-        right: -24px;
-        bottom: -24px;
-        width: 140px;
-        height: 140px;
-        border-radius: 9999px;
-        background: rgba(255,255,255,.14);
-        pointer-events: none;
-    }
-    .tile-corak > * { position: relative; }
-
-    .lift { transition: transform .2s ease, box-shadow .2s ease; }
-    .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px rgba(15,23,42,.22); }
-
-    @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-    .reveal { animation: riseIn .5s cubic-bezier(.16,1,.3,1) forwards; }
-    @media (prefers-reduced-motion: reduce) { .reveal, .lift { animation: none; transition: none; } }
-
+    .content-scroll { overflow-y: auto; min-height: 0; }
+    .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 </style>
 
-<main class="flex-1 overflow-y-auto bg-slate-100/80">
-    <div class="w-full px-4 py-5 lg:px-6 space-y-5">
+<main class="content-area content-scroll">
+    <div class="space-y-5 max-w-full">
 
-        <!-- ============ HERO BAND ============ -->
-        <div class="reveal relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1f3d] via-[#1a365d] to-[#234670] text-white shadow-xl shadow-[#1a365d]/30">
-            <!-- dekorasi mesh -->
-            <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 800 200" aria-hidden="true">
-                <defs>
-                    <radialGradient id="hs1" cx="90%" cy="0%" r="60%">
-                        <stop offset="0%" stop-color="#f97316" stop-opacity="0.35"/>
-                        <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
-                    </radialGradient>
-                    <radialGradient id="hs2" cx="0%" cy="100%" r="55%">
-                        <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.35"/>
-                        <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0"/>
-                    </radialGradient>
-                </defs>
-                <rect width="800" height="200" fill="url(#hs2)"/>
-                <rect width="800" height="200" fill="url(#hs1)"/>
-            </svg>
-
-            <div class="relative z-10 flex flex-col sm:flex-row sm:items-center gap-6 px-6 py-7 lg:px-8">
-                <!-- kiri: sapaan -->
-                <div class="flex-1 min-w-0">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-200 ring-1 ring-white/15">
-                        <span class="relative flex h-2 w-2">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span>
-                        </span>
-                        <?= htmlspecialchars($today_label) ?>
-                    </span>
-                    <h1 class="mt-3 text-xl lg:text-2xl font-bold tracking-tight">Selamat Datang, Admin</h1>
-                    <p class="mt-1 max-w-xl text-sm text-slate-300">Pantau dan kelola operasional jurusan Teknik Elektro &amp; Komputer dari satu tempat.</p>
-                    <div class="mt-4 flex flex-wrap gap-2.5">
-                        <a href="index.php?page=jurusan-surat-penunjukkan"
-                           class="inline-flex items-center gap-2 rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:bg-[#ea580c] active:scale-[.98]">
-                            <i class="fas fa-pen-to-square"></i> Tindak Lanjut Surat
-                        </a>
-                        <a href="index.php?page=jurusan-berita"
-                           class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white ring-1 ring-white/20 transition hover:bg-white/15 active:scale-[.98]">
-                            <i class="fas fa-bullhorn"></i> Berita Jurusan
-                        </a>
-                    </div>
-                </div>
-                <!-- kanan: spot statistik -->
-                <div class="grid grid-cols-2 gap-3 sm:min-w-[260px]">
-                    <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-slate-300">Mahasiswa Aktif</p>
-                        <p class="mt-1 text-2xl font-bold"><?= f($totalMhs) ?></p>
-                        <p class="mt-0.5 text-[11px] text-orange-200">+<?= f($mhsBaruTahunIni) ?> th ini</p>
-                    </div>
-                    <div class="rounded-xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm">
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-slate-300">Menunggu TTD</p>
-                        <p class="mt-1 text-2xl font-bold"><?= f($ttdPendingTotal) ?></p>
-                        <p class="mt-0.5 text-[11px] text-sky-200">dokumen proses</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ============ METRIK UTAMA ============ -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-            <!-- Mahasiswa (dengan sparkline) -->
-            <div class="reveal tile-orange tile-corak lift rounded-xl p-4 text-white shadow-md shadow-orange-500/25">
-                <div class="flex items-center justify-between">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-user-graduate"></i></span>
-                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">+<?= f($mhsBaruTahunIni) ?></span>
-                </div>
-                <p class="mt-3 text-sm font-medium text-white/85">Mahasiswa Aktif</p>
-                <p class="text-2xl font-bold tracking-tight"><?= f($totalMhs) ?></p>
-                <svg class="mt-2 w-full" viewBox="0 0 120 36" preserveAspectRatio="none" style="height:26px" aria-hidden="true">
-                    <polyline points="<?= $spark ?>" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
-                </svg>
-            </div>
-
-            <div class="reveal tile-sky tile-corak lift rounded-xl p-4 text-white shadow-md shadow-sky-500/25" style="animation-delay:.05s">
-                <div class="flex items-center justify-between">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-chalkboard-user"></i></span>
-                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">terdaftar</span>
-                </div>
-                <p class="mt-3 text-sm font-medium text-white/85">Dosen Aktif</p>
-                <p class="text-2xl font-bold tracking-tight"><?= f($dosenAktif) ?></p>
-                <p class="mt-2 text-[11px] text-white/70">Tenaga pengajar &amp; pembimbing.</p>
-            </div>
-
-            <div class="reveal tile-emerald tile-corak lift rounded-xl p-4 text-white shadow-md shadow-emerald-500/25" style="animation-delay:.10s">
-                <div class="flex items-center justify-between">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-book-open"></i></span>
-                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">bimbingan</span>
-                </div>
-                <p class="mt-3 text-sm font-medium text-white/85">Skripsi Berjalan</p>
-                <p class="text-2xl font-bold tracking-tight"><?= f($skripsiAktif) ?></p>
-                <p class="mt-2 text-[11px] text-white/70">Mahasiswa dalam bimbingan.</p>
-            </div>
-
-            <div class="reveal tile-violet tile-corak lift rounded-xl p-4 text-white shadow-md shadow-violet-500/25" style="animation-delay:.15s">
-                <div class="flex items-center justify-between">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-sm"><i class="fas fa-briefcase"></i></span>
-                    <span class="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold">magang</span>
-                </div>
-                <p class="mt-3 text-sm font-medium text-white/85">Kerja Praktek</p>
-                <p class="text-2xl font-bold tracking-tight"><?= f($kpAktif) ?></p>
-                <p class="mt-2 text-[11px] text-white/70">Mahasiswa magang industri.</p>
-            </div>
-        </div>
-
-        <!-- ============ MAHASISWA PER ANGKATAN (KP & SKRIPSI AKTIF) ============ -->
-        <div class="reveal rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-800">Mahasiswa per Angkatan</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">
-                        Yang sedang menjalani Kerja Praktek &amp; Skripsi (status aktif) - tahun <?= $tahunSekarang ?>
-                    </p>
-                </div>
-                <?php
-                $totalMasa = 0;
-                foreach ($perAngkatanTampil as $pa) { $totalMasa += $pa['kp'] + $pa['skripsi']; }
-                ?>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                    <i class="fas fa-users"></i> <?= f($totalMasa) ?> sedang KP/Skripsi
+        <!-- ============ 5 ROLE VIEW SWITCHER (KHUSUS SUPER ADMIN) ============ -->
+        <?php if ($userLevel === 9): ?>
+        <section class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 px-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2.5 text-xs text-slate-700">
+                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs font-bold">
+                    <i class="fas fa-eye"></i>
                 </span>
+                <span>Mode Pratinjau Super Admin: melihat tampilan <strong><?= htmlspecialchars(strtoupper($activeRoleView)) ?></strong></span>
             </div>
-            <?php if (count($perAngkatanTampil) === 0): ?>
-                <p class="py-10 text-center text-sm text-slate-400">Belum ada data mahasiswa per angkatan.</p>
-            <?php else: ?>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="bg-slate-50/70 text-xs text-slate-500">
-                            <th class="py-3 px-5 font-semibold uppercase tracking-wider">Angkatan</th>
-                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Total Mhs</th>
-                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang KP</th>
-                            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-right">Sedang Skripsi</th>
-                            <th class="py-3 px-5 font-semibold uppercase tracking-wider text-right">Alumni</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-sm">
-                        <?php
-                        $pillColors = ['#f97316','#0ea5e9','#10b981','#8b5cf6','#f59e0b','#f43f5e'];
-                        $idx = 0;
-                        foreach ($perAngkatanTampil as $pa):
-                            $pic = $pillColors[$idx % count($pillColors)];
-                            $pctAlumni = $pa['total'] > 0 ? round(($pa['alumni'] / $pa['total']) * 100) : 0;
-                            $idx++;
-                        ?>
-                        <tr class="border-t border-slate-100 hover:bg-orange-50/40 transition">
-                            <td class="py-3.5 px-5">
-                                <span class="inline-flex items-center gap-2 font-semibold text-slate-800">
-                                    <span class="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white" style="background:<?= $pic ?>"><?= htmlspecialchars(substr((string)$pa['angkatan'], 2, 2)) ?></span>
-                                    Angkatan <?= $pa['angkatan'] ?>
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-right font-semibold text-slate-700"><?= f($pa['total']) ?></td>
-                            <td class="py-3.5 px-4 text-right">
-                                <span class="inline-flex items-center gap-1.5 font-semibold text-sky-700">
-                                    <i class="fas fa-briefcase text-[11px]"></i> <?= f($pa['kp']) ?>
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-right">
-                                <span class="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
-                                    <i class="fas fa-book-open text-[11px]"></i> <?= f($pa['skripsi']) ?>
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-5">
-                                <div class="flex items-center justify-end gap-2">
-                                    <div class="w-20 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                        <div class="h-full rounded-full" style="width:<?= min(100, max(4, $pctAlumni)) ?>%; background:<?= $pic ?>"></div>
-                                    </div>
-                                    <span class="w-7 text-right text-sm font-bold text-slate-800"><?= f($pa['alumni']) ?></span>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- ============ GRAFIK ============ -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
-            <div class="reveal lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="mb-4 flex items-start justify-between">
-                    <div>
-                        <h2 class="text-base font-semibold text-slate-800">Tren Mahasiswa Baru</h2>
-                        <p class="mt-0.5 text-xs text-slate-500">Pendaftaran 5 tahun terakhir</p>
-                    </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                        <i class="fas fa-arrow-trend-up"></i> Tahunan
-                    </span>
-                </div>
-                <div style="height:230px"><canvas id="enrollmentChart"></canvas></div>
-            </div>
-            <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay:.05s">
-                <div class="mb-4">
-                    <h2 class="text-base font-semibold text-slate-800">Distribusi Mahasiswa</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">Per program studi</p>
-                </div>
-                <div style="height:230px"><canvas id="concentrationChart"></canvas></div>
-            </div>
-        </div>
-
-        <!-- ============ DOKUMEN + AGENDA (asimetris) ============ -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-3.5">
-            <!-- Antrean TTD (lebih lebar) -->
-            <div class="reveal lg:col-span-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-                    <div>
-                        <h2 class="text-base font-semibold text-slate-800">Antrean Tanda Tangan</h2>
-                        <p class="mt-0.5 text-xs text-slate-500">Dokumen menunggu persetujuan</p>
-                    </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white">
-                        <i class="fas fa-clock"></i> <?= f($ttdPendingTotal) ?>
-                    </span>
-                </div>
-                <?php if (count($ttdItems) === 0): ?>
-                    <div class="flex flex-col items-center py-10 text-center">
-                        <span class="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><i class="fas fa-check"></i></span>
-                        <p class="mt-3 text-sm text-slate-500">Tidak ada dokumen yang menunggu tanda tangan.</p>
-                    </div>
-                <?php else: ?>
-                <ul class="divide-y divide-slate-100">
-                    <?php
-                    $avatarColors = ['f97316','0ea5e9','10b981','f43f5e','8b5cf6','f59e0b'];
-                    foreach ($ttdItems as $t):
-                        $namaTampil = $t['nama'] ?: ($t['nim'] ?? '?');
-                        $inisial = strtoupper(mb_substr($namaTampil, 0, 2));
-                        $bg = $avatarColors[crc32($t['nim'] ?? $inisial) % count($avatarColors)];
-                    ?>
-                    <li class="flex items-center gap-3 px-5 py-3 transition hover:bg-orange-50/40">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style="background:<?= $bg ?>"><?= htmlspecialchars($inisial) ?></span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-slate-800"><?= htmlspecialchars($namaTampil) ?></p>
-                            <p class="font-mono text-[11px] text-slate-400"><?= htmlspecialchars($t['nim']) ?></p>
-                        </div>
-                        <span class="hidden md:block max-w-[140px] truncate text-xs text-slate-500"><?= htmlspecialchars($t['keterangan'] ?: 'Surat Penunjukkan') ?></span>
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                            <span class="h-1.5 w-1.5 rounded-full bg-[#f97316]"></span> Pending
-                        </span>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-                <a href="index.php?page=jurusan-surat-penunjukkan" class="block border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-center text-xs font-semibold text-orange-600 hover:bg-orange-50 transition">
-                    Buka semua surat penunjukkan &rarr;'
+            <div class="inline-flex rounded-lg bg-slate-100 p-1 text-xs gap-1 flex-wrap">
+                <a href="/redesain-siatek/administrator/beranda?view=superadmin" 
+                   class="px-2.5 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'superadmin' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-screwdriver-wrench mr-1"></i> Superadmin (9)
                 </a>
-                <?php endif; ?>
-            </div>
-
-            <!-- Agenda (lebih sempit) -->
-            <div class="reveal lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" style="animation-delay:.05s">
-                <div class="mb-4">
-                    <h2 class="text-base font-semibold text-slate-800">Agenda Mendatang</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">Jadwal departemen terdekat</p>
-                </div>
-                <ol class="relative space-y-0">
-                    <?php
-                    $pills = ['#f97316','#0ea5e9','#10b981','#8b5cf6'];
-                    foreach ($agendaItems as $i => $g):
-                        $p = $pills[$i % count($pills)];
-                    ?>
-                    <li class="relative flex gap-3 pb-4 last:pb-0">
-                        <?php if ($i < count($agendaItems) - 1): ?>
-                        <span class="absolute left-[11px] top-8 bottom-0 w-px bg-slate-200"></span>
-                        <?php endif; ?>
-                        <span class="relative mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style="background:<?= $p ?>; box-shadow:0 0 0 3px rgba(0,0,0,.04)">
-                            <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
-                        </span>
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold leading-snug text-slate-800"><?= htmlspecialchars($g['agenda']) ?></p>
-                            <p class="mt-0.5 text-xs text-slate-400"><i class="far fa-calendar mr-1"></i><?= htmlspecialchars($g['tanggal_fmt']) ?><?php if (!empty($g['penulis'])): ?> - <?= htmlspecialchars($g['penulis']) ?><?php endif; ?></p>
-                        </div>
-                    </li>
-                    <?php endforeach; ?>
-                </ol>
-            </div>
-        </div>
-
-        <!-- ============ BERITA ============ -->
-        <div class="reveal rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="mb-4 flex items-center justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-800">Berita &amp; Informasi Jurusan</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">Publikasi terbaru</p>
-                </div>
-                <a href="index.php?page=jurusan-berita" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">Semua Berita &rarr;'</a>
-            </div>
-            <?php if (count($beritaItems) === 0): ?>
-                <p class="py-8 text-center text-sm text-slate-400">Belum ada berita jurusan.</p>
-            <?php else: ?>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                <?php foreach ($beritaItems as $b):
-                    $tanggalParsed = strtotime($b['tanggal']);
-                    $tanggalTxt = $tanggalParsed ? date('d M Y', $tanggalParsed) : '';
-                ?>
-                <a href="index.php?page=jurusan-berita" class="group flex flex-col rounded-lg border border-slate-200 bg-slate-50/60 p-4 transition hover:border-orange-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#f97316] to-[#fb923c] text-white text-sm shadow-md shadow-orange-500/20"><i class="fas fa-file-lines"></i></span>
-                    <h3 class="mt-3 text-sm font-semibold leading-snug text-slate-800 group-hover:text-orange-700 transition line-clamp-2"><?= htmlspecialchars($b['judul']) ?></h3>
-                    <?php if (!empty($b['deskripsi'])): ?>
-                    <p class="mt-1.5 text-xs leading-relaxed text-slate-500 line-clamp-2"><?= htmlspecialchars($b['deskripsi']) ?></p>
-                    <?php endif; ?>
-                    <p class="mt-3 text-[11px] font-medium text-slate-400"><i class="far fa-clock mr-1"></i><?= htmlspecialchars($tanggalTxt) ?></p>
+                <a href="/redesain-siatek/administrator/beranda?view=jurusan" 
+                   class="px-2.5 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'jurusan' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-building-columns mr-1"></i> Jurusan (6)
                 </a>
-                <?php endforeach; ?>
+                <a href="/redesain-siatek/administrator/beranda?view=prodi" 
+                   class="px-2.5 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'prodi' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-user-tie mr-1"></i> Kaprodi (5)
+                </a>
+                <a href="/redesain-siatek/administrator/beranda?view=operator" 
+                   class="px-2.5 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'operator' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-desktop mr-1"></i> Operator (3,4)
+                </a>
+                <a href="/redesain-siatek/administrator/beranda?view=dosen" 
+                   class="px-2.5 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'dosen' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-chalkboard-user mr-1"></i> Dosen (1)
+                </a>
             </div>
-            <?php endif; ?>
-        </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- ============ DUAL-MODE SWITCHER (KHUSUS PENGELOLA JURUSAN LEVEL 6) ============ -->
+        <?php if ($userLevel === 6): ?>
+        <section class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 px-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2.5 text-xs text-slate-700">
+                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs font-bold">
+                    <i class="fas fa-arrows-rotate"></i>
+                </span>
+                <span>Mode Tampilan: <strong class="text-slate-900"><?= $activeRoleView === 'dosen' ? 'Mode Dosen (Pengajar & Pembimbing)' : 'Mode ' . htmlspecialchars($roleTeks) ?></strong></span>
+            </div>
+            <div class="inline-flex rounded-lg bg-slate-100 p-1 text-xs gap-1">
+                <a href="/redesain-siatek/administrator/beranda?view=jurusan" 
+                   class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'jurusan' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-building-columns mr-1.5"></i> Mode Jurusan
+                </a>
+                <a href="/redesain-siatek/administrator/beranda?view=dosen" 
+                   class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'dosen' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-chalkboard-user mr-1.5"></i> Mode Dosen
+                </a>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- ============ DISPATCH 5 SUB-VIEW BERDASARKAN ROLE ============ -->
+        <?php
+        switch ($activeRoleView) {
+            case 'superadmin':
+                require __DIR__ . '/beranda-superadmin.php';
+                break;
+            case 'jurusan':
+                require __DIR__ . '/beranda-jurusan.php';
+                break;
+            case 'prodi':
+                require __DIR__ . '/beranda-prodi.php';
+                break;
+            case 'operator':
+                require __DIR__ . '/beranda-operator.php';
+                break;
+            case 'dosen':
+            default:
+                require __DIR__ . '/beranda-dosen.php';
+                break;
+        }
+        ?>
 
     </div>
 </main>
-
-<!-- Data untuk Chart.js -->
-<script>
-window.__berandaData = {
-    enrollment: {
-        labels: <?= json_encode($years) ?>,
-        values: <?= json_encode($mhsPerYear) ?>
-    },
-    concentration: {
-        labels: <?= json_encode($concLabels) ?>,
-        values: <?= json_encode($concValues) ?>,
-        colors: <?= json_encode($concColors) ?>
-    }
-};
-</script>

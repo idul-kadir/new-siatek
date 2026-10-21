@@ -4,7 +4,16 @@ if (defined('SIATEK_FUNGSI_LOADED')) {
 }
 define('SIATEK_FUNGSI_LOADED', true);
 
+// ================= PENGATURAN TIMEZONE =================
+// Standar zona waktu aplikasi: WITA (Asia/Makassar, UTC+8)
+date_default_timezone_set('Asia/Makassar');
+
 require_once __DIR__ . '/koneksi.php';
+
+// Sinkronkan timezone sesi MySQL ke WITA (+08:00)
+if (isset($koneksi) && $koneksi instanceof mysqli) {
+    mysqli_query($koneksi, "SET time_zone = '+08:00'");
+}
 
 function query($sql){
   global $koneksi;
@@ -457,8 +466,11 @@ function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua',
         }
         $whereSqlKp = implode(" AND ", $whereKp);
 
-        $sqlKp = "SELECT k.nim, k.judul, k.tempat, k.status, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
-                         (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = k.nim ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS latest_step
+        $sqlKp = "SELECT k.nim, k.judul, k.tempat, k.status, k.surat_penunjukkan_penguji, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
+                         (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = k.nim ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS latest_step,
+                         (SELECT COUNT(*) FROM surat_penunjukkan sp 
+                          WHERE ((k.surat_penunjukkan_penguji IS NOT NULL AND k.surat_penunjukkan_penguji != '' AND k.surat_penunjukkan_penguji != '0' AND sp.id = k.surat_penunjukkan_penguji)
+                                 OR (sp.nim = k.nim AND LOWER(sp.keterangan) LIKE '%penguji kp%'))) AS jml_surat_penguji
                   FROM kp k
                   LEFT JOIN mahasiswa m ON k.nim = m.nim
                   LEFT JOIN prodi p ON m.prodi = p.kode
@@ -471,6 +483,15 @@ function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua',
                 $progresNum = (int)($r['latest_step'] ?? 0);
                 if (!in_array($progresNum, [6, 12], true)) {
                     continue;
+                }
+
+                // Khusus KP: jika progres mahasiswa KP ada di progres 12 dan surat penunjukkan penguji sudah ada, maka tidak perlu dimunculkan di antrian penunjukkan
+                if ($progresNum === 12) {
+                    $hasSuratCol = !empty($r['surat_penunjukkan_penguji']) && (string)$r['surat_penunjukkan_penguji'] !== '0';
+                    $hasSuratTbl = ((int)($r['jml_surat_penguji'] ?? 0) > 0);
+                    if ($hasSuratCol || $hasSuratTbl) {
+                        continue;
+                    }
                 }
 
                 $nim = trim((string)$r['nim']);
@@ -506,4 +527,636 @@ function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua',
     }
 
     return $hasil;
-}
+}
+
+// ================= FUNCTION CACHE DAFTAR DOSEN =================
+function dapatkan_semua_dosen_map() {
+    static $dosenMap = null;
+    if ($dosenMap === null) {
+        $dosenMap = [];
+        $q = query("SELECT id, nama FROM dosen ORDER BY nama ASC");
+        if ($q) {
+            while ($d = mysqli_fetch_assoc($q)) {
+                $dosenMap[(string)$d['id']] = $d['nama'];
+            }
+        }
+    }
+    return $dosenMap;
+}
+
+// ================= FUNCTION AMBIL PENGUJI UJIAN MAHASISWA =================
+function ambil_penguji_ujian($nim, $kategori, $idSuratTerdaftar = 0) {
+    global $koneksi;
+    $nim = bersihkan($nim);
+    $kategori = bersihkan($kategori);
+    $idSurat = (int)$idSuratTerdaftar;
+    $dosenMap = dapatkan_semua_dosen_map();
+
+    if ($idSurat <= 0 && $nim !== '') {
+        if ($kategori === 'skripsi_hasil') {
+            $q = query("SELECT penunjukkan_hasil FROM skripsi WHERE nim = '$nim' LIMIT 1");
+            if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['penunjukkan_hasil'])) {
+                $idSurat = (int)$r['penunjukkan_hasil'];
+            }
+            if ($idSurat <= 0) {
+                $q2 = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1");
+                if ($q2 && ($r2 = mysqli_fetch_assoc($q2))) {
+                    $idSurat = (int)$r2['id'];
+                }
+            }
+        } elseif ($kategori === 'skripsi_tutup') {
+            $q = query("SELECT penunjukkan_tutup FROM skripsi WHERE nim = '$nim' LIMIT 1");
+            if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['penunjukkan_tutup'])) {
+                $idSurat = (int)$r['penunjukkan_tutup'];
+            }
+            if ($idSurat <= 0) {
+                $q2 = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI TUTUP' ORDER BY id DESC LIMIT 1");
+                if ($q2 && ($r2 = mysqli_fetch_assoc($q2))) {
+                    $idSurat = (int)$r2['id'];
+                }
+            }
+        } elseif ($kategori === 'kp') {
+            $q = query("SELECT surat_penunjukkan_penguji FROM kp WHERE nim = '$nim' LIMIT 1");
+            if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['surat_penunjukkan_penguji'])) {
+                $idSurat = (int)$r['surat_penunjukkan_penguji'];
+            }
+            if ($idSurat <= 0) {
+                $q2 = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND (keterangan = 'PENGUJI KP' OR keterangan LIKE '%PENGUJI%KP%') ORDER BY id DESC LIMIT 1");
+                if ($q2 && ($r2 = mysqli_fetch_assoc($q2))) {
+                    $idSurat = (int)$r2['id'];
+                }
+            }
+        }
+    }
+
+    $daftarPenguji = [];
+    if ($idSurat > 0) {
+        $qSp = query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE id = $idSurat LIMIT 1");
+        if ($qSp && ($sp = mysqli_fetch_assoc($qSp))) {
+            for ($i = 1; $i <= 5; $i++) {
+                $idDosen = trim((string)($sp["penguji$i"] ?? ''));
+                if ($idDosen !== '' && isset($dosenMap[$idDosen])) {
+                    $daftarPenguji[] = [
+                        'peran' => 'Penguji ' . $i,
+                        'id'    => $idDosen,
+                        'nama'  => $dosenMap[$idDosen]
+                    ];
+                }
+            }
+        }
+    }
+
+    return $daftarPenguji;
+}
+
+// ================= FUNCTION AMBIL DAFTAR PESERTA BATCH UJIAN =================
+function ambil_daftar_peserta_batch($idBatch, $filterProdi = '', $cari = '') {
+    global $koneksi;
+    $idBatch = (int)$idBatch;
+    $hasil = [];
+
+    // Filter dasar berdasarkan ID batch
+    $where = ["pb.id_batch = '$idBatch'"];
+    if ($filterProdi !== '') {
+        $pClean = bersihkan($filterProdi);
+        $where[] = "(m.prodi = '$pClean' OR pr.kode = '$pClean')";
+    }
+    if ($cari !== '') {
+        $cClean = bersihkan($cari);
+        $where[] = "(pb.mahasiswa LIKE '%$cClean%' OR m.nama LIKE '%$cClean%')";
+    }
+    $whereSql = implode(" AND ", $where);
+
+    // Query data peserta beserta relasi tabel mahasiswa, prodi, skripsi, kp, dan tahapan SOP
+    $sql = "SELECT pb.*, pb.id AS id_peserta, pb.id_batch, pb.mahasiswa AS nim,
+                   m.nama AS nama_mhs, m.prodi, m.angkatan, pr.nama AS nama_prodi,
+                   (SELECT ps.proses FROM progres_skripsi ps WHERE ps.mahasiswa = pb.mahasiswa ORDER BY ps.waktu DESC, ps.proses DESC LIMIT 1) AS step_skripsi,
+                   (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = pb.mahasiswa ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS step_kp,
+                   s.penunjukkan_hasil, s.penunjukkan_tutup,
+                   s.no_undangan_hasil, s.tanggal_hasil, s.jam_hasil, s.ruangan_hasil,
+                   s.no_undangan_tutup, s.tanggal_tutup, s.jam_tutup, s.ruangan_tutup,
+                   k.surat_penunjukkan_penguji,
+                   k.no_undangan AS no_undangan_kp, k.tanggal_seminar, k.jam_seminar, k.ruangan AS ruangan_kp
+            FROM peserta_batch pb
+            LEFT JOIN mahasiswa m ON pb.mahasiswa = m.nim
+            LEFT JOIN prodi pr ON m.prodi = pr.kode
+            LEFT JOIN skripsi s ON pb.mahasiswa = s.nim
+            LEFT JOIN kp k ON pb.mahasiswa = k.nim
+            WHERE $whereSql
+            ORDER BY pb.id DESC";
+
+    $q = query($sql);
+    if ($q && mysqli_num_rows($q) > 0) {
+        while ($r = mysqli_fetch_assoc($q)) {
+            $stepSkr = (int)($r['step_skripsi'] ?? 0);
+            $stepKp  = (int)($r['step_kp'] ?? 0);
+
+            $kategoriUjian  = '';
+            $tahapanLabel   = 'Peserta Ujian';
+            $badgeClass     = 'bg-slate-100 text-slate-700';
+            $iconClass      = 'fas fa-graduation-cap';
+            $idSuratPenguji = 0;
+
+            // Deteksi jenis ujian berdasarkan nomor step SOP
+            // Syarat: jika kp sudah bukan progres 12 dan skripsi sudah bukan progres 10 dan 18,
+            // mahasiswa tidak boleh ada lagi di halaman ujian ini.
+            if ($stepSkr === 10) {
+                $kategoriUjian  = 'skripsi_hasil';
+                $tahapanLabel   = 'Ujian Hasil';
+                $badgeClass     = 'bg-amber-100 text-amber-800 border border-amber-200';
+                $iconClass      = 'fas fa-file-alt text-amber-600';
+                $idSuratPenguji = (int)($r['penunjukkan_hasil'] ?? 0);
+            } elseif ($stepSkr === 18) {
+                $kategoriUjian  = 'skripsi_tutup';
+                $tahapanLabel   = 'Ujian Tutup';
+                $badgeClass     = 'bg-purple-100 text-purple-800 border border-purple-200';
+                $iconClass      = 'fas fa-award text-purple-600';
+                $idSuratPenguji = (int)($r['penunjukkan_tutup'] ?? 0);
+            } elseif ($stepKp === 12) {
+                $kategoriUjian  = 'kp';
+                $tahapanLabel   = 'Seminar KP';
+                $badgeClass     = 'bg-blue-100 text-blue-800 border border-blue-200';
+                $iconClass      = 'fas fa-briefcase text-blue-600';
+                $idSuratPenguji = (int)($r['surat_penunjukkan_penguji'] ?? 0);
+            } else {
+                // Lewati jika sudah bukan progres 12 (KP) atau 10/18 (Skripsi)
+                continue;
+            }
+
+            // Ambil daftar dosen penguji mahasiswa
+            $penguji = ambil_penguji_ujian($r['nim'], $kategoriUjian, $idSuratPenguji);
+
+            // Ekstrak rincian jadwal yang tersimpan
+            $noUndangan = isset($r['nomor_undangan']) && $r['nomor_undangan'] !== '' ? (string)$r['nomor_undangan'] : '';
+            $tglUjian   = isset($r['tanggal']) && $r['tanggal'] !== '' ? (string)$r['tanggal'] : '';
+            $jamUjian   = isset($r['jam']) && $r['jam'] !== '' ? (string)$r['jam'] : '';
+            $ruangUjian = isset($r['ruang']) && $r['ruang'] !== '' ? (string)$r['ruang'] : '';
+
+            // Jika di tabel peserta_batch masih kosong, ambil dari data skripsi / kp yang tersimpan
+            if ($noUndangan === '' && $tglUjian === '') {
+                if (in_array($stepSkr, [8, 9, 10, 11], true)) {
+                    $noUndangan = (string)($r['no_undangan_hasil'] ?? '');
+                    $tglUjian   = (string)($r['tanggal_hasil'] ?? '');
+                    $jamUjian   = (string)($r['jam_hasil'] ?? '');
+                    $ruangUjian = (string)($r['ruangan_hasil'] ?? '');
+                } elseif (in_array($stepSkr, [16, 17, 18, 19, 20], true)) {
+                    $noUndangan = (string)($r['no_undangan_tutup'] ?? '');
+                    $tglUjian   = (string)($r['tanggal_tutup'] ?? '');
+                    $jamUjian   = (string)($r['jam_tutup'] ?? '');
+                    $ruangUjian = (string)($r['ruangan_tutup'] ?? '');
+                } elseif (in_array($stepKp, [11, 12, 13, 14, 15], true)) {
+                    $noUndangan = (string)($r['no_undangan_kp'] ?? '');
+                    $tglUjian   = (string)($r['tanggal_seminar'] ?? '');
+                    $jamUjian   = (string)($r['jam_seminar'] ?? '');
+                    $ruangUjian = (string)($r['ruangan_kp'] ?? '');
+                }
+            }
+
+            $sudahDiatur = (!empty($noUndangan) || !empty($tglUjian) || !empty($jamUjian) || !empty($ruangUjian) || $stepSkr >= 11 || $stepKp >= 14);
+
+            $hasil[] = [
+                'id_peserta'     => (int)$r['id_peserta'],
+                'id_batch'       => (int)$r['id_batch'],
+                'nim'            => $r['nim'],
+                'nama_mhs'       => $r['nama_mhs'] ?: $r['nim'],
+                'prodi'          => $r['prodi'] ?? '',
+                'nama_prodi'     => $r['nama_prodi'] ?: ($r['prodi'] ?? '-'),
+                'angkatan'       => $r['angkatan'] ?? '',
+                'kategori'       => $kategoriUjian,
+                'tahapan_label'  => $tahapanLabel,
+                'badge_class'    => $badgeClass,
+                'icon_class'     => $iconClass,
+                'penguji'        => $penguji,
+                'nomor_undangan' => $noUndangan,
+                'tanggal_ujian'  => $tglUjian,
+                'jam_ujian'      => $jamUjian,
+                'ruang_ujian'    => $ruangUjian,
+                'sudah_diatur'   => $sudahDiatur,
+            ];
+        }
+    }
+
+    return $hasil;
+}
+
+// ================= FUNCTION AMBIL ANTRIAN SIAP UJIAN =================
+function ambil_antrian_siap_ujian($idBatchAktif, $filterProdi = '', $kategori = 'semua', $cari = '') {
+    global $koneksi;
+    $idBatchAktif = (int)$idBatchAktif;
+    $hasil = [];
+
+    // Kumpulkan daftar NIM mahasiswa yang saat ini SUDAH berada di batch aktif
+    // agar mereka tidak muncul dobel di daftar antrian
+    $sudahDiBatch = [];
+    if ($idBatchAktif > 0) {
+        $qSdh = query("SELECT mahasiswa FROM peserta_batch WHERE id_batch = '$idBatchAktif'");
+        if ($qSdh) {
+            while ($sRow = mysqli_fetch_assoc($qSdh)) {
+                $sudahDiBatch[trim((string)$sRow['mahasiswa'])] = true;
+            }
+        }
+    }
+
+    // 1. DATA ANTRIAN DARI SKRIPSI (Ujian Hasil & Ujian Tutup)
+    if ($kategori === 'semua' || $kategori === 'skripsi_hasil' || $kategori === 'skripsi_tutup') {
+        $whereSkr = ["(s.status IS NULL OR s.status = '' OR LOWER(s.status) NOT IN ('tidak aktif', 'alumni', 'kadaluarsa', 'ditolak'))"];
+        if ($filterProdi !== '') {
+            $pClean = bersihkan($filterProdi);
+            $whereSkr[] = "(m.prodi = '$pClean' OR pr.kode = '$pClean')";
+        }
+        if ($cari !== '') {
+            $cClean = bersihkan($cari);
+            $whereSkr[] = "(s.nim LIKE '%$cClean%' OR m.nama LIKE '%$cClean%')";
+        }
+        $whereSqlSkr = implode(" AND ", $whereSkr);
+
+        $sqlSkr = "SELECT s.nim, s.status, m.nama AS nama_mhs, m.prodi, m.angkatan, pr.nama AS nama_prodi,
+                          (SELECT ps.proses FROM progres_skripsi ps WHERE ps.mahasiswa = s.nim ORDER BY ps.waktu DESC, ps.proses DESC LIMIT 1) AS step_terbaru
+                   FROM skripsi s
+                   LEFT JOIN mahasiswa m ON s.nim = m.nim
+                   LEFT JOIN prodi pr ON m.prodi = pr.kode
+                   WHERE $whereSqlSkr
+                   ORDER BY s.nim DESC";
+
+        $qSkr = query($sqlSkr);
+        if ($qSkr && mysqli_num_rows($qSkr) > 0) {
+            while ($r = mysqli_fetch_assoc($qSkr)) {
+                $nim = trim((string)$r['nim']);
+
+                // Lewati jika mahasiswa sudah terdaftar di batch aktif saat ini
+                if (isset($sudahDiBatch[$nim])) {
+                    continue;
+                }
+
+                $step    = (int)($r['step_terbaru'] ?? 0);
+                $isHasil = ($step === 10);
+                $isTutup = ($step === 18);
+
+                if (!$isHasil && !$isTutup) {
+                    continue; // Hanya mahasiswa dengan progres tepat 10 (Hasil) atau 18 (Tutup)
+                }
+
+                if ($kategori === 'skripsi_hasil' && !$isHasil) continue;
+                if ($kategori === 'skripsi_tutup' && !$isTutup) continue;
+
+                if ($isHasil) {
+                    $katUjian     = 'skripsi_hasil';
+                    $tahapanLabel = 'Ujian Hasil';
+                    $badgeClass   = 'bg-amber-100 text-amber-800 border border-amber-200';
+                    $iconClass    = 'fas fa-file-alt text-amber-600';
+                } else {
+                    $katUjian     = 'skripsi_tutup';
+                    $tahapanLabel = 'Ujian Tutup';
+                    $badgeClass   = 'bg-purple-100 text-purple-800 border border-purple-200';
+                    $iconClass    = 'fas fa-award text-purple-600';
+                }
+
+                $penguji = ambil_penguji_ujian($nim, $katUjian);
+
+                $hasil[] = [
+                    'sumber'        => 'skripsi',
+                    'kategori'      => $katUjian,
+                    'nim'           => $nim,
+                    'nama_mhs'      => $r['nama_mhs'] ?: $nim,
+                    'prodi'         => $r['prodi'] ?? '',
+                    'nama_prodi'    => $r['nama_prodi'] ?: ($r['prodi'] ?? '-'),
+                    'angkatan'      => $r['angkatan'] ?? '',
+                    'tahapan_label' => $tahapanLabel,
+                    'badge_class'   => $badgeClass,
+                    'icon_class'    => $iconClass,
+                    'penguji'       => $penguji,
+                ];
+            }
+        }
+    }
+
+    // 2. DATA ANTRIAN DARI KERJA PRAKTEK (Seminar KP)
+    // Syarat wajib: Harus sudah ada penunjukkan dosen penguji
+    if ($kategori === 'semua' || $kategori === 'kp') {
+        $whereKp = ["(k.status IS NULL OR k.status = '' OR LOWER(k.status) NOT IN ('tidak aktif', 'alumni', 'kadaluarsa', 'ditolak'))"];
+        if ($filterProdi !== '') {
+            $pClean = bersihkan($filterProdi);
+            $whereKp[] = "(m.prodi = '$pClean' OR pr.kode = '$pClean')";
+        }
+        if ($cari !== '') {
+            $cClean = bersihkan($cari);
+            $whereKp[] = "(k.nim LIKE '%$cClean%' OR m.nama LIKE '%$cClean%')";
+        }
+        $whereSqlKp = implode(" AND ", $whereKp);
+
+        $sqlKp = "SELECT k.nim, k.status, k.surat_penunjukkan_penguji, m.nama AS nama_mhs, m.prodi, m.angkatan, pr.nama AS nama_prodi,
+                         (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = k.nim ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS step_terbaru,
+                         (SELECT COUNT(*) FROM surat_penunjukkan sp WHERE sp.nim = k.nim AND (sp.keterangan LIKE '%PENGUJI%KP%' OR sp.keterangan LIKE '%PENGUJI SEMINAR%')) AS ada_surat_penguji
+                  FROM kp k
+                  LEFT JOIN mahasiswa m ON k.nim = m.nim
+                  LEFT JOIN prodi pr ON m.prodi = pr.kode
+                  WHERE $whereSqlKp
+                  ORDER BY k.nim DESC";
+
+        $qKp = query($sqlKp);
+        if ($qKp && mysqli_num_rows($qKp) > 0) {
+            while ($r = mysqli_fetch_assoc($qKp)) {
+                $nim = trim((string)$r['nim']);
+
+                // Lewati jika sudah ada di batch aktif
+                if (isset($sudahDiBatch[$nim])) {
+                    continue;
+                }
+
+                $step = (int)($r['step_terbaru'] ?? 0);
+
+                // Validasi penunjukkan penguji KP
+                $punyaPenguji = (
+                    (!empty($r['surat_penunjukkan_penguji']) && (int)$r['surat_penunjukkan_penguji'] > 0) ||
+                    ((int)($r['ada_surat_penguji'] ?? 0) > 0) ||
+                    ($step >= 13)
+                );
+
+                // Lewati jika belum ada penguji
+                if (!$punyaPenguji) {
+                    continue;
+                }
+
+                // Hanya sertakan mahasiswa yang berada tepat pada tahap seminar KP (progres 12)
+                if ($step !== 12) {
+                    continue;
+                }
+
+                $penguji = ambil_penguji_ujian($nim, 'kp', (int)($r['surat_penunjukkan_penguji'] ?? 0));
+
+                $hasil[] = [
+                    'sumber'        => 'kp',
+                    'kategori'      => 'kp',
+                    'nim'           => $nim,
+                    'nama_mhs'      => $r['nama_mhs'] ?: $nim,
+                    'prodi'         => $r['prodi'] ?? '',
+                    'nama_prodi'    => $r['nama_prodi'] ?: ($r['prodi'] ?? '-'),
+                    'angkatan'      => $r['angkatan'] ?? '',
+                    'tahapan_label' => 'Seminar KP',
+                    'badge_class'   => 'bg-blue-100 text-blue-800 border border-blue-200',
+                    'icon_class'    => 'fas fa-briefcase text-blue-600',
+                    'penguji'       => $penguji,
+                ];
+            }
+        }
+    }
+
+    return $hasil;
+}
+
+// ================= FUNCTION DAPATKAN ID DOSEN PEMBUAT BATCH =================
+function dapatkan_id_dosen_pembuat() {
+    global $koneksi;
+
+    // 1. Coba verifikasi apakah ID pada session login ($_SESSION['id']) terdaftar di tabel dosen
+    if (!empty($_SESSION['id'])) {
+        $sessId = bersihkan((string)$_SESSION['id']);
+        $cek = query("SELECT id FROM dosen WHERE id = '$sessId' LIMIT 1");
+        if ($cek && mysqli_num_rows($cek) > 0) {
+            $r = mysqli_fetch_assoc($cek);
+            return (string)$r['id'];
+        }
+    }
+
+    // 2. Jika bukan ID numerik langsung, periksa berdasarkan NIP, username, atau user_id
+    $nip = bersihkan((string)($_SESSION['nip'] ?? $_SESSION['username'] ?? $_SESSION['user_id'] ?? ''));
+    if ($nip !== '') {
+        $cek = query("SELECT id FROM dosen WHERE nip = '$nip' OR nidn = '$nip' LIMIT 1");
+        if ($cek && mysqli_num_rows($cek) > 0) {
+            $r = mysqli_fetch_assoc($cek);
+            return (string)$r['id'];
+        }
+    }
+
+    // 3. Fallback jika operator login dengan akun admin/superadmin yang tidak memiliki record di dosen:
+    $cekFirst = query("SELECT id FROM dosen ORDER BY id ASC LIMIT 1");
+    if ($cekFirst && mysqli_num_rows($cekFirst) > 0) {
+        $r = mysqli_fetch_assoc($cekFirst);
+        return (string)$r['id'];
+    }
+
+    return '1';
+}
+
+// ================= FUNCTION CEK KELAYAKAN BUKA BATCH BARU =================
+function cek_kelayakan_buka_batch_baru() {
+    global $koneksi;
+
+    // 1. Cek apakah ada batch yang statusnya masih terbuka/aktif ('buka')
+    $qBuka = query("SELECT id FROM batch_ujian WHERE status = 'buka' LIMIT 1");
+    if ($qBuka && mysqli_num_rows($qBuka) > 0) {
+        return [
+            'layak'        => false,
+            'belum_diatur' => 0,
+            'pesan'        => 'Masih terdapat batch ujian yang sedang aktif/terbuka. Tutup batch tersebut terlebih dahulu sebelum membuka batch baru.'
+        ];
+    }
+
+    // 2. Ambil batch paling baru (yang telah ditutup)
+    $qPrev = query("SELECT id FROM batch_ujian ORDER BY id DESC LIMIT 1");
+    if (!$qPrev || mysqli_num_rows($qPrev) === 0) {
+        // Belum ada batch sama sekali di database -> boleh buka batch pertama
+        return [
+            'layak'        => true,
+            'belum_diatur' => 0,
+            'pesan'        => 'Belum ada batch ujian sebelumnya. Anda dapat membuka batch baru.'
+        ];
+    }
+
+    $rPrev   = mysqli_fetch_assoc($qPrev);
+    $idBatch = (int)$rPrev['id'];
+
+    // 3. Periksa seluruh peserta pada batch terakhir tersebut:
+    $qPeserta = query("SELECT pb.*, 
+                              (SELECT ps.proses FROM progres_skripsi ps WHERE ps.mahasiswa = pb.mahasiswa ORDER BY ps.waktu DESC, ps.proses DESC LIMIT 1) AS step_skripsi,
+                              (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = pb.mahasiswa ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS step_kp
+                       FROM peserta_batch pb 
+                       WHERE pb.id_batch = '$idBatch'");
+
+    $totalPeserta = 0;
+    $belumDiatur  = 0;
+
+    if ($qPeserta && mysqli_num_rows($qPeserta) > 0) {
+        while ($p = mysqli_fetch_assoc($qPeserta)) {
+            $totalPeserta++;
+            $stepSkr = (int)($p['step_skripsi'] ?? 0);
+            $stepKp  = (int)($p['step_kp'] ?? 0);
+
+            // Indikator sudah naik step:
+            // Jika bukan lagi progres 10 & 18 (skripsi) dan bukan lagi progres 12 (KP), maka jadwal sudah selesai diatur
+            $masihPerluJadwal = ($stepSkr === 10 || $stepSkr === 18 || $stepKp === 12);
+            $vUndangan = isset($p['nomor_undangan']) ? trim((string)$p['nomor_undangan']) : '';
+            $sudahNaik = (!$masihPerluJadwal || $vUndangan !== '');
+
+            if (!$sudahNaik) {
+                $belumDiatur++;
+            }
+        }
+    }
+
+    if ($belumDiatur > 0) {
+        return [
+            'layak'        => false,
+            'belum_diatur' => $belumDiatur,
+            'pesan'        => "Masih terdapat $belumDiatur peserta yang belum diatur jadwal ujiannya. Silakan lengkapi jadwal seluruh peserta terlebih dahulu sebelum membuka batch baru."
+        ];
+    }
+
+    return [
+        'layak'        => true,
+        'belum_diatur' => 0,
+        'pesan'        => 'Seluruh peserta telah diatur jadwalnya. Anda dapat membuka batch baru jika diperlukan.'
+    ];
+}
+
+function get_nomor_surat($kategori){
+  $tahun = date('Y');
+  $katClean = bersihkan($kategori);
+  $katLower = strtolower(trim($katClean));
+  $nomor = 'Tidak Ditemukan';
+
+  // 1. Coba exact match
+  $cek_format = query("SELECT * FROM `format_nomor_surat` WHERE LOWER(TRIM(nama_surat)) = '$katLower' LIMIT 1");
+
+  // 2. Coba alternatif ejaan (penunjukan vs penunjukkan, dengan/tanpa kata 'surat')
+  if(!$cek_format || mysqli_num_rows($cek_format) === 0){
+    $alt = [];
+    $alt[] = str_replace('penunjukkan', 'penunjukan', $katLower);
+    $alt[] = str_replace('penunjukan', 'penunjukkan', $katLower);
+    $alt[] = trim(preg_replace('/^surat\s+/', '', $katLower));
+    $alt[] = str_replace('penunjukkan', 'penunjukan', end($alt));
+    $alt[] = str_replace('penunjukan', 'penunjukkan', end($alt));
+    $altFiltered = array_unique(array_filter($alt));
+    if (!empty($altFiltered)) {
+      $altEscaped = "'" . implode("','", array_map('bersihkan', $altFiltered)) . "'";
+      $cek_format = query("SELECT * FROM `format_nomor_surat` WHERE LOWER(TRIM(nama_surat)) IN ($altEscaped) LIMIT 1");
+    }
+  }
+
+  // 3. Coba pencarian LIKE fleksibel jika belum ketemu
+  if(!$cek_format || mysqli_num_rows($cek_format) === 0){
+    if(strpos($katLower, 'penguji') !== false){
+      $cek_format = query("SELECT * FROM `format_nomor_surat` WHERE LOWER(nama_surat) LIKE '%penguji%' LIMIT 1");
+    } elseif(strpos($katLower, 'pembimbing') !== false){
+      $cek_format = query("SELECT * FROM `format_nomor_surat` WHERE LOWER(nama_surat) LIKE '%pembimbing%' LIMIT 1");
+    }
+  }
+
+  // 4. Jika kategori belum ada di format_nomor_surat, ambil template format yang ada dan auto-insert
+  if(!$cek_format || mysqli_num_rows($cek_format) === 0){
+    $qAny = query("SELECT format_nomor FROM `format_nomor_surat` WHERE format_nomor IS NOT NULL AND format_nomor != '' ORDER BY id ASC LIMIT 1");
+    $fmtDef = ($qAny && ($rAny = mysqli_fetch_assoc($qAny)) && !empty($rAny['format_nomor'])) 
+              ? $rAny['format_nomor'] 
+              : '/UN28.1.28/TD.06/';
+    
+    // Auto insert agar ke depannya selalu match exact
+    query("INSERT INTO `format_nomor_surat` (`nama_surat`, `format_nomor`) VALUES ('$katClean', '$fmtDef')");
+    $cek_format = query("SELECT * FROM `format_nomor_surat` WHERE LOWER(TRIM(nama_surat)) = '$katLower' LIMIT 1");
+  }
+
+  if($cek_format && mysqli_num_rows($cek_format) > 0){
+    $data_format = mysqli_fetch_assoc($cek_format);
+
+    $cek_nomor = query("SELECT * FROM `nomor_surat` WHERE YEAR(tanggal) = '$tahun' ORDER BY CAST(urutan AS UNSIGNED) DESC, id DESC LIMIT 1");
+    if($cek_nomor && mysqli_num_rows($cek_nomor) > 0){
+      $data_nomor = mysqli_fetch_assoc($cek_nomor);
+      $urutan = sprintf('%03d', ((int)$data_nomor['urutan'] + 1));
+    } else {
+      $urutan = sprintf('%03d', 1);
+    }
+    $nomor = $urutan . $data_format['format_nomor'] . $tahun;
+  }
+
+  return $nomor;
+}
+
+function tambah_nomor($nomor,$keterangan=NULL){
+  $nomor = bersihkan($nomor);
+  if ($nomor === '') return false;
+
+  // Cek apakah nomor surat sudah pernah dicatat di tabel nomor_surat
+  $cekNomor = query("SELECT id FROM `nomor_surat` WHERE nomor = '$nomor' LIMIT 1");
+  if ($cekNomor && ($rN = mysqli_fetch_assoc($cekNomor))) {
+    return $rN['id'];
+  }
+
+  $id = time();
+  // Pastikan ID unik tidak bentrok dengan data lain
+  while (true) {
+    $cekId = query("SELECT id FROM `nomor_surat` WHERE id = '$id' LIMIT 1");
+    if (!$cekId || mysqli_num_rows($cekId) === 0) {
+      break;
+    }
+    $id++;
+  }
+
+  $pecah = explode('/',$nomor);
+  $urutan = (int)($pecah[0] ?? 0);
+  $keterangan = bersihkan($keterangan ?? '');
+  $tanggal = date('Y-m-d');
+  $tambah = query("INSERT INTO `nomor_surat`(`id`, `urutan`, `nomor`, `tanggal`, `keterangan`) VALUES ('$id','$urutan','$nomor','$tanggal','$keterangan')");
+  if($tambah){
+    return $id;
+  }
+  return false;
+}
+
+// ================= FUNCTION AMBIL BATCH UJIAN AKTIF =================
+function get_batch_ujian_aktif() {
+    $nowTs = time();
+
+    // Deteksi ketersediaan kolom status pada batch_ujian
+    $colsBatch = [];
+    $qCols = query("SHOW COLUMNS FROM batch_ujian");
+    if ($qCols) {
+        while ($rC = mysqli_fetch_assoc($qCols)) {
+            $colsBatch[] = strtolower($rC['Field']);
+        }
+    }
+    $hasStatusCol = in_array('status', $colsBatch, true);
+    $colStatusSql = $hasStatusCol ? ', status' : '';
+
+    $q = query("SELECT id, tanggal_buka, tanggal_tutup, pembuat $colStatusSql FROM batch_ujian ORDER BY id DESC");
+    if ($q && mysqli_num_rows($q) > 0) {
+        while ($row = mysqli_fetch_assoc($q)) {
+            $tglBuka  = $row['tanggal_buka'];
+            $tglTutup = $row['tanggal_tutup'];
+            $bukaTs   = strtotime($tglBuka . ' 00:00:00');
+            $tutupTs  = strtotime($tglTutup . ' 23:59:59');
+
+            $statusDb = strtolower(trim((string)($row['status'] ?? '')));
+            $isManuallyClosed = ($hasStatusCol && in_array($statusDb, ['tutup', 'selesai', 'closed'], true));
+            $isExplicitOpen = ($hasStatusCol && in_array($statusDb, ['buka', 'aktif', 'open'], true));
+
+            // Aktif jika status 'buka' ATAU tanggal hari ini dalam rentang buka-tutup (dan tidak ditutup manual)
+            $isAktif = $isExplicitOpen || (!$isManuallyClosed && $bukaTs && $tutupTs && $nowTs >= $bukaTs && $nowTs <= $tutupTs);
+
+            if ($isAktif) {
+                $diffDetik = $tutupTs - $nowTs;
+                $sisaHari  = max(0, (int)ceil($diffDetik / 86400));
+                $sisaHariLabel = ($sisaHari <= 0) ? 'Berakhir hari ini' : ($sisaHari . ' hari tersisa');
+
+                return [
+                    'id'              => (int)$row['id'],
+                    'tanggal_buka'    => $tglBuka,
+                    'tanggal_tutup'   => $tglTutup,
+                    'periode_display' => tgl_indo($tglBuka) . ' s.d. ' . tgl_indo($tglTutup),
+                    'sisa_hari'       => $sisaHari,
+                    'sisa_hari_label' => $sisaHariLabel
+                ];
+            }
+        }
+    }
+    return null;
+}
+
+// ================= FUNCTION CEK STATUS PESERTA BATCH =================
+function get_status_peserta_batch($nim, $idBatch) {
+    $nimClean = bersihkan($nim);
+    $idBatch  = (int)$idBatch;
+    $q = query("SELECT * FROM peserta_batch WHERE mahasiswa = '$nimClean' AND id_batch = $idBatch LIMIT 1");
+    if ($q && mysqli_num_rows($q) > 0) {
+        return mysqli_fetch_assoc($q);
+    }
+    return null;
+}

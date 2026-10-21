@@ -259,7 +259,7 @@ $userProdi     = $isFilterProdi ? get_prodi_user() : '';
         class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-orange-400">
         <option value="Aktif" selected>Aktif</option>
         <option value="tidak aktif">Tidak Aktif</option>
-        <option value="Alumni">Alumni</option>
+        <option value="Selesai">Selesai</option>
         <option value="Kadaluarsa">Kadaluarsa</option>
       </select>
 

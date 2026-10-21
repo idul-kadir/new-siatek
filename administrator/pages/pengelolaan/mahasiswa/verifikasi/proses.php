@@ -243,7 +243,45 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
             $namaMhs  = !empty($mhs['nama_mahasiswa']) ? $mhs['nama_mahasiswa'] : '-';
             $prodiMhs = !empty($mhs['nama_prodi']) ? $mhs['nama_prodi'] : ($mhs['prodi'] ?? '-');
 
+            $dosenPengujiKp = [];
             if ($tipeMhs === 'kp') {
+                try {
+                    $qSuratPenguji = query("SELECT penguji1, penguji2, penguji3 FROM surat_penunjukkan WHERE nim = '$nimMhs' AND (keterangan LIKE '%PENGUJI%KP%' OR keterangan LIKE '%SEMINAR%KP%' OR keterangan = 'PENGUJI KP') ORDER BY id DESC LIMIT 1");
+                    if ($qSuratPenguji && mysqli_num_rows($qSuratPenguji) > 0) {
+                        $rPenguji = mysqli_fetch_assoc($qSuratPenguji);
+                        for ($p = 1; $p <= 3; $p++) {
+                            $idDsn = trim((string)($rPenguji['penguji' . $p] ?? ''));
+                            if ($idDsn !== '') {
+                                $qNama = query("SELECT nama FROM dosen WHERE id = '$idDsn' OR nip = '$idDsn' LIMIT 1");
+                                if ($qNama && mysqli_num_rows($qNama) > 0) {
+                                    $dosenPengujiKp[$p] = mysqli_fetch_assoc($qNama)['nama'];
+                                } else {
+                                    $dosenPengujiKp[$p] = $idDsn;
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback Penguji 1: Jika Penguji 1 belum diatur di surat penguji, ambil dari Dosen Pembimbing KP
+                    if (empty($dosenPengujiKp[1])) {
+                        $qBimb = query("SELECT pembimbing1 FROM surat_penunjukkan WHERE nim = '$nimMhs' AND keterangan LIKE '%PEMBIMBING%KP%' ORDER BY id DESC LIMIT 1");
+                        if ($qBimb && mysqli_num_rows($qBimb) > 0) {
+                            $rBimb = mysqli_fetch_assoc($qBimb);
+                            $idP1 = trim((string)($rBimb['pembimbing1'] ?? ''));
+                            if ($idP1 !== '') {
+                                $qNamaP1 = query("SELECT nama FROM dosen WHERE id = '$idP1' OR nip = '$idP1' LIMIT 1");
+                                if ($qNamaP1 && mysqli_num_rows($qNamaP1) > 0) {
+                                    $dosenPengujiKp[1] = mysqli_fetch_assoc($qNamaP1)['nama'];
+                                } else {
+                                    $dosenPengujiKp[1] = $idP1;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $dosenPengujiKp = [];
+                }
+
                 $sqlBerkas = "SELECT tk.id, tk.nim, tk.file, tk.status, tk.ket, pbk.nama_berkas, pbk.progres AS progres_unggah, sop.no AS sop_no, sop.status AS sop_ket, f.nama_file 
                               FROM temp_kp tk 
                               JOIN persyaratan_berkas_kp pbk ON tk.id_persyaratan = pbk.id 
@@ -311,11 +349,44 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                 <!-- Body List Berkas -->
                 <div class="p-4 divide-y divide-slate-100">
                     <?php
+                    $counterKoreksi = 0;
                     if ($qBerkas && mysqli_num_rows($qBerkas) > 0) {
                         while ($b = mysqli_fetch_assoc($qBerkas)) {
                             $fileUrl = base_url() . '/file/' . tampil($b['nama_file']);
                             $st = strtolower(trim($b['status'] ?? 'menunggu'));
                             $badgeSt = $st === 'diterima' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : ($st === 'ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200');
+
+                            // Deteksi nama dosen penguji khusus Tahap 15 KP (Verifikasi Lembar Koreksi)
+                            $namaPengujiTerkait = '';
+                            $idxPenguji = 0;
+                            if ($tipeMhs === 'kp' && (int)$b['sop_no'] === 15) {
+                                $namaBerkas = $b['nama_berkas'];
+                                if (preg_match('/(?:penguji|pembimbing|koreksi|penilaian|revisi|pengesahan)[^\d]*([1-3])/i', $namaBerkas, $mPen)) {
+                                    $idxPenguji = (int)$mPen[1];
+                                } elseif (preg_match('/([1-3])/', $namaBerkas, $mPen)) {
+                                    $idxPenguji = (int)$mPen[1];
+                                } elseif (stripos($namaBerkas, 'pembimbing') !== false) {
+                                    $idxPenguji = 1;
+                                }
+
+                                if ($idxPenguji === 0) {
+                                    $counterKoreksi++;
+                                    $idxPenguji = $counterKoreksi;
+                                }
+
+                                if ($idxPenguji >= 1 && $idxPenguji <= 3 && !empty($dosenPengujiKp[$idxPenguji])) {
+                                    $namaPengujiTerkait = $dosenPengujiKp[$idxPenguji];
+                                }
+                            }
+
+                            if (!empty($namaPengujiTerkait)) {
+                                $labelPengujiTxt = "Dosen Penguji" . ($idxPenguji > 0 ? " $idxPenguji" : "");
+                                $labelSopHtml = '<span class="font-semibold text-slate-700"><i class="fas fa-user-tie text-blue-600 mr-1.5"></i>' . $labelPengujiTxt . ':</span> <span class="text-slate-800 font-medium">' . tampil($namaPengujiTerkait) . '</span>';
+                                $sopTextModal = $labelPengujiTxt . ': ' . $namaPengujiTerkait;
+                            } else {
+                                $labelSopHtml = '<span class="font-semibold text-slate-600">Tahap ' . tampil($b['sop_no']) . ':</span> ' . tampil($b['sop_ket']);
+                                $sopTextModal = 'Tahap ' . tampil($b['sop_no']) . ': ' . tampil($b['sop_ket']);
+                            }
                             ?>
                             <div class="py-3 first:pt-0 last:pb-0 flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex items-start gap-3 flex-1 min-w-[250px]">
@@ -330,7 +401,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                                             </span>
                                         </div>
                                         <p class="text-xs text-slate-500 mt-0.5">
-                                            <span class="font-semibold text-slate-600">Tahap <?= tampil($b['sop_no']) ?>:</span> <?= tampil($b['sop_ket']) ?>
+                                            <?= $labelSopHtml ?>
                                         </p>
                                         <?php if (!empty($b['ket'])): ?>
                                             <p class="text-xs text-slate-400 italic mt-0.5">Catatan: <?= tampil($b['ket']) ?></p>
@@ -346,7 +417,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                                                 data-url="<?= $fileUrl ?>"
                                                 data-namaberkas="<?= tampil($b['nama_berkas']) ?>"
                                                 data-mhs="<?= tampil($namaMhs) ?> (<?= tampil($nimMhs) ?>)"
-                                                data-sop="Tahap <?= tampil($b['sop_no']) ?>: <?= tampil($b['sop_ket']) ?>"
+                                                data-sop="<?= tampil($sopTextModal) ?>"
                                                 data-status="<?= $st ?>"
                                                 data-badgestyle="<?= $badgeSt ?>"
                                                 data-ket="<?= tampil($b['ket'] ?? '') ?>">
@@ -359,7 +430,7 @@ if (isset($_POST['ambil-tabel']) || isset($_POST['ambil-antrian'])) {
                                                 data-url="<?= $fileUrl ?>"
                                                 data-namaberkas="<?= tampil($b['nama_berkas']) ?>"
                                                 data-mhs="<?= tampil($namaMhs) ?> (<?= tampil($nimMhs) ?>)"
-                                                data-sop="Tahap <?= tampil($b['sop_no']) ?>: <?= tampil($b['sop_ket']) ?>"
+                                                data-sop="<?= tampil($sopTextModal) ?>"
                                                 data-status="<?= $st ?>"
                                                 data-badgestyle="<?= $badgeSt ?>"
                                                 data-ket="<?= tampil($b['ket'] ?? '') ?>">
@@ -508,6 +579,11 @@ if (isset($_POST['verifikasi-berkas'])) {
                             $qCekProgres = query("SELECT proses FROM progres_kp WHERE mahasiswa = '$nimMhs' AND proses = '$nextProsesAfterAdmin'");
                             if (!$qCekProgres || mysqli_num_rows($qCekProgres) == 0) {
                                 set_progres_kp($nimMhs, $nextProsesAfterAdmin, $waktuNow + 1);
+                            }
+
+                            // Jika verifikasi berkas selesai dan step naik ke step 16, KP dinyatakan selesai
+                            if ($nextProsesAfterAdmin >= 16) {
+                                query("UPDATE kp SET status = 'Selesai' WHERE nim = '$nimMhs'");
                             }
                         }
                     }

@@ -37,7 +37,7 @@ if (!$sudahLogin) {
 // Level 3: Operator Prodi, Level 4: Operator Jurusan, Level 5: Kaprodi, Level 6: Admin, Level 9: Superadmin
 // -----------------------------------------------------------------------------
 $userLevel = (int)($_SESSION['level'] ?? 0);
-$allowedLevels = [3, 4, 5, 6, 9];
+$allowedLevels = [3, 4, 6, 9];
 
 if (!in_array($userLevel, $allowedLevels, true)) {
     http_response_code(403);
@@ -61,7 +61,7 @@ if (!in_array($userLevel, $allowedLevels, true)) {
 // -----------------------------------------------------------------------------
 // IDENTIFIKASI PROGRAM STUDI PENGGUNA (Khusus Level 3 & Level 5)
 // -----------------------------------------------------------------------------
-$isFilterProdi = in_array($userLevel, [3, 5], true);
+$isFilterProdi = ($userLevel === 3);
 $userProdi     = $isFilterProdi ? get_prodi_user() : '';
 $namaProdiUser = '';
 if ($isFilterProdi && $userProdi !== '') {
@@ -174,19 +174,25 @@ if ($isFilterProdi && $userProdi !== '') {
          SISI KIRI: LEBAR 7 / 12 KOLOM (lg:col-span-7)
          Menampilkan Form Buka Batch (jika belum ada) ATAU Batch Terbuka & Pesertanya
          ======================================================================= -->
-    <div class="lg:col-span-7 space-y-4">
+    <div class="lg:col-span-7">
 
-      <!-- KONDISI A: FORM BUKA BATCH INLINE (Tampil hanya jika BELUM ADA batch terbuka) -->
+      <!-- KONDISI A: FORM BUKA BATCH INLINE (Tampil saat belum ada batch atau operator ingin membuka batch baru) -->
       <div id="wrapFormBukaBatch" class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-100 bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-4">
-          <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm">
-              <i class="fas fa-calendar-plus text-base"></i>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm">
+                <i class="fas fa-calendar-plus text-base"></i>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-800">Buka Batch Ujian Baru</h2>
+                <p class="text-xs text-slate-500">Atur periode pelaksanaan ujian</p>
+              </div>
             </div>
-            <div>
-              <h2 class="text-sm font-bold text-slate-800">Buka Batch Ujian</h2>
-              <p class="text-xs text-slate-500">Atur periode pelaksanaan ujian</p>
-            </div>
+            <!-- Tombol Batal jika operator sebelumnya sedang melihat kartu batch -->
+            <button type="button" id="btnBatalBukaBatchBaru" class="hidden text-xs font-semibold text-slate-600 hover:text-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition shadow-2xs">
+              <i class="fas fa-arrow-left mr-1 text-slate-400"></i> Kembali ke Batch
+            </button>
           </div>
         </div>
 
@@ -217,22 +223,25 @@ if ($isFilterProdi && $userProdi !== '') {
         </form>
       </div>
 
-      <!-- KONDISI B: BATCH TERBUKA & TABEL PESERTA (Tampil saat ADA batch terbuka) -->
+      <!-- KONDISI B: BATCH TERBUKA / TERTUTUP & TABEL PESERTA (Tampil saat ADA batch) -->
       <div id="wrapBatchTerbuka" class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         
-        <!-- Header Identitas Batch Aktif -->
+        <!-- Header Identitas Batch (Terbuka / Tertutup) -->
         <div class="border-b border-slate-100 bg-slate-50 px-5 py-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm">
-                <i class="fas fa-folder-open text-base"></i>
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm" id="iconBoxBatch">
+                <i class="fas fa-folder-open text-base" id="iconBatchStatus"></i>
               </div>
               <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <h2 class="text-base font-bold text-slate-800" id="displayNamaBatch">Batch Ujian</h2>
                   <span id="displayBadgeStatus" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Dibuka / Aktif
                   </span>
+                  <!-- Dropdown Switcher jika ada beberapa batch di sistem -->
+                  <select id="selectPilihBatch" class="hidden rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-orange-400 shadow-2xs">
+                  </select>
                 </div>
                 <!-- Informasi Periode Tanggal & Operator Pembuat Batch -->
                 <p class="text-xs text-slate-500 mt-0.5">
@@ -240,12 +249,40 @@ if ($isFilterProdi && $userProdi !== '') {
                   Periode: <strong class="text-slate-700" id="displayPeriodeBatch">-</strong>
                   &bull; Dibuat oleh: <span class="text-slate-600" id="displayPembuatBatch">-</span>
                 </p>
+
+                <!-- Countdown Sisa Waktu (Berstruktur, Terbaca Jelas, & Tidak Memakan Space Ekstra) -->
+                <div id="wrapCountdownBaris" class="hidden mt-2.5 flex items-center gap-2 flex-wrap">
+                  <span class="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                    <i class="fas fa-hourglass-half text-orange-500"></i>
+                    <span>Sisa Waktu:</span>
+                  </span>
+                  <div class="inline-flex items-center gap-1">
+                    <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold text-slate-800 shadow-2xs text-xs">
+                      <span id="cdHari">00</span> <span class="text-[10px] font-normal text-slate-400">hari</span>
+                    </span>
+                    <span class="text-slate-400 font-bold">:</span>
+                    <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold text-slate-800 shadow-2xs text-xs">
+                      <span id="cdJam">00</span> <span class="text-[10px] font-normal text-slate-400">jam</span>
+                    </span>
+                    <span class="text-slate-400 font-bold">:</span>
+                    <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold text-slate-800 shadow-2xs text-xs">
+                      <span id="cdMenit">00</span> <span class="text-[10px] font-normal text-slate-400">mnt</span>
+                    </span>
+                    <span class="text-slate-400 font-bold">:</span>
+                    <span class="px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 font-mono font-bold text-orange-600 shadow-2xs text-xs">
+                      <span id="cdDetik">00</span> <span class="text-[10px] font-normal text-orange-400">dtk</span>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Tombol Pengaturan Batch: Ubah Periode atau Tutup Batch -->
+            <!-- Tombol Pengaturan Batch: Buka Batch Baru, Ubah Periode, atau Tutup Batch -->
             <div class="flex items-center gap-2">
-              <button type="button" id="btnEditBatchInline" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs">
+              <button type="button" id="btnBukaBatchBaru" class="hidden inline-flex items-center gap-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold shadow-sm transition">
+                <i class="fas fa-plus"></i> Buka Batch Baru
+              </button>
+              <button type="button" id="btnEditBatchInline" class="hidden inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs">
                 <i class="fas fa-pen text-slate-400"></i> Ubah Periode
               </button>
               <button type="button" id="btnTutupBatch" class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition shadow-2xs">
@@ -254,6 +291,9 @@ if ($isFilterProdi && $userProdi !== '') {
             </div>
           </div>
         </div>
+
+        <!-- Banner Status Kelayakan Buka Batch Baru (Khusus Batch Tertutup) -->
+        <div id="wrapBannerKelayakan" class="hidden px-5 py-3 border-b border-slate-100 bg-white"></div>
 
         <!-- Toolbar Pencarian & Filter Peserta di Batch Terbuka -->
         <div class="p-3 border-b border-slate-100 bg-white">
@@ -402,7 +442,12 @@ if ($isFilterProdi && $userProdi !== '') {
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Mulai Buka <span class="text-rose-500">*</span></label>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-semibold text-slate-700">Tanggal Mulai Buka <span class="text-rose-500">*</span></label>
+          <button type="button" id="btnSetTglBukaHariIni" class="text-[10px] text-orange-600 hover:text-orange-700 font-semibold underline">
+            Set Hari Ini
+          </button>
+        </div>
         <input type="date" name="tanggal_buka" id="editTglBuka" required
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-500 transition">
       </div>
@@ -424,6 +469,126 @@ if ($isFilterProdi && $userProdi !== '') {
 </div>
 
 <!-- ===========================================================================
+     MODAL OVERLAY: ATUR JADWAL UJIAN PESERTA BATCH
+     (NOMOR UNDANGAN, JAM, TANGGAL, RUANG UJIAN)
+     =========================================================================== -->
+<div class="modal-overlay" id="modalAturJadwal" role="dialog" aria-modal="true">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+    <!-- Header Modal -->
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500 text-white shadow-sm">
+          <i class="fas fa-sliders-h text-sm"></i>
+        </div>
+        <div>
+          <h6 class="font-bold text-slate-800 text-sm">Pengaturan Jadwal Ujian</h6>
+          <p class="text-xs text-slate-500">Lengkapi rincian ujian peserta batch</p>
+        </div>
+      </div>
+      <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-close-modal>&times;</button>
+    </div>
+
+    <!-- Form Pengaturan Jadwal -->
+    <form id="formAturJadwal" class="p-5 space-y-4">
+      <input type="hidden" name="id_peserta" id="aturIdPeserta" value="">
+      <input type="hidden" name="id_batch" id="aturIdBatch" value="">
+      <input type="hidden" name="nim" id="aturNim" value="">
+      <input type="hidden" name="kategori" id="aturKategori" value="">
+
+      <!-- Identitas Mahasiswa (Banner Informatif) -->
+      <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-800" id="aturNamaMhs">-</div>
+          <div class="text-[11px] font-mono text-slate-500 flex items-center gap-1.5 mt-0.5">
+            <i class="fas fa-id-card text-[10px] text-slate-400"></i>
+            <span id="aturNimMhs">-</span>
+          </div>
+        </div>
+        <span id="aturTahapanTag" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+          Ujian
+        </span>
+      </div>
+
+      <!-- Informasi Dosen Penguji -->
+      <div id="aturWrapPenguji" class="rounded-lg bg-orange-50/70 border border-orange-200/80 p-3 hidden">
+        <div class="text-[11px] font-bold text-orange-900 flex items-center gap-1.5 mb-1.5">
+          <i class="fas fa-user-tie text-orange-600 text-xs"></i>
+          <span>Dosen Penguji</span>
+        </div>
+        <div id="aturListPenguji" class="space-y-1.5 text-xs text-slate-700">
+          <!-- Diisi dinamis via JavaScript -->
+        </div>
+      </div>
+
+      <!-- Field 1: Nomor Undangan -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+          <span>Nomor Undangan <span class="text-rose-500">*</span></span>
+          <span class="text-[10px] font-normal text-slate-400"><i class="fas fa-lock mr-0.5"></i> Otomatis</span>
+        </label>
+        <div class="relative">
+          <i class="far fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+          <input type="text" name="nomor_undangan" id="aturNomorUndangan" required readonly
+            placeholder="Nomor undangan otomatis..."
+            data-default="<?= tampil(get_nomor_surat('undangan menguji')) ?>"
+            value="<?= tampil(get_nomor_surat('undangan menguji')) ?>"
+            class="w-full rounded-lg border border-slate-200 bg-slate-100/90 pl-8 pr-8 py-2 text-xs font-semibold text-slate-700 outline-none cursor-not-allowed select-none">
+          <i class="fas fa-lock absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400" title="Nomor undangan otomatis tidak dapat diedit"></i>
+        </div>
+      </div>
+
+      <!-- Grid 2 Kolom: Tanggal & Jam -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Field 2: Tanggal Ujian -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Tanggal Ujian <span class="text-rose-500">*</span>
+          </label>
+          <input type="date" name="tanggal" id="aturTanggalUjian" required
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium outline-none focus:border-orange-500 transition">
+        </div>
+
+        <!-- Field 3: Jam Ujian -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Jam Pelaksanaan <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <i class="far fa-clock absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+            <input type="text" name="jam" id="aturJamUjian" required
+              placeholder="09:00 - 11:00 WITA"
+              class="w-full rounded-lg border border-slate-300 pl-8 pr-3 py-2 text-xs font-medium outline-none focus:border-orange-500 transition">
+          </div>
+        </div>
+      </div>
+
+      <!-- Field 4: Ruang Ujian -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">
+          Ruang Ujian <span class="text-rose-500">*</span>
+        </label>
+        <div class="relative">
+          <i class="fas fa-door-open absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+          <input type="text" name="ruang" id="aturRuangUjian" required
+            placeholder="Contoh: Ruang Sidang"
+            class="w-full rounded-lg border border-slate-300 pl-8 pr-3 py-2 text-xs font-medium outline-none focus:border-orange-500 transition">
+        </div>
+      </div>
+
+      <!-- Footer Tombol Modal -->
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button type="button" class="px-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition" data-close-modal>
+          Batal
+        </button>
+        <button type="submit" id="btnSimpanJadwal" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm transition">
+          <i class="fas fa-save"></i> Simpan Jadwal
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===========================================================================
      JAVASCRIPT LOGIC (FRONTEND JQUERY & AJAX)
      =========================================================================== -->
 <script>
@@ -432,10 +597,15 @@ $(document).ready(function() {
   const PROSES_URL = '<?= base_url() ?>/administrator/pages/pengelolaan/mahasiswa/ujian/proses.php';
 
   // Variabel State Aplikasi
-  let activeBatch     = null;  // Menyimpan objek data batch ujian yang sedang aktif
-  let hasOpenBatch    = false; // Flag apakah saat ini ada batch yang terbuka
-  let debounceAntrian = null;  // Timer debounce pencarian antrian
-  let debouncePeserta = null;  // Timer debounce pencarian peserta batch
+  let activeBatch      = null;  // Menyimpan objek data batch ujian yang sedang aktif
+  let hasOpenBatch     = false; // Flag apakah saat ini ada batch yang terbuka
+  let debounceAntrian  = null;  // Timer debounce pencarian antrian
+  let debouncePeserta  = null;  // Timer debounce pencarian peserta batch
+  let countdownTimer   = null;  // Timer interval untuk countdown sisa waktu batch
+  let serverTimeOffset = 0;     // Selisih antara jam server dan perangkat klien (ms)
+  let canOpenNewBatch  = true;  // Flag kelayakan membuka batch baru (syarat: seluruh peserta naik step)
+  let pesanKelayakan   = '';    // Pesan validasi kelayakan membuka batch baru
+  let sisaBelumDiatur  = 0;     // Jumlah peserta yang belum diatur jadwalnya di batch sebelumnya
 
   // ---------------------------------------------------------------------------
   // FUNGSI HELPER: NOTIFIKASI TOAST MELAYANG
@@ -472,6 +642,69 @@ $(document).ready(function() {
   }
 
   // ---------------------------------------------------------------------------
+  // FUNGSI HELPER: MODAL KONFIRMASI TINDAKAN (DILARANG MENGGUNAKAN WINDOW.CONFIRM / ALERT)
+  // Menggunakan modal global konfirmasiHapus(nama, callback) berdesain Tailwind modern
+  // ---------------------------------------------------------------------------
+  function mintaKonfirmasi(namaItem, onConfirm, labelTombol = 'Hapus') {
+    if (typeof konfirmasiHapus === 'function') {
+      const btn = document.getElementById('globalHapusBtn');
+      const oriText = btn ? btn.textContent : 'Hapus';
+      if (btn && labelTombol) btn.textContent = labelTombol;
+
+      konfirmasiHapus(namaItem, function() {
+        if (btn) btn.textContent = oriText;
+        if (typeof onConfirm === 'function') onConfirm();
+      });
+
+      // Kembalikan label tombol asli jika user menutup modal via tombol Batal atau tombol silang (X)
+      const modal = document.getElementById('globalHapusModal');
+      if (modal && window.MutationObserver) {
+        const observer = new MutationObserver(function() {
+          if (!modal.classList.contains('show') && btn) {
+            btn.textContent = oriText;
+            observer.disconnect();
+          }
+        });
+        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+      }
+    } else {
+      // Fallback jika halaman diakses mandiri di luar layout induk administrator
+      let modal = $('#modalKonfirmasiInline');
+      if (modal.length === 0) {
+        $('body').append(`
+          <div class="modal-overlay" id="modalKonfirmasiInline" role="dialog" aria-modal="true">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
+                <h6 class="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                  <i class="fas fa-exclamation-triangle text-rose-500"></i> Konfirmasi Tindakan
+                </h6>
+                <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-close-inline-konfirmasi>&times;</button>
+              </div>
+              <div class="p-5">
+                <p class="text-xs text-slate-600 mb-2">Apakah Anda yakin ingin memproses tindakan berikut?</p>
+                <p id="inlineKonfirmasiItem" class="text-xs font-semibold text-slate-800 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200"></p>
+              </div>
+              <div class="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50">
+                <button type="button" class="px-3 py-1.5 text-xs rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium transition" data-close-inline-konfirmasi>Batal</button>
+                <button type="button" id="btnInlineKonfirmasiAksi" class="px-4 py-1.5 text-xs rounded-md bg-rose-500 hover:bg-rose-600 text-white font-semibold shadow-sm transition">${labelTombol}</button>
+              </div>
+            </div>
+          </div>
+        `);
+        $('[data-close-inline-konfirmasi]').on('click', function() {
+          $('#modalKonfirmasiInline').removeClass('show');
+        });
+      }
+      $('#inlineKonfirmasiItem').text(namaItem);
+      $('#btnInlineKonfirmasiAksi').text(labelTombol).off('click').on('click', function() {
+        $('#modalKonfirmasiInline').removeClass('show');
+        if (typeof onConfirm === 'function') onConfirm();
+      });
+      $('#modalKonfirmasiInline').addClass('show');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // KONTROL MODAL DIALOG
   // ---------------------------------------------------------------------------
   $('[data-close-modal]').on('click', function() {
@@ -485,13 +718,100 @@ $(document).ready(function() {
   });
 
   // ---------------------------------------------------------------------------
-  // FUNGSI 1: MEMERIKSA STATUS BATCH AKTIF DARI BACKEND
+  // FUNGSI COUNTDOWN SISA WAKTU BATCH (BERSTRUKTUR & INFORMATIF)
   // ---------------------------------------------------------------------------
-  // Memeriksa ke backend apakah saat ini ada batch yang terbuka.
-  // - Jika ADA: Sisi kiri menampilkan kartu batch aktif & tabel peserta.
-  //   Sisi kanan mengaktifkan seluruh checkbox antrian mahasiswa.
-  // - Jika TIDAK ADA: Sisi kiri menampilkan form buka batch baru.
-  //   Sisi kanan menonaktifkan (disabled) checkbox antrian mahasiswa.
+  function mulaiCountdown(bukaTs, tutupTs) {
+    hentikanCountdown();
+
+    const wrap = $('#wrapCountdownBaris');
+    if (!bukaTs || !tutupTs) {
+      wrap.addClass('hidden');
+      return;
+    }
+
+    const endMs = tutupTs * 1000;
+
+    function perbaruiDisplay() {
+      const nowMs  = Date.now() + serverTimeOffset;
+      const sisaMs = endMs - nowMs;
+
+      const elHari   = $('#cdHari');
+      const elJam    = $('#cdJam');
+      const elMenit  = $('#cdMenit');
+      const elDetik  = $('#cdDetik');
+      const elTag    = $('#cdUrgencyTag');
+      const elText   = $('#cdUrgencyText');
+      const elDot    = $('#cdUrgencyDot');
+
+      // Kondisi jika waktu penutupan telah berakhir
+      if (sisaMs <= 0) {
+        hentikanCountdown();
+        elHari.text('00');
+        elJam.text('00');
+        elMenit.text('00');
+        elDetik.text('00');
+
+        wrap.removeClass('hidden');
+        elTag.attr('class', 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200');
+        elDot.attr('class', 'w-1.5 h-1.5 rounded-full bg-rose-500');
+        elText.text('Waktu Berakhir');
+        return;
+      }
+
+      const detik = Math.floor((sisaMs / 1000) % 60);
+      const menit = Math.floor((sisaMs / (1000 * 60)) % 60);
+      const jam   = Math.floor((sisaMs / (1000 * 60 * 60)) % 24);
+      const hari  = Math.floor(sisaMs / (1000 * 60 * 60 * 24));
+
+      const pad = (n) => String(n).padStart(2, '0');
+      elHari.text(pad(hari));
+      elJam.text(pad(jam));
+      elMenit.text(pad(menit));
+      elDetik.text(pad(detik));
+
+      wrap.removeClass('hidden');
+
+      const totalSisaJam = sisaMs / (1000 * 60 * 60);
+      if (totalSisaJam <= 3) {
+        elTag.attr('class', 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200');
+        elDot.attr('class', 'w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse');
+        elText.text('Segera Berakhir (< 3 Jam)');
+      } else if (totalSisaJam <= 24) {
+        elTag.attr('class', 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200');
+        elDot.attr('class', 'w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse');
+        elText.text('Tersisa < 24 Jam');
+      } else {
+        elTag.attr('class', 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200');
+        elDot.attr('class', 'w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse');
+        elText.text('Berjalan');
+      }
+    }
+
+    perbaruiDisplay();
+    countdownTimer = setInterval(perbaruiDisplay, 1000);
+  }
+
+  function hentikanCountdown() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+    $('#wrapCountdownBaris').addClass('hidden');
+  }
+
+  // ---------------------------------------------------------------------------
+  // FUNGSI 1: MEMERIKSA STATUS BATCH AKTIF / TERTUTUP DARI BACKEND
+  // ---------------------------------------------------------------------------
+  // Memeriksa ke backend apakah saat ini ada batch yang terbuka atau tertutup.
+  // - Jika ADA BATCH TERBUKA (is_aktif: true):
+  //     * Sisi kiri: Menampilkan kartu batch aktif, countdown timer, dan tombol "Keluarkan".
+  //     * Sisi kanan: Mengaktifkan seluruh checkbox antrian mahasiswa.
+  // - Jika BATCH TERTUTUP (is_aktif: false):
+  //     * Sisi kiri: Tetap menampilkan kartu batch & peserta, tombol aksi berganti "Mengatur",
+  //       muncul tombol "Buka Batch Baru", countdown dihentikan.
+  //     * Sisi kanan: Menonaktifkan (disabled) checkbox antrian mahasiswa.
+  // - Jika BELUM ADA BATCH SAMA SEKALI:
+  //     * Sisi kiri: Menampilkan form pembukaan batch baru secara inline.
   // ---------------------------------------------------------------------------
   function muatStatusBatchAktif(targetId = null) {
     $.ajax({
@@ -508,34 +828,122 @@ $(document).ready(function() {
           return;
         }
 
-        hasOpenBatch = (res.ada_batch_aktif === true && res.batch_aktif !== null);
-        activeBatch  = res.batch_aktif || null;
+        // Simpan objek batch aktif atau batch terpilih
+        activeBatch     = res.batch_aktif || null;
+        hasOpenBatch    = (res.ada_batch_aktif === true && activeBatch !== null && activeBatch.is_aktif === true);
+        canOpenNewBatch = (res.bisa_buka_batch_baru === true);
+        pesanKelayakan  = res.pesan_kelayakan || '';
+        sisaBelumDiatur = res.sisa_belum_diatur || 0;
 
-        if (hasOpenBatch && activeBatch) {
-          // KONDISI B: Ada batch terbuka -> Tampilkan kartu batch & tabel peserta
+        // Sinkronisasi dropdown selector batch (jika ada lebih dari 1 batch dalam riwayat)
+        const selBatch = $('#selectPilihBatch');
+        if (Array.isArray(res.semua_batch) && res.semua_batch.length > 0) {
+          selBatch.empty();
+          res.semua_batch.forEach(function(b) {
+            const statusTxt = b.is_aktif ? 'Aktif' : 'Tertutup';
+            const opt = $('<option>').val(b.id).text(`${b.periode_display} (${statusTxt})`);
+            if (activeBatch && String(activeBatch.id) === String(b.id)) {
+              opt.prop('selected', true);
+            }
+            selBatch.append(opt);
+          });
+          if (res.semua_batch.length > 1) {
+            selBatch.removeClass('hidden');
+          } else {
+            selBatch.addClass('hidden');
+          }
+        } else {
+          selBatch.addClass('hidden');
+        }
+
+        // 3. Tampilkan kartu batch jika ada batch (baik aktif maupun tertutup)
+        if (activeBatch) {
+          // Sinkronisasi selisih waktu perangkat klien terhadap server
+          if (res.server_now) {
+            serverTimeOffset = (res.server_now * 1000) - Date.now();
+          }
+
+          // Tampilkan kartu batch & sembunyikan form buka batch inline
           $('#wrapFormBukaBatch').addClass('hidden');
           $('#wrapBatchTerbuka').removeClass('hidden');
 
           $('#displayNamaBatch').text(activeBatch.nama);
           $('#displayPeriodeBatch').text(activeBatch.periode_display);
           $('#displayPembuatBatch').text(activeBatch.pembuat);
-          $('#displayBadgeStatus').text(activeBatch.status_label);
 
-          // Muat tabel peserta di sisi kiri
+          // Update badge status visual
+          $('#displayBadgeStatus')
+            .text(activeBatch.status_label)
+            .attr('class', 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ' + (activeBatch.status_class || 'bg-slate-100 text-slate-700 border-slate-200'));
+
+          // Status batch aktif/terbuka: jika flag is_aktif true atau status db masih 'buka'
+          const isBatchOpen = (activeBatch.is_aktif || activeBatch.status === 'buka');
+
+          if (isBatchOpen) {
+            // KONDISI B1: Batch Aktif / Terbuka
+            $('#wrapBannerKelayakan').addClass('hidden');
+            // - Jalankan countdown timer
+            mulaiCountdown(activeBatch.buka_ts, activeBatch.tutup_ts);
+            // - Tampilkan tombol Tutup Batch & Ubah Periode, sembunyikan Buka Batch Baru
+            $('#btnTutupBatch').removeClass('hidden');
+            $('#btnEditBatchInline').removeClass('hidden');
+            $('#btnBukaBatchBaru').addClass('hidden');
+            // - Ikon kartu status terbuka (emerald)
+            $('#iconBoxBatch').attr('class', 'flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm');
+            $('#iconBatchStatus').attr('class', 'fas fa-folder-open text-base');
+          } else {
+            // KONDISI B2: Batch Ditutup / Tertutup
+            // - Hentikan countdown timer
+            hentikanCountdown();
+            // - Sembunyikan tombol Tutup Batch
+            $('#btnTutupBatch').addClass('hidden');
+            // Jika batch ditutup tapi peserta masih 0 (koreksi salah input), tetap izinkan Ubah Periode
+            if (activeBatch.total_peserta === 0) {
+              $('#btnEditBatchInline').removeClass('hidden');
+            } else {
+              $('#btnEditBatchInline').addClass('hidden');
+            }
+            $('#btnBukaBatchBaru').removeClass('hidden');
+            // - Ikon kartu status tertutup (slate)
+            $('#iconBoxBatch').attr('class', 'flex h-10 w-10 items-center justify-center rounded-xl bg-slate-600 text-white shadow-sm');
+            $('#iconBatchStatus').attr('class', 'fas fa-archive text-base');
+
+            // Sembunyikan banner teks agar antarmuka bersih dan ringkas;
+            // Keaktifan tombol "Buka Batch Baru" menjadi penanda utama bahwa batch dapat dibuka
+            $('#wrapBannerKelayakan').addClass('hidden').empty();
+
+            if (canOpenNewBatch) {
+              $('#btnBukaBatchBaru').removeClass('opacity-50 cursor-not-allowed').attr('title', 'Buka periode batch ujian baru');
+            } else {
+              $('#btnBukaBatchBaru').addClass('opacity-50 cursor-not-allowed').attr('title', `Masih terdapat ${sisaBelumDiatur} mahasiswa yang belum diatur jadwalnya`);
+            }
+          }
+
+          // Muat tabel peserta di sisi kiri (tombol aksi otomatis berubah: Keluarkan vs Mengatur)
           muatTabelPeserta();
         } else {
-          // KONDISI A: Belum ada batch terbuka -> Tampilkan form buka batch inline
+          // KONDISI A: Belum ada batch sama sekali di database -> Tampilkan form buka batch baru
+          hentikanCountdown();
           $('#wrapBatchTerbuka').addClass('hidden');
           $('#wrapFormBukaBatch').removeClass('hidden');
-
+          $('#btnBatalBukaBatchBaru').addClass('hidden');
           $('#btnMasukkanMassal').addClass('hidden');
         }
 
-        // Muat antrian di sisi kanan (checkbox otomatis enabled jika batch aktif, disabled jika belum ada)
+        // Muat antrian di sisi kanan (checkbox otomatis aktif jika batch aktif, disabled jika tertutup/belum ada)
         muatListAntrian();
       },
       error: function(xhr, status, err) {
-        toast('Gagal terhubung dengan server: ' + err, 'error');
+        let msg = err;
+        try {
+          if (xhr.responseJSON && xhr.responseJSON.pesan) {
+            msg = xhr.responseJSON.pesan;
+          } else if (xhr.responseText) {
+            const clean = $('<div>').html(xhr.responseText).text().trim();
+            if (clean) msg = clean.substring(0, 150);
+          }
+        } catch(e) {}
+        toast('Gagal terhubung dengan server: ' + msg, 'error');
       }
     });
   }
@@ -732,32 +1140,39 @@ $(document).ready(function() {
       const idPeserta = $(this).data('id-peserta');
       const nama      = $(this).data('nama');
       const nim       = $(this).data('nim');
+      const btn       = $(this);
 
-      if (!confirm(`Keluarkan ${nama} (${nim}) dari ${activeBatch.nama}?`)) return;
+      // Konfirmasi via Modal Global (DILARANG confirm() browser)
+      mintaKonfirmasi(`${nama} (${nim}) dari ${activeBatch.nama}`, function() {
+        btn.prop('disabled', true).addClass('opacity-50 pointer-events-none');
 
-      $.ajax({
-        url: PROSES_URL,
-        type: 'POST',
-        data: {
-          'hapus-peserta-batch': 1,
-          'id_batch': activeBatch.id,
-          'id_peserta': idPeserta
-        },
-        dataType: 'json',
-        success: function(res) {
-          if (res.status) {
-            toast(res.pesan, 'success');
-            // Refresh kedua sisi
-            muatTabelPeserta();
-            muatListAntrian();
-          } else {
-            toast(res.pesan, 'error');
+        $.ajax({
+          url: PROSES_URL,
+          type: 'POST',
+          data: {
+            'hapus-peserta-batch': 1,
+            'id_batch': activeBatch.id,
+            'id_peserta': idPeserta
+          },
+          dataType: 'json',
+          success: function(res) {
+            if (res.status) {
+              toast(res.pesan, 'success');
+              // Refresh tabel peserta & antrian secara reaktif
+              muatTabelPeserta();
+              muatListAntrian();
+            } else {
+              toast(res.pesan, 'error');
+            }
+          },
+          error: function(xhr, status, err) {
+            toast('Terjadi kesalahan: ' + err, 'error');
+          },
+          complete: function() {
+            btn.prop('disabled', false).removeClass('opacity-50 pointer-events-none');
           }
-        },
-        error: function(xhr, status, err) {
-          toast('Terjadi kesalahan: ' + err, 'error');
-        }
-      });
+        });
+      }, 'Keluarkan');
     });
   }
 
@@ -783,35 +1198,38 @@ $(document).ready(function() {
 
     if (selectedIds.length === 0) return;
 
-    if (!confirm(`Keluarkan ${selectedIds.length} mahasiswa terpilih dari ${activeBatch.nama}?`)) return;
-
     const btn = $(this);
-    btn.prop('disabled', true);
 
-    $.ajax({
-      url: PROSES_URL,
-      type: 'POST',
-      data: {
-        'hapus-peserta-batch': 1,
-        'id_batch': activeBatch.id,
-        'ids_peserta': selectedIds
-      },
-      dataType: 'json',
-      success: function(res) {
-        btn.prop('disabled', false);
-        if (res.status) {
-          toast(res.pesan, 'success');
-          muatTabelPeserta();
-          muatListAntrian();
-        } else {
-          toast(res.pesan, 'error');
+    // Konfirmasi massal via Modal Global (DILARANG confirm() browser)
+    mintaKonfirmasi(`${selectedIds.length} mahasiswa terpilih dari ${activeBatch.nama}`, function() {
+      btn.prop('disabled', true).addClass('opacity-50 pointer-events-none').html('<i class="fas fa-spinner animate-spin mr-1"></i> Mengeluarkan...');
+
+      $.ajax({
+        url: PROSES_URL,
+        type: 'POST',
+        data: {
+          'hapus-peserta-batch': 1,
+          'id_batch': activeBatch.id,
+          'ids_peserta': selectedIds
+        },
+        dataType: 'json',
+        success: function(res) {
+          if (res.status) {
+            toast(res.pesan, 'success');
+            muatTabelPeserta();
+            muatListAntrian();
+          } else {
+            toast(res.pesan, 'error');
+          }
+        },
+        error: function(xhr, status, err) {
+          toast('Terjadi kesalahan saat mengeluarkan peserta: ' + err, 'error');
+        },
+        complete: function() {
+          btn.prop('disabled', false).removeClass('opacity-50 pointer-events-none').html('<i class="fas fa-user-minus mr-1"></i> Keluarkan Terpilih (<span id="countPilihPeserta">0</span>)');
         }
-      },
-      error: function(xhr, status, err) {
-        btn.prop('disabled', false);
-        toast('Terjadi kesalahan saat mengeluarkan peserta: ' + err, 'error');
-      }
-    });
+      });
+    }, 'Keluarkan');
   });
 
   // ---------------------------------------------------------------------------
@@ -871,6 +1289,11 @@ $(document).ready(function() {
   // ---------------------------------------------------------------------------
   // UBAH PERIODE BATCH VIA MODAL
   // ---------------------------------------------------------------------------
+  $('#btnSetTglBukaHariIni').on('click', function() {
+    const today = new Date().toISOString().split('T')[0];
+    $('#editTglBuka').val(today);
+  });
+
   $('#btnEditBatchInline').on('click', function() {
     if (!activeBatch) return;
 
@@ -909,34 +1332,174 @@ $(document).ready(function() {
   });
 
   // ---------------------------------------------------------------------------
-  // TUTUP / HAPUS BATCH UJIAN
+  // TUTUP / SELESAIKAN BATCH UJIAN
   // ---------------------------------------------------------------------------
   $('#btnTutupBatch').on('click', function() {
     if (!activeBatch) return;
 
-    if (!confirm(`Yakin ingin menutup dan menyelesaikan ${activeBatch.nama}?`)) {
+    const btn = $(this);
+
+    // Konfirmasi penutupan batch via Modal Global (DILARANG confirm() browser)
+    mintaKonfirmasi(`Batch Ujian: ${activeBatch.nama} (Status batch akan ditutup dan pendaftaran dikunci. Anda dapat mengatur jadwal ujian peserta setelah ini)`, function() {
+      btn.prop('disabled', true).addClass('opacity-50 pointer-events-none');
+
+      $.ajax({
+        url: PROSES_URL,
+        type: 'POST',
+        data: {
+          'hapus-batch': 1,
+          'id_batch': activeBatch.id
+        },
+        dataType: 'json',
+        success: function(res) {
+          if (res.status) {
+            toast(res.pesan, 'success');
+            hentikanCountdown();
+            // Refresh batch ini (sekarang berstatus tertutup) sehingga tombol aksi berganti "Mengatur"
+            muatStatusBatchAktif(res.id_batch || activeBatch.id);
+          } else {
+            toast(res.pesan, 'error');
+          }
+        },
+        error: function(xhr, status, err) {
+          toast('Gagal menutup batch: ' + err, 'error');
+        },
+        complete: function() {
+          btn.prop('disabled', false).removeClass('opacity-50 pointer-events-none');
+        }
+      });
+    }, 'Tutup Batch');
+  });
+
+  // ---------------------------------------------------------------------------
+  // SWITCH BATCH UJIAN DARI DROPDOWN SELECTOR
+  // ---------------------------------------------------------------------------
+  $('#selectPilihBatch').on('change', function() {
+    const selectedId = $(this).val();
+    if (selectedId) {
+      muatStatusBatchAktif(selectedId);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // TOGGLE FORM BUKA BATCH BARU (DARI KONDISI BATCH TERTUTUP)
+  // ---------------------------------------------------------------------------
+  $('#btnBukaBatchBaru').on('click', function() {
+    // Validasi syarat: seluruh peserta batch sebelumnya wajib sudah diatur jadwalnya & naik step
+    if (!canOpenNewBatch) {
+      toast(pesanKelayakan || 'Lengkapi pengaturan jadwal seluruh peserta pada batch ini terlebih dahulu sebelum membuka batch baru.', 'info');
       return;
     }
+
+    $('#wrapBatchTerbuka').addClass('hidden');
+    $('#wrapFormBukaBatch').removeClass('hidden');
+    $('#btnBatalBukaBatchBaru').removeClass('hidden');
+  });
+
+  $('#btnBatalBukaBatchBaru').on('click', function() {
+    if (activeBatch) {
+      $('#wrapFormBukaBatch').addClass('hidden');
+      $('#wrapBatchTerbuka').removeClass('hidden');
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // MODAL ATUR JADWAL UJIAN PESERTA (NOMOR UNDANGAN, TANGGAL, JAM, RUANG)
+  // ---------------------------------------------------------------------------
+  // Event delegasi saat tombol "Mengatur" / "Ubah Jadwal" diklik
+  $(document).on('click', '.btn-atur-jadwal', function() {
+    const idPeserta  = $(this).data('id-peserta');
+    const idBatch    = $(this).data('id-batch') || (activeBatch ? activeBatch.id : '');
+    const nim        = $(this).data('nim');
+    const nama       = $(this).data('nama');
+    const kategori   = $(this).data('kategori') || '';
+    const tahapan    = $(this).data('tahapan') || 'Ujian';
+    const noUndangan = $(this).data('nomor-undangan') || '';
+    const tanggal    = $(this).data('tanggal') || '';
+    const jam        = $(this).data('jam') || '';
+    const ruang      = $(this).data('ruang') || '';
+    let pengujiData  = $(this).data('penguji');
+
+    // Parse data penguji jika dalam format JSON string
+    if (typeof pengujiData === 'string') {
+      try { pengujiData = JSON.parse(pengujiData); } catch(e) { pengujiData = []; }
+    }
+    if (!Array.isArray(pengujiData)) pengujiData = [];
+
+    // Isi identitas & kategori ke modal form
+    $('#aturIdPeserta').val(idPeserta);
+    $('#aturIdBatch').val(idBatch);
+    $('#aturNim').val(nim);
+    $('#aturKategori').val(kategori);
+    $('#aturNamaMhs').text(nama);
+    $('#aturNimMhs').text(nim);
+    $('#aturTahapanTag').text(tahapan);
+
+    // Tampilkan daftar dosen penguji di modal
+    if (pengujiData.length > 0) {
+      let pengujiHtml = '';
+      pengujiData.forEach(function(item, idx) {
+        const peran = item.peran || ('Penguji ' + (idx + 1));
+        pengujiHtml += '<div class="flex items-start gap-2 text-[11px]">' +
+          '<span class="font-bold text-orange-700 shrink-0 w-20">' + peran + ':</span>' +
+          '<span class="text-slate-800 font-semibold">' + (item.nama || '-') + '</span>' +
+        '</div>';
+      });
+      $('#aturListPenguji').html(pengujiHtml);
+      $('#aturWrapPenguji').removeClass('hidden');
+    } else {
+      $('#aturListPenguji').html('<p class="text-[11px] text-slate-400 italic">Dosen penguji belum ditetapkan.</p>');
+      $('#aturWrapPenguji').removeClass('hidden');
+    }
+
+    // Isi 4 field jadwal (jika belum ada nomor undangan tersimpan, gunakan nomor surat otomatis default)
+    const defaultNoUndangan = $('#aturNomorUndangan').data('default') || '';
+    $('#aturNomorUndangan').val(noUndangan ? noUndangan : defaultNoUndangan);
+    $('#aturTanggalUjian').val(tanggal);
+    $('#aturJamUjian').val(jam);
+    $('#aturRuangUjian').val(ruang);
+
+    // Tampilkan modal
+    $('#modalAturJadwal').addClass('show');
+  });
+
+  // Submit Simpan Pengaturan Jadwal Ujian Peserta
+  $('#formAturJadwal').on('submit', function(e) {
+    e.preventDefault();
+    const btn = $('#btnSimpanJadwal');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner animate-spin mr-1"></i> Menyimpan...');
 
     $.ajax({
       url: PROSES_URL,
       type: 'POST',
-      data: {
-        'hapus-batch': 1,
-        'id_batch': activeBatch.id
-      },
+      data: $(this).serialize() + '&atur-jadwal-peserta=1',
       dataType: 'json',
       success: function(res) {
+        btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Simpan Jadwal');
         if (res.status) {
           toast(res.pesan, 'success');
-          // Refresh status batch (akan kembali ke tampilan form buka batch)
-          muatStatusBatchAktif();
+          $('#modalAturJadwal').removeClass('show');
+          // Refresh isi tabel peserta & status kelayakan batch
+          muatTabelPeserta();
+          if (activeBatch) {
+            muatStatusBatchAktif(activeBatch.id);
+          }
         } else {
           toast(res.pesan, 'error');
         }
       },
       error: function(xhr, status, err) {
-        toast('Gagal menutup batch: ' + err, 'error');
+        btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Simpan Jadwal');
+        let errorMsg = err;
+        try {
+          if (xhr.responseJSON && xhr.responseJSON.pesan) {
+            errorMsg = xhr.responseJSON.pesan;
+          } else if (xhr.responseText) {
+            const cleanText = $('<div>').html(xhr.responseText).text().trim();
+            if (cleanText) errorMsg = cleanText.substring(0, 150);
+          }
+        } catch(e) {}
+        toast('Gagal menyimpan jadwal: ' + errorMsg, 'error');
       }
     });
   });

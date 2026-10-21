@@ -301,6 +301,9 @@ if(isset($_POST['muat-lembar-kerja'])){
             <?php 
             // Progres Verifikasi Berkas yang harus diproses di halaman mhs-verifikasi
             $progresVerifikasi = ['2', '5', '8', '13', '16', '21'];
+            // Progres Penunjukkan yang merupakan kewenangan Ketua Program Studi
+            $progresPenunjukkan = ['3', '9', '17'];
+
             if(in_array((string)$progres, $progresVerifikasi, true)): 
             ?>
                 <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 text-center">
@@ -313,6 +316,14 @@ if(isset($_POST['muat-lembar-kerja'])){
                         Buka Halaman Verifikasi Berkas
                     </a>
                 </div>
+            <?php elseif(in_array((string)$progres, $progresPenunjukkan, true)): ?>
+                <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 text-center">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 mb-3 text-xl">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <h6 class="font-bold text-blue-800 text-sm mb-2"><?= tampil($namaTugasSop) ?></h6>
+                    <p class="text-xs text-blue-600">Saat ini pengaturan surat penunjukkan merupakan kewenangan Ketua Program Studi yang akan diatur di halaman penunjukkan.</p>
+                </div>
             <?php else: ?>
                 <p class="text-sm text-slate-600 mb-4">Pilih tindakan untuk menyelesaikan tahap skripsi saat ini dan memajukan progres mahasiswa ke tahap selanjutnya.</p>
                 <form id="formAksiLembarKerja" class="bg-slate-50 border border-slate-200 rounded-lg p-4">
@@ -322,99 +333,6 @@ if(isset($_POST['muat-lembar-kerja'])){
                     
                     <?php
                     switch((int)$progres):
-                        case 3:
-                            // Form Khusus: SOP 3 (Penunjukkan Pembimbing)
-                            ?>
-                            <div class="mb-4">
-                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan</label>
-                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat..." required>
-                            </div>
-                            <div class="mb-4 grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 1</label>
-                                    <select name="pembimbing1" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                        <option value="">-- Pilih Dosen --</option>
-                                        <?php
-                                        $qDosen = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
-                                        if($qDosen){
-                                            while($dsn = mysqli_fetch_assoc($qDosen)){
-                                                echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
-                                            }
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-2">Pembimbing 2</label>
-                                    <select name="pembimbing2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                        <option value="">-- Pilih Dosen --</option>
-                                        <?php
-                                        if($qDosen) mysqli_data_seek($qDosen, 0);
-                                        if($qDosen){
-                                            while($dsn = mysqli_fetch_assoc($qDosen)){
-                                                echo '<option value="' . tampil($dsn['id']) . '">' . tampil($dsn['nama']) . '</option>';
-                                            }
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                            </div>
-                            <input type="hidden" name="tindakan" value="selesai">
-                            <?php
-                            break;
-
-                        case 9:
-                            // Form Khusus: SOP 9 (Penunjukkan Penguji Hasil)
-                            // Ambil pembimbing 1 & 2 dari surat penunjukan sebelumnya sebagai nilai default/saran
-                            $suratBimb = mysqli_fetch_assoc(query("SELECT sp.pembimbing1, sp.pembimbing2 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_pembimbing = sp.id WHERE s.nim = '$nim' LIMIT 1"));
-                            $saranPenguji1 = $suratBimb ? (string)$suratBimb['pembimbing1'] : '';
-                            $saranPenguji2 = $suratBimb ? (string)$suratBimb['pembimbing2'] : '';
-                            ?>
-                            <div class="mb-4">
-                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji</label>
-                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
-                            </div>
-                            <div class="space-y-3 mb-4">
-                                <?php 
-                                // Query list dosen sekali saja
-                                $listDosen = [];
-                                $qDosenAll = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
-                                if($qDosenAll){
-                                    while($dRow = mysqli_fetch_assoc($qDosenAll)){
-                                        $listDosen[] = $dRow;
-                                    }
-                                }
-
-                                for($i = 1; $i <= 5; $i++): 
-                                    // Default nilai terpilih: Penguji 1 -> Pembimbing 1, Penguji 2 -> Pembimbing 2
-                                    $defaultTerpilih = '';
-                                    $labelSaran = '';
-                                    if($i === 1 && $saranPenguji1 !== ''){
-                                        $defaultTerpilih = $saranPenguji1;
-                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 1)</span>';
-                                    } elseif($i === 2 && $saranPenguji2 !== ''){
-                                        $defaultTerpilih = $saranPenguji2;
-                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Pembimbing 2)</span>';
-                                    }
-                                ?>
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Penguji <?= $i ?><?= $labelSaran ?></label>
-                                    <select name="penguji<?= $i ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                        <option value="">-- Pilih Dosen Penguji <?= $i ?> --</option>
-                                        <?php
-                                        foreach($listDosen as $dsn){
-                                            $selected = ((string)$dsn['id'] === (string)$defaultTerpilih) ? 'selected' : '';
-                                            echo '<option value="' . tampil($dsn['id']) . '" ' . $selected . '>' . tampil($dsn['nama']) . '</option>';
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                                <?php endfor; ?>
-                            </div>
-                            <input type="hidden" name="tindakan" value="selesai">
-                            <?php
-                            break;
-
                         case 10:
                             // Form Khusus: SOP 10 (Jadwal Ujian Hasil)
                             ?>
@@ -585,55 +503,6 @@ if(isset($_POST['muat-lembar-kerja'])){
                                 });
                             });
                             </script>
-                            <?php
-                            break;
-
-                        case 17:
-                            // Form Khusus: SOP 17 (Penunjukkan Penguji Tutup)
-                            // Ambil penguji 1 - 5 dari surat penunjukan hasil sebelumnya sebagai nilai default/saran
-                            $suratHasil = mysqli_fetch_assoc(query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id WHERE s.nim = '$nim' LIMIT 1"));
-                            if(!$suratHasil){
-                                $suratHasil = mysqli_fetch_assoc(query("SELECT penguji1, penguji2, penguji3, penguji4, penguji5 FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1"));
-                            }
-                            ?>
-                            <div class="mb-4">
-                                <label class="block text-xs font-semibold text-slate-600 mb-2">No. Surat Penunjukkan Penguji</label>
-                                <input type="text" name="no_surat" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" placeholder="Masukkan nomor surat penunjukkan penguji..." required>
-                            </div>
-                            <div class="space-y-3 mb-4">
-                                <?php 
-                                $listDosen = [];
-                                $qDosenAll = query("SELECT id, nama FROM dosen WHERE LOWER(posisi) = 'dosen' AND LOWER(status) = 'aktif' ORDER BY nama ASC");
-                                if($qDosenAll){
-                                    while($dRow = mysqli_fetch_assoc($qDosenAll)){
-                                        $listDosen[] = $dRow;
-                                    }
-                                }
-
-                                for($i = 1; $i <= 5; $i++): 
-                                    $saranPenguji = $suratHasil ? trim((string)($suratHasil['penguji' . $i] ?? '')) : '';
-                                    $defaultTerpilih = '';
-                                    $labelSaran = '';
-                                    if($saranPenguji !== ''){
-                                        $defaultTerpilih = $saranPenguji;
-                                        $labelSaran = ' <span class="text-orange-600 font-normal">(Disarankan: Penguji Hasil ' . $i . ')</span>';
-                                    }
-                                ?>
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Penguji <?= $i ?><?= $labelSaran ?></label>
-                                    <select name="penguji<?= $i ?>" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-400" required>
-                                        <option value="">-- Pilih Dosen Penguji <?= $i ?> --</option>
-                                        <?php
-                                        foreach($listDosen as $dsn){
-                                            $selected = ((string)$dsn['id'] === (string)$defaultTerpilih) ? 'selected' : '';
-                                            echo '<option value="' . tampil($dsn['id']) . '" ' . $selected . '>' . tampil($dsn['nama']) . '</option>';
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                                <?php endfor; ?>
-                            </div>
-                            <input type="hidden" name="tindakan" value="selesai">
                             <?php
                             break;
 
@@ -829,18 +698,10 @@ if(isset($_POST['muat-lembar-kerja'])){
                             break;
                     endswitch;
                     
-                    // Tombol submit manual hanya untuk tahap 3, 9, 10, 17, 18. Tahap 11 & 19 auto-upload per item (tanpa tombol).
-                    if(in_array((string)$progres, ['3', '9', '10', '17', '18'], true)): ?>
+                    // Tombol submit manual hanya untuk tahap 10, 18 (Jadwal Ujian). Tahap 11 & 19 auto-upload per item (tanpa tombol).
+                    if(in_array((string)$progres, ['10', '18'], true)): ?>
                     <div class="flex justify-end">
-                        <?php
-                        $labelTombol = 'Simpan';
-                        if(in_array((string)$progres, ['3', '9', '17'], true)) {
-                            $labelTombol = 'Buat Surat';
-                        } elseif(in_array((string)$progres, ['10', '18'], true)) {
-                            $labelTombol = 'Simpan Jadwal';
-                        }
-                        ?>
-                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm" data-text="<?= $labelTombol ?>"><?= $labelTombol ?></button>
+                        <button type="submit" class="px-4 py-2 text-xs rounded-md bg-[#f97316] hover:bg-[#ea6a0f] text-white font-semibold shadow-sm" data-text="Simpan Jadwal">Simpan Jadwal</button>
                     </div>
                     <?php endif; ?>
                 </form>

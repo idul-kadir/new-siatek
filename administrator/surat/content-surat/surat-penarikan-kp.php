@@ -30,6 +30,17 @@ if (!empty($nim)) {
         $instansiReal = $rKp['instansi'] ?: ($rKp['tempat'] ?: ($rKp['tempat_kp'] ?: ''));
         if (!empty($instansiReal)) $tempatKp = $instansiReal;
     }
+
+    // Ambil nomor surat penarikan yang telah dicatat atau format otomatisnya
+    $qNomor = query("SELECT nomor FROM nomor_surat WHERE keterangan LIKE '%Penarikan KP%' AND keterangan LIKE '%$nimClean%' ORDER BY id DESC LIMIT 1");
+    if ($qNomor && ($rNomor = mysqli_fetch_assoc($qNomor)) && !empty($rNomor['nomor'])) {
+        $noSurat = $rNomor['nomor'];
+    } else {
+        $noAuto = get_nomor_surat('penarikan kp');
+        if ($noAuto !== 'Tidak Ditemukan') {
+            $noSurat = $noAuto;
+        }
+    }
 }
 
 $tanggalSurat = function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d F Y');

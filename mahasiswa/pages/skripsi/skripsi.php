@@ -164,8 +164,68 @@ $infoSkripsi = [
     'ujian_tutup'   => $jadwal['tutup'],
 ];
 
-/* --- Ambil data alur SOP Skripsi --- */
+/* --- Ambil data alur SOP Skripsi & Riwayat Waktu Penyelesaian --- */
 $steps = [];
+$riwayatWaktuSop = [];
+$nim_clean = bersihkan($nim);
+if (!empty($nim_clean)) {
+    try {
+        $qProgWaktu = query("SELECT * FROM progres_skripsi WHERE mahasiswa = '$nim_clean' ORDER BY waktu ASC, id ASC");
+        if ($qProgWaktu) {
+            while ($pr = mysqli_fetch_assoc($qProgWaktu)) {
+                $pNo = (int)($pr['proses'] ?? $pr['progres'] ?? 0);
+                $tUnix = 0;
+                if (!empty($pr['waktu']) && is_numeric($pr['waktu']) && (int)$pr['waktu'] > 0) {
+                    $tUnix = (int)$pr['waktu'];
+                } elseif (!empty($pr['waktu']) && strtotime((string)$pr['waktu']) > 0) {
+                    $tUnix = strtotime((string)$pr['waktu']);
+                } elseif (!empty($pr['id']) && is_numeric($pr['id']) && (int)$pr['id'] > 1000000000) {
+                    $tUnix = (int)$pr['id'];
+                }
+                if ($pNo > 0 && $tUnix > 0) {
+                    $riwayatWaktuSop[$pNo] = $tUnix;
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+$formatWaktuSop = function($timeUnix) {
+    if (!$timeUnix || !is_numeric($timeUnix) || (int)$timeUnix <= 0) return '';
+    $bulanIndo = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
+    ];
+    $t = (int)$timeUnix;
+    $d = date('d', $t);
+    $m = (int)date('n', $t);
+    $y = date('Y', $t);
+    $b = $bulanIndo[$m] ?? date('M', $t);
+    $jam = date('H:i', $t);
+    if ($jam !== '00:00') {
+        return "$d $b $y, $jam";
+    }
+    return "$d $b $y";
+};
+
+$getWaktuSelesaiSop = function($noSop, $riwayatWaktuSop, $lastProsesId) {
+    if (isset($riwayatWaktuSop[$noSop + 1]) && $riwayatWaktuSop[$noSop + 1] > 0) {
+        return $riwayatWaktuSop[$noSop + 1];
+    }
+    if (isset($riwayatWaktuSop[$noSop]) && $riwayatWaktuSop[$noSop] > 0) {
+        return $riwayatWaktuSop[$noSop];
+    }
+    foreach ($riwayatWaktuSop as $p => $w) {
+        if ($p >= $noSop && $w > 0) {
+            return $w;
+        }
+    }
+    if (!empty($riwayatWaktuSop)) {
+        return end($riwayatWaktuSop);
+    }
+    return 0;
+};
+
 $querySop = query("SELECT * FROM sop_skripsi ORDER BY CAST(no AS UNSIGNED) ASC");
 
 if ($querySop && mysqli_num_rows($querySop) > 0) {
@@ -196,13 +256,18 @@ if ($querySop && mysqli_num_rows($querySop) > 0) {
             $progresSaatIni = $judulFormatted;
         }
 
+        $waktuSelesaiUnix = ($st === 'selesai') ? $getWaktuSelesaiSop($noSop, $riwayatWaktuSop, $lastProsesId) : 0;
+        $waktuSelesaiLabel = ($waktuSelesaiUnix > 0) ? $formatWaktuSop($waktuSelesaiUnix) : '';
+
         $steps[] = [
-            'id'       => $row['no'],
-            'urutan'   => $noSop,
-            'judul'    => $judulFormatted,
-            'desc'     => 'Eksekutor: ' . ucfirst(strtolower($row['eksekutor'])),
-            'executor' => ucfirst(strtolower($row['eksekutor'])),
-            'status'   => $st,
+            'id'                  => $row['no'],
+            'urutan'              => $noSop,
+            'judul'               => $judulFormatted,
+            'desc'                => 'Eksekutor: ' . ucfirst(strtolower($row['eksekutor'])),
+            'executor'            => ucfirst(strtolower($row['eksekutor'])),
+            'status'              => $st,
+            'waktu_selesai_unix'  => $waktuSelesaiUnix,
+            'waktu_selesai_label' => $waktuSelesaiLabel,
         ];
     }
 }
@@ -1441,6 +1506,13 @@ if ($hasSkripsiRecord && !$isSkripsiInactive && ($lastProsesId == 19 || $lastPro
                                 <span class="text-[9px] font-semibold text-slate-500"><?= htmlspecialchars($s['executor']) ?></span>
                             </div>
                             <h4 class="text-xs font-bold text-slate-800 leading-snug mt-0.5"><?= htmlspecialchars($s['judul']) ?></h4>
+                            <?php if ($s['status'] === 'selesai' && !empty($s['waktu_selesai_label'])): ?>
+                            <div class="mt-1.5">
+                                <span class="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                                    <i class="fas fa-check-circle text-emerald-600 text-[9px]"></i> Selesai: <?= htmlspecialchars($s['waktu_selesai_label']) ?>
+                                </span>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>

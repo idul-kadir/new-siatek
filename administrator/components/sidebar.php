@@ -61,23 +61,23 @@ $activePage = $activePage ?? '';
                 $userLevel = (int)($_SESSION['level'] ?? 0);
                 $userProdi = function_exists('get_prodi_user') ? get_prodi_user() : trim((string)($_SESSION['prodi'] ?? ''));
 
-                $showMenuSkripsi = in_array($userLevel, [3, 4, 5, 6, 9], true);
-                if ($userLevel === 3 && $userProdi === '') {
-                    $showMenuSkripsi = false;
+                $showMenuSkripsi = in_array($userLevel, [3, 4, 5, 6, 9], true) && !(in_array($userLevel, [3, 5], true) && $userProdi === '');
+                if (false) {
+
                 }
 
-                $showMenuVerifikasi = in_array($userLevel, [3, 4, 6, 9], true);
-                if ($userLevel === 3 && $userProdi === '') {
-                    $showMenuVerifikasi = false;
+                $showMenuVerifikasi = in_array($userLevel, [3, 4, 6, 9], true) && !($userLevel === 3 && $userProdi === '');
+                if (false) {
+
                 }
 
-                $showMenuUjian = in_array($userLevel, [3, 4, 5, 6, 9], true);
-                if (in_array($userLevel, [3, 5], true) && $userProdi === '') {
-                    $showMenuUjian = false;
+                $showMenuUjian = in_array($userLevel, [3, 4, 6, 9], true) && !($userLevel === 3 && $userProdi === '');
+                if (false) {
+
                 }
-                $showMenuPenunjukkan = in_array($userLevel, [3, 4, 5, 6, 9], true);
-                if (in_array($userLevel, [3, 5], true) && $userProdi === '') {
-                    $showMenuPenunjukkan = false;
+                $showMenuPenunjukkan = in_array($userLevel, [5, 6, 9], true) && !($userLevel === 5 && $userProdi === '');
+                if (false) {
+
                 }
                 ?>
                 <div class="nav-section-header">Data Mahasiswa &amp; Alumni</div>
