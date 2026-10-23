@@ -263,7 +263,7 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
         $dKp['judul'] = $judulKp;
     }
 
-    $instansi = trim((string)($rowKp['instansi'] ?? $rowKp['tempat_kp'] ?? $rowKp['tempat'] ?? ''));
+    $instansi = trim((string)($rowKp['nama_instansi'] ?? $rowKp['instansi'] ?? $rowKp['tempat_kp'] ?? $rowKp['tempat'] ?? ''));
     if ($instansi === '' && !empty($rowKp['lokasi'])) {
         $instansi = trim((string)$rowKp['lokasi']);
     }

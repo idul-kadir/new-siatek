@@ -25,9 +25,9 @@ if (!empty($nim)) {
         if (!empty($rMhs['prodi_nama'])) $prodiMhs = $rMhs['prodi_nama'];
     }
 
-    $qKp = query("SELECT instansi, tempat, tempat_kp FROM kp WHERE nim = '$nimClean' LIMIT 1");
+    $qKp = query("SELECT nama_instansi FROM kp WHERE nim = '$nimClean' LIMIT 1");
     if ($qKp && $rKp = mysqli_fetch_assoc($qKp)) {
-        $instansiReal = $rKp['instansi'] ?: ($rKp['tempat'] ?: ($rKp['tempat_kp'] ?: ''));
+        $instansiReal = $rKp['nama_instansi'] ?? '';
         if (!empty($instansiReal)) $tempatKp = $instansiReal;
     }
 
@@ -102,7 +102,7 @@ $tanggalSurat = function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d 
         <td></td>
         <td><b>NIP. 197102222001121001</b></td>
     </tr>
-    <tr height="35px"></tr>
+    <tr height="8px"></tr>
     <tr>
         <td>Tembusan disampaikan kepada Yth. :</td>
         <td></td>

@@ -711,9 +711,9 @@ if (!empty($daftarTahun)) {
     var DOSEN_LABELS = {
         pemskr: ['Pembimbing 1', 'Pembimbing 2'],
         pemkp:  ['Pembimbing'],
-        hasil:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5'],
+        hasil:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4'],
         pengkp: ['Penguji 1', 'Penguji 2', 'Penguji 3'],
-        tutup:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4', 'Penguji 5']
+        tutup:  ['Penguji 1', 'Penguji 2', 'Penguji 3', 'Penguji 4']
     };
     var editModal = document.getElementById('editModal');
     var editRow = null;

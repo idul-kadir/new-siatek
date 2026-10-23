@@ -113,7 +113,7 @@ if(isset($_POST['ambil-tabel-skripsi'])){
             $angkatanTxt = !empty($data['angkatan']) ? 'Angkatan ' . $data['angkatan'] : '';
             $statusSkripsi = strtolower(trim($data['status'] ?? ''));
             $isTidakAktif  = ($statusSkripsi === 'tidak aktif');
-            $isAdminEksekutor = ($data['eksekutor'] === 'admin') || $isTidakAktif;
+            $isAdminEksekutor = ($data['eksekutor'] === 'admin') || in_array((string)$data['progres_num'], ['10', '19'], true) || $isTidakAktif;
             ?>
             <tr class="transition hover:bg-orange-50 <?= ($no % 2 == 0) ? 'bg-slate-50/60' : 'bg-white' ?>">
                 <td class="py-4 pl-5 pr-4">
@@ -303,6 +303,8 @@ if(isset($_POST['muat-lembar-kerja'])){
             $progresVerifikasi = ['2', '5', '8', '13', '16', '21'];
             // Progres Penunjukkan yang merupakan kewenangan Ketua Program Studi
             $progresPenunjukkan = ['3', '9', '17'];
+            // Progres Pengaturan Ujian yang diatur di halaman ujian
+            $progresUjian = ['10', '19'];
 
             if(in_array((string)$progres, $progresVerifikasi, true)): 
             ?>
@@ -323,6 +325,14 @@ if(isset($_POST['muat-lembar-kerja'])){
                     </div>
                     <h6 class="font-bold text-blue-800 text-sm mb-2"><?= tampil($namaTugasSop) ?></h6>
                     <p class="text-xs text-blue-600">Saat ini pengaturan surat penunjukkan merupakan kewenangan Ketua Program Studi yang akan diatur di halaman penunjukkan.</p>
+                </div>
+            <?php elseif(in_array((string)$progres, $progresUjian, true)): ?>
+                <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 text-center">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 mb-3 text-xl">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <h6 class="font-bold text-blue-800 text-sm mb-2"><?= tampil($namaTugasSop) ?></h6>
+                    <p class="text-xs text-blue-600">Pengaturan ujian untuk tahapan ini diatur oleh operator di halaman ujian.</p>
                 </div>
             <?php else: ?>
                 <p class="text-sm text-slate-600 mb-4">Pilih tindakan untuk menyelesaikan tahap skripsi saat ini dan memajukan progres mahasiswa ke tahap selanjutnya.</p>
@@ -1412,6 +1422,23 @@ if(isset($_POST['ambil-arsip-riwayat'])){
         $suratTutup = mysqli_fetch_assoc(query("SELECT * FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI TUTUP' ORDER BY id DESC LIMIT 1"));
     }
 
+    // Konversi nomor surat resmi
+    $noSuratBimb = !empty($suratBimb['no_surat']) ? (function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratBimb['no_surat']) : $suratBimb['no_surat']) : '';
+    if ((empty($noSuratBimb) || is_numeric($noSuratBimb)) && !empty($suratBimb['id'])) {
+        $altNo = function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratBimb['id']) : '';
+        if (!empty($altNo) && !is_numeric($altNo)) $noSuratBimb = $altNo;
+    }
+    $noSuratHasil = !empty($suratHasil['no_surat']) ? (function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratHasil['no_surat']) : $suratHasil['no_surat']) : '';
+    if ((empty($noSuratHasil) || is_numeric($noSuratHasil)) && !empty($suratHasil['id'])) {
+        $altNo = function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratHasil['id']) : '';
+        if (!empty($altNo) && !is_numeric($altNo)) $noSuratHasil = $altNo;
+    }
+    $noSuratTutup = !empty($suratTutup['no_surat']) ? (function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratTutup['no_surat']) : $suratTutup['no_surat']) : '';
+    if ((empty($noSuratTutup) || is_numeric($noSuratTutup)) && !empty($suratTutup['id'])) {
+        $altNo = function_exists('dapatkan_nomor_surat_teks') ? dapatkan_nomor_surat_teks($suratTutup['id']) : '';
+        if (!empty($altNo) && !is_numeric($altNo)) $noSuratTutup = $altNo;
+    }
+
     // Ambil master seluruh persyaratan berkas skripsi dikelompokkan berdasarkan nomor progres (SOP)
     $masterSyarat = [];
     $qMs = query("SELECT id, nama_berkas, progres FROM persyaratan_berkas_skripsi WHERE status = 'aktif' ORDER BY progres ASC, id ASC");
@@ -1733,7 +1760,7 @@ if(isset($_POST['ambil-arsip-riwayat'])){
                             <div class="grid grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-slate-200/80">
                                 <div>
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">No. Surat Penunjukkan</span>
-                                    <span class="text-xs font-semibold text-slate-800"><?= !empty($suratBimb['no_surat']) ? tampil($suratBimb['no_surat']) : '-' ?></span>
+                                    <span class="text-xs font-semibold text-slate-800"><?= !empty($noSuratBimb) ? tampil($noSuratBimb) : '-' ?></span>
                                 </div>
                                 <div>
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Tanggal Surat</span>
@@ -1820,7 +1847,7 @@ if(isset($_POST['ambil-arsip-riwayat'])){
 
                         <!-- View Penguji Hasil -->
                         <div class="view-box text-xs space-y-2">
-                            <p class="text-xs text-slate-600">No. Surat: <span class="font-bold text-slate-800"><?= !empty($suratHasil['no_surat']) ? tampil($suratHasil['no_surat']) : '-' ?></span></p>
+                            <p class="text-xs text-slate-600">No. Surat: <span class="font-bold text-slate-800"><?= !empty($noSuratHasil) ? tampil($noSuratHasil) : '-' ?></span></p>
                             <div class="grid grid-cols-1 gap-1.5 text-xs bg-white p-3 rounded-lg border border-slate-200/80">
                                 <?php for($i=1; $i<=5; $i++): 
                                     $idPenguji = $suratHasil['penguji'.$i] ?? '';
@@ -1947,7 +1974,7 @@ if(isset($_POST['ambil-arsip-riwayat'])){
 
                         <!-- View Penguji Tutup -->
                         <div class="view-box text-xs space-y-2">
-                            <p class="text-xs text-slate-600">No. Surat: <span class="font-bold text-slate-800"><?= !empty($suratTutup['no_surat']) ? tampil($suratTutup['no_surat']) : '-' ?></span></p>
+                            <p class="text-xs text-slate-600">No. Surat: <span class="font-bold text-slate-800"><?= !empty($noSuratTutup) ? tampil($noSuratTutup) : '-' ?></span></p>
                             <div class="grid grid-cols-1 gap-1.5 text-xs bg-white p-3 rounded-lg border border-slate-200/80">
                                 <?php for($i=1; $i<=5; $i++): 
                                     $idPenguji = $suratTutup['penguji'.$i] ?? '';

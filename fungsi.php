@@ -615,8 +615,11 @@ function ambil_daftar_peserta_batch($idBatch, $filterProdi = '', $cari = '') {
     $idBatch = (int)$idBatch;
     $hasil = [];
 
-    // Filter dasar berdasarkan ID batch
-    $where = ["pb.id_batch = '$idBatch'"];
+    // Filter dasar berdasarkan ID batch: hanya peserta yang kategorinya kosong atau NULL yang bisa diatur
+    $where = [
+        "pb.id_batch = '$idBatch'",
+        "(pb.kategori IS NULL OR pb.kategori = '')"
+    ];
     if ($filterProdi !== '') {
         $pClean = bersihkan($filterProdi);
         $where[] = "(m.prodi = '$pClean' OR pr.kode = '$pClean')";
@@ -627,7 +630,7 @@ function ambil_daftar_peserta_batch($idBatch, $filterProdi = '', $cari = '') {
     }
     $whereSql = implode(" AND ", $where);
 
-    // Query data peserta beserta relasi tabel mahasiswa, prodi, skripsi, kp, dan tahapan SOP
+    // Query data peserta beserta relasi tabel mahasiswa, prodi, skripsi, kp, nomor_surat, dan tahapan SOP
     $sql = "SELECT pb.*, pb.id AS id_peserta, pb.id_batch, pb.mahasiswa AS nim,
                    m.nama AS nama_mhs, m.prodi, m.angkatan, pr.nama AS nama_prodi,
                    (SELECT ps.proses FROM progres_skripsi ps WHERE ps.mahasiswa = pb.mahasiswa ORDER BY ps.waktu DESC, ps.proses DESC LIMIT 1) AS step_skripsi,
@@ -635,13 +638,19 @@ function ambil_daftar_peserta_batch($idBatch, $filterProdi = '', $cari = '') {
                    s.penunjukkan_hasil, s.penunjukkan_tutup,
                    s.no_undangan_hasil, s.tanggal_hasil, s.jam_hasil, s.ruangan_hasil,
                    s.no_undangan_tutup, s.tanggal_tutup, s.jam_tutup, s.ruangan_tutup,
+                   ns_hasil.nomor AS nomor_surat_hasil,
+                   ns_tutup.nomor AS nomor_surat_tutup,
                    k.surat_penunjukkan_penguji,
-                   k.no_undangan AS no_undangan_kp, k.tanggal_seminar, k.jam_seminar, k.ruangan AS ruangan_kp
+                   k.no_undangan AS no_undangan_kp, k.tanggal_seminar, k.jam_seminar, k.ruangan AS ruangan_kp,
+                   ns_kp.nomor AS nomor_surat_kp
             FROM peserta_batch pb
             LEFT JOIN mahasiswa m ON pb.mahasiswa = m.nim
             LEFT JOIN prodi pr ON m.prodi = pr.kode
             LEFT JOIN skripsi s ON pb.mahasiswa = s.nim
+            LEFT JOIN nomor_surat ns_hasil ON s.no_undangan_hasil = ns_hasil.id
+            LEFT JOIN nomor_surat ns_tutup ON s.no_undangan_tutup = ns_tutup.id
             LEFT JOIN kp k ON pb.mahasiswa = k.nim
+            LEFT JOIN nomor_surat ns_kp ON k.no_undangan = ns_kp.id
             WHERE $whereSql
             ORDER BY pb.id DESC";
 
@@ -695,22 +704,25 @@ function ambil_daftar_peserta_batch($idBatch, $filterProdi = '', $cari = '') {
             // Jika di tabel peserta_batch masih kosong, ambil dari data skripsi / kp yang tersimpan
             if ($noUndangan === '' && $tglUjian === '') {
                 if (in_array($stepSkr, [8, 9, 10, 11], true)) {
-                    $noUndangan = (string)($r['no_undangan_hasil'] ?? '');
+                    $noUndangan = (string)(!empty($r['nomor_surat_hasil']) ? $r['nomor_surat_hasil'] : ($r['no_undangan_hasil'] ?? ''));
                     $tglUjian   = (string)($r['tanggal_hasil'] ?? '');
                     $jamUjian   = (string)($r['jam_hasil'] ?? '');
                     $ruangUjian = (string)($r['ruangan_hasil'] ?? '');
                 } elseif (in_array($stepSkr, [16, 17, 18, 19, 20], true)) {
-                    $noUndangan = (string)($r['no_undangan_tutup'] ?? '');
+                    $noUndangan = (string)(!empty($r['nomor_surat_tutup']) ? $r['nomor_surat_tutup'] : ($r['no_undangan_tutup'] ?? ''));
                     $tglUjian   = (string)($r['tanggal_tutup'] ?? '');
                     $jamUjian   = (string)($r['jam_tutup'] ?? '');
                     $ruangUjian = (string)($r['ruangan_tutup'] ?? '');
                 } elseif (in_array($stepKp, [11, 12, 13, 14, 15], true)) {
-                    $noUndangan = (string)($r['no_undangan_kp'] ?? '');
+                    $noUndangan = (string)(!empty($r['nomor_surat_kp']) ? $r['nomor_surat_kp'] : ($r['no_undangan_kp'] ?? ''));
                     $tglUjian   = (string)($r['tanggal_seminar'] ?? '');
                     $jamUjian   = (string)($r['jam_seminar'] ?? '');
                     $ruangUjian = (string)($r['ruangan_kp'] ?? '');
                 }
             }
+
+            // Ambil teks nomor surat asli dari tabel nomor_surat jika yang tersimpan adalah ID
+            $noUndangan = dapatkan_nomor_surat_teks($noUndangan);
 
             $sudahDiatur = (!empty($noUndangan) || !empty($tglUjian) || !empty($jamUjian) || !empty($ruangUjian) || $stepSkr >= 11 || $stepKp >= 14);
 
@@ -745,11 +757,12 @@ function ambil_antrian_siap_ujian($idBatchAktif, $filterProdi = '', $kategori = 
     $idBatchAktif = (int)$idBatchAktif;
     $hasil = [];
 
-    // Kumpulkan daftar NIM mahasiswa yang saat ini SUDAH berada di batch aktif
-    // agar mereka tidak muncul dobel di daftar antrian
+    // Kumpulkan NIM yang sudah ada di batch aktif ini dan BELUM diatur jadwalnya (kategori kosong/NULL).
+    // Mahasiswa yang kategorinya sudah terisi (artinya sudah selesai di batch ini) tetap muncul
+    // di antrian jika mereka punya tahapan ujian baru (misal: selesai KP, kini step 10 Skripsi).
     $sudahDiBatch = [];
     if ($idBatchAktif > 0) {
-        $qSdh = query("SELECT mahasiswa FROM peserta_batch WHERE id_batch = '$idBatchAktif'");
+        $qSdh = query("SELECT mahasiswa FROM peserta_batch WHERE id_batch = '$idBatchAktif' AND (kategori IS NULL OR kategori = '')");
         if ($qSdh) {
             while ($sRow = mysqli_fetch_assoc($qSdh)) {
                 $sudahDiBatch[trim((string)$sRow['mahasiswa'])] = true;
@@ -982,13 +995,24 @@ function cek_kelayakan_buka_batch_baru() {
             $stepSkr = (int)($p['step_skripsi'] ?? 0);
             $stepKp  = (int)($p['step_kp'] ?? 0);
 
-            // Indikator sudah naik step:
-            // Jika bukan lagi progres 10 & 18 (skripsi) dan bukan lagi progres 12 (KP), maka jadwal sudah selesai diatur
-            $masihPerluJadwal = ($stepSkr === 10 || $stepSkr === 18 || $stepKp === 12);
-            $vUndangan = isset($p['nomor_undangan']) ? trim((string)$p['nomor_undangan']) : '';
-            $sudahNaik = (!$masihPerluJadwal || $vUndangan !== '');
+            $katPb   = strtolower(trim((string)($p['kategori'] ?? '')));
 
-            if (!$sudahNaik) {
+            // Evaluasi kebutuhan jadwal sesuai kategori pendaftaran di batch:
+            // 1. Peserta terdaftar KP: hanya cek apakah step KP masih 12 (menunggu seminar KP)
+            // 2. Peserta terdaftar Skripsi Hasil: hanya cek apakah step Skripsi masih 10
+            // 3. Peserta terdaftar Skripsi Tutup: hanya cek apakah step Skripsi masih 18
+            // 4. Kategori belum ditentukan: cek apakah ada progres yang berada di tahap tunggu jadwal (10, 18, 12)
+            if ($katPb === 'kp') {
+                $masihPerluJadwal = ($stepKp === 12);
+            } elseif ($katPb === 'skripsi_hasil') {
+                $masihPerluJadwal = ($stepSkr === 10);
+            } elseif ($katPb === 'skripsi_tutup') {
+                $masihPerluJadwal = ($stepSkr === 18);
+            } else {
+                $masihPerluJadwal = ($stepSkr === 10 || $stepSkr === 18 || $stepKp === 12);
+            }
+
+            if ($masihPerluJadwal) {
                 $belumDiatur++;
             }
         }
@@ -1099,6 +1123,28 @@ function tambah_nomor($nomor,$keterangan=NULL){
     return $id;
   }
   return false;
+}
+
+// ================= FUNCTION AMBIL TEKS NOMOR SURAT ASLI =================
+function dapatkan_nomor_surat_teks($idOrNomor) {
+  global $koneksi;
+  $val = trim((string)$idOrNomor);
+  if ($val === '') return '';
+
+  // Jika sudah berupa format teks nomor surat (mengandung '/')
+  if (strpos($val, '/') !== false) {
+    return $val;
+  }
+
+  // Jika berupa numeric ID (merujuk ke id pada tabel nomor_surat)
+  if (is_numeric($val)) {
+    $q = query("SELECT nomor FROM `nomor_surat` WHERE id = '$val' LIMIT 1");
+    if ($q && ($r = mysqli_fetch_assoc($q)) && !empty($r['nomor'])) {
+      return $r['nomor'];
+    }
+  }
+
+  return $val;
 }
 
 // ================= FUNCTION AMBIL BATCH UJIAN AKTIF =================

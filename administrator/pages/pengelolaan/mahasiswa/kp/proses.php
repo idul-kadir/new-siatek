@@ -116,7 +116,7 @@ if (isset($_POST['ambil-tabel-kp'])) {
             $isAdminEksekutor = ($data['eksekutor'] === 'admin') || $isTidakAktif;
 
             // Judul / Tempat KP
-            $tempatKp = !empty($data['instansi']) ? $data['instansi'] : (!empty($data['tempat_kp']) ? $data['tempat_kp'] : (!empty($data['tempat']) ? $data['tempat'] : (!empty($data['lokasi']) ? $data['lokasi'] : '')));
+            $tempatKp = !empty($data['nama_instansi']) ? $data['nama_instansi'] : (!empty($data['instansi']) ? $data['instansi'] : (!empty($data['tempat_kp']) ? $data['tempat_kp'] : (!empty($data['tempat']) ? $data['tempat'] : (!empty($data['lokasi']) ? $data['lokasi'] : ''))));
             $judulKp  = !empty($data['judul']) ? $data['judul'] : '';
 
             $statusBadgeClass = 'bg-emerald-100 text-emerald-700';
@@ -430,7 +430,7 @@ if (isset($_POST['muat-lembar-kerja'])) {
 
                         case 7:
                             // Form Khusus: SOP 7 (Mencetak Surat Pengantar untuk Penarikan KP)
-                            $tempatKpDisplay = !empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : ''));
+                            $tempatKpDisplay = !empty($kpDetail['nama_instansi']) ? $kpDetail['nama_instansi'] : (!empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : '')));
                             $noSuratOtomatis = get_nomor_surat('penarikan kp');
                             ?>
                             <div class="mb-4">
@@ -874,7 +874,7 @@ if (isset($_POST['proses-lembar-kerja'])) {
             $instansi = bersihkan($_POST['instansi'] ?? '');
             $noSurat  = bersihkan($_POST['no_surat'] ?? '');
             if ($instansi !== '') {
-                query("UPDATE kp SET instansi = '$instansi' WHERE nim = '$nim'");
+                query("UPDATE kp SET nama_instansi = '$instansi' WHERE nim = '$nim'");
             }
 
             // Catat nomor surat ke tabel nomor_surat jika valid
@@ -1481,7 +1481,7 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
                                     <div>
                                         <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Tempat / Instansi KP</span>
                                         <p class="text-xs font-medium text-slate-800 bg-white p-3 rounded-lg border border-slate-200/80 leading-relaxed">
-                                            <?= !empty($kpDetail['instansi']) ? tampil($kpDetail['instansi']) : (!empty($kpDetail['tempat_kp']) ? tampil($kpDetail['tempat_kp']) : '-') ?>
+                                            <?= !empty($kpDetail['nama_instansi']) ? tampil($kpDetail['nama_instansi']) : (!empty($kpDetail['instansi']) ? tampil($kpDetail['instansi']) : (!empty($kpDetail['tempat_kp']) ? tampil($kpDetail['tempat_kp']) : '-')) ?>
                                         </p>
                                     </div>
                                     <div>
@@ -1506,7 +1506,7 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-700 mb-1">Tempat / Instansi KP</label>
-                                        <input type="text" name="instansi" value="<?= tampil($kpDetail['instansi'] ?? ($kpDetail['tempat_kp'] ?? '')) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
+                                        <input type="text" name="instansi" value="<?= tampil($kpDetail['nama_instansi'] ?? ($kpDetail['instansi'] ?? ($kpDetail['tempat_kp'] ?? ''))) ?>" class="w-full text-xs rounded-lg border border-slate-300 p-2 focus:border-orange-500 focus:outline-none" required>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-700 mb-1">Status KP</label>
@@ -1606,7 +1606,7 @@ if (isset($_POST['ambil-arsip-riwayat'])) {
 
                     case 7:
                         // SOP 7: Surat Pengantar Penarikan KP
-                        $tempatKpArsip = !empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : '-'));
+                        $tempatKpArsip = !empty($kpDetail['nama_instansi']) ? $kpDetail['nama_instansi'] : (!empty($kpDetail['instansi']) ? $kpDetail['instansi'] : (!empty($kpDetail['tempat']) ? $kpDetail['tempat'] : (!empty($kpDetail['tempat_kp']) ? $kpDetail['tempat_kp'] : '-')));
                         $urlSuratPenarikanArsip = base_url() . "/administrator/dokumen/surat-penarikan-kp/" . $nim;
                         $qNomorArsip = query("SELECT nomor FROM nomor_surat WHERE keterangan LIKE '%Penarikan KP%' AND keterangan LIKE '%$nim%' ORDER BY id DESC LIMIT 1");
                         $nomorSuratArsip = ($qNomorArsip && $rNA = mysqli_fetch_assoc($qNomorArsip)) ? $rNA['nomor'] : '-';
@@ -1906,6 +1906,9 @@ if (isset($_POST['koreksi-arsip-step'])) {
             }
 
             $setFields = ["judul = '$judul'", "status = '$status'"];
+            if (in_array('nama_instansi', $kpCols, true)) {
+                $setFields[] = "nama_instansi = '$instansi'";
+            }
             if (in_array('instansi', $kpCols, true)) {
                 $setFields[] = "instansi = '$instansi'";
             }

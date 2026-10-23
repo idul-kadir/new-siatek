@@ -3,3 +3,12 @@ Options -Indexes
 
 # Entry default tiap folder
 DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /redesain-siatek/
+
+# Pretty URL untuk halaman dokumen surat
+# Contoh: http://localhost/redesain-siatek/dokumen/surat-penunjukkan-pembimbing-skripsi/05201425003
+RewriteRule ^dokumen/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)/?$ surat/template-a4.php?kategori=$1&nim=$2 [L,QSA]
+</IfModule>

@@ -346,6 +346,23 @@ if (isset($_POST['hapus-batch'])) {
 
 
 // =============================================================================
+// AKSI KHUSUS: AMBIL NOMOR SURAT UNDANGAN TERBARU SECARA REAL-TIME (AJAX)
+// -----------------------------------------------------------------------------
+// Menghasilkan nomor surat fresh saat modal atur jadwal dibuka agar tidak duplikat
+// =============================================================================
+if (isset($_POST['ambil-nomor-undangan-terbaru'])) {
+    session_write_close();
+    header('Content-Type: application/json');
+    $nomorFresh = function_exists('get_nomor_surat') ? get_nomor_surat('undangan menguji') : '';
+    echo json_encode([
+        'status' => !empty($nomorFresh),
+        'nomor'  => $nomorFresh
+    ]);
+    exit;
+}
+
+
+// =============================================================================
 // AKSI 5: ATUR JADWAL UJIAN PESERTA BATCH (NOMOR UNDANGAN, JAM, TANGGAL, RUANG)
 // -----------------------------------------------------------------------------
 // Menyimpan detail jadwal pelaksanaan ujian mahasiswa peserta ke tabel peserta_batch.
@@ -422,6 +439,19 @@ if (isset($_POST['atur-jadwal-peserta'])) {
         echo json_encode(['status' => false, 'pesan' => 'Kategori ujian tidak valid atau tidak dikenali.']);
         exit;
     }
+
+    // Mapping nilai kategori sesuai tipe kolom di database: `kategori` set('kp','hasil','tutup')
+    $katDb = 'kp';
+    if ($kategori === 'skripsi_hasil' || $kategori === 'hasil') {
+        $katDb = 'hasil';
+    } elseif ($kategori === 'skripsi_tutup' || $kategori === 'tutup') {
+        $katDb = 'tutup';
+    } elseif ($kategori === 'kp') {
+        $katDb = 'kp';
+    }
+
+    // Update kategori pada tabel peserta_batch sesuai nilai SET yang valid ('kp', 'hasil', 'tutup')
+    query("UPDATE peserta_batch SET kategori = '$katDb' WHERE id = '$idPeserta'");
 
     echo json_encode([
         'status' => true,
@@ -522,17 +552,6 @@ if (isset($_POST['ambil-tabel-peserta'])) {
                                 <span>Angk. <?= tampil($p['angkatan']) ?></span>
                             <?php endif; ?>
                         </div>
-
-                        <!-- Tampilkan Daftar Penguji Ujian -->
-                        <?php if (!empty($p['penguji'])): ?>
-                            <div class="mt-1 text-[11px] text-slate-600 flex items-start gap-1">
-                                <i class="fas fa-user-tie text-[10px] text-orange-500 mt-0.5 shrink-0"></i>
-                                <span class="font-medium text-slate-500 shrink-0">Penguji:</span>
-                                <span class="text-slate-700">
-                                    <?= tampil(implode(', ', array_column($p['penguji'], 'nama'))) ?>
-                                </span>
-                            </div>
-                        <?php endif; ?>
 
                         <!-- Jika batch ditutup, tampilkan informasi jadwal yang telah diatur -->
                         <?php if (!$isBatchAktif): ?>
@@ -705,13 +724,23 @@ if (isset($_POST['ambil-tabel-antrian'])) {
                         <span class="text-slate-600 font-sans truncate"><?= tampil($a['nama_prodi']) ?></span>
                     </div>
 
-                    <!-- Dosen Penguji -->
+                    <!-- Dosen Penguji (Disusun Terstruktur per Baris) -->
                     <?php if (!empty($a['penguji'])): ?>
-                    <div class="text-[11px] text-slate-500 mt-1 flex items-start gap-1">
-                        <i class="fas fa-user-tie text-[10px] text-orange-500 mt-0.5 shrink-0"></i>
-                        <span class="text-slate-700 truncate" title="<?= tampil(implode(', ', array_column($a['penguji'], 'nama'))) ?>">
-                            <?= tampil(implode(', ', array_column($a['penguji'], 'nama'))) ?>
-                        </span>
+                    <div class="mt-1.5 p-1.5 rounded-md bg-slate-50 border border-slate-200/70 text-[10.5px]">
+                        <div class="text-[9.5px] font-bold text-slate-500 flex items-center gap-1 mb-0.5">
+                            <i class="fas fa-user-tie text-orange-500 text-[9px]"></i>
+                            <span>Dosen Penguji:</span>
+                        </div>
+                        <div class="space-y-0.5 pl-1">
+                            <?php foreach ($a['penguji'] as $idx => $dsn): 
+                                $peran = !empty($dsn['peran']) ? $dsn['peran'] : ('Penguji ' . ($idx + 1));
+                            ?>
+                                <div class="flex items-start gap-1 leading-tight">
+                                    <span class="font-bold text-orange-600 shrink-0 text-[9.5px] w-14"><?= tampil($peran) ?>:</span>
+                                    <span class="text-slate-700 font-medium"><?= tampil($dsn['nama']) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -797,17 +826,14 @@ if (isset($_POST['tambah-peserta-batch'])) {
             $nimBersih = bersihkan($nimRaw);
             if ($nimBersih === '') continue;
 
-            // Cek apakah mahasiswa sudah terdaftar di batch tujuan ini
-            $cek = query("SELECT id FROM peserta_batch WHERE id_batch = '$idBatch' AND mahasiswa = '$nimBersih' LIMIT 1");
+            // Cek apakah mahasiswa sudah terdaftar di batch tujuan ini dengan kategori masih kosong (belum diatur)
+            $cek = query("SELECT id FROM peserta_batch WHERE id_batch = '$idBatch' AND mahasiswa = '$nimBersih' AND (kategori IS NULL OR kategori = '') LIMIT 1");
             if ($cek && mysqli_num_rows($cek) > 0) {
                 $dilewati++;
                 continue;
             }
 
-            // Hapus pendaftaran mahasiswa dari batch sebelumnya (jika ada)
-            query("DELETE FROM peserta_batch WHERE mahasiswa = '$nimBersih'");
-
-            // Simpan pendaftaran baru ke batch aktif saat ini
+            // Simpan pendaftaran baru ke batch aktif saat ini (mahasiswa boleh masuk batch berbeda untuk ujian berbeda)
             $ins = query("INSERT INTO peserta_batch (id_batch, mahasiswa) VALUES ('$idBatch', '$nimBersih')");
             if ($ins) {
                 $sukses++;

@@ -587,7 +587,7 @@ if ($isFilterProdi && $userProdi !== '') {
             htmlFields += renderDosenField('pembimbing1', 'Dosen Pembimbing 1', true, '', saran.pembimbing1 || '');
             htmlFields += renderDosenField('pembimbing2', 'Dosen Pembimbing 2', false, '', saran.pembimbing2 || '');
           } else if (jenisTugas === 'penguji_hasil' || jenisTugas === 'penguji_tutup') {
-            for (var i = 1; i <= 5; i++) {
+            for (var i = 1; i <= 4; i++) {
               var recText = '';
               var curVal = saran['penguji' + i] || '';
               if (jenisTugas === 'penguji_hasil' && i === 1 && curVal) recText = 'Disarankan: Pembimbing 1';

@@ -238,8 +238,13 @@ if (isset($_POST['cetak-persetujuan-pembimbing'])) {
         $naikStep = true;
     }
 
-    // Link dummy cetak dokumen lembar persetujuan pembimbing
-    $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing/' . $nim_clean;
+    if((int)$progresSaatIni === 7){
+      // Link dummy cetak dokumen lembar persetujuan pembimbing
+      $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing-hasil/' . $nim_clean;
+    }else{
+      // Link dummy cetak dokumen lembar persetujuan pembimbing
+      $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing/' . $nim_clean;
+    }
 
     echo json_encode([
         'status'    => true,

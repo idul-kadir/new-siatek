@@ -530,8 +530,7 @@ if ($isFilterProdi && $userProdi !== '') {
           <i class="far fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
           <input type="text" name="nomor_undangan" id="aturNomorUndangan" required readonly
             placeholder="Nomor undangan otomatis..."
-            data-default="<?= tampil(get_nomor_surat('undangan menguji')) ?>"
-            value="<?= tampil(get_nomor_surat('undangan menguji')) ?>"
+            value=""
             class="w-full rounded-lg border border-slate-200 bg-slate-100/90 pl-8 pr-8 py-2 text-xs font-semibold text-slate-700 outline-none cursor-not-allowed select-none">
           <i class="fas fa-lock absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400" title="Nomor undangan otomatis tidak dapat diedit"></i>
         </div>
@@ -1452,12 +1451,38 @@ $(document).ready(function() {
       $('#aturWrapPenguji').removeClass('hidden');
     }
 
-    // Isi 4 field jadwal (jika belum ada nomor undangan tersimpan, gunakan nomor surat otomatis default)
-    const defaultNoUndangan = $('#aturNomorUndangan').data('default') || '';
-    $('#aturNomorUndangan').val(noUndangan ? noUndangan : defaultNoUndangan);
+    // Isi field jadwal
     $('#aturTanggalUjian').val(tanggal);
     $('#aturJamUjian').val(jam);
     $('#aturRuangUjian').val(ruang);
+
+    // Nomor Undangan: jika sudah ada gunakan yang tersimpan, jika belum ada panggil AJAX real-time
+    if (noUndangan) {
+      $('#aturNomorUndangan').val(noUndangan);
+      $('#btnSimpanJadwal').prop('disabled', false);
+    } else {
+      $('#aturNomorUndangan').val('Memuat nomor surat...');
+      $('#btnSimpanJadwal').prop('disabled', true);
+      $.ajax({
+        url: PROSES_URL,
+        type: 'POST',
+        data: { 'ambil-nomor-undangan-terbaru': 1 },
+        dataType: 'json',
+        success: function(res) {
+          if (res && res.status && res.nomor) {
+            $('#aturNomorUndangan').val(res.nomor);
+          } else {
+            $('#aturNomorUndangan').val('');
+          }
+        },
+        error: function() {
+          $('#aturNomorUndangan').val('');
+        },
+        complete: function() {
+          $('#btnSimpanJadwal').prop('disabled', false);
+        }
+      });
+    }
 
     // Tampilkan modal
     $('#modalAturJadwal').addClass('show');

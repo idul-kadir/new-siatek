@@ -184,8 +184,6 @@ if (isset($_POST['simpan-pengajuan-kp'])) {
         tanggal_penarikan = '$tgl_selesai',
         tanggal_selesai   = '$tgl_selesai',
         nama_instansi     = '$tempat',
-        instansi          = '$tempat',
-        tempat            = '$tempat',
         alamat_instansi   = '$alamat',
         pimpinan_instansi = '$tujuan_surat'
     WHERE nim = '$nim_clean'");
@@ -209,7 +207,7 @@ if (isset($_POST['simpan-pengajuan-kp'])) {
             }
             $naikStep = true;
         }
-        $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pa/' . $nim_clean;
+        $cetakUrl = base_url() . '/dokumen/surat-permohonan-izin-kp/' . $nim_clean;
     }
 
     $batasProposal = '';
@@ -310,7 +308,7 @@ if (isset($_POST['cetak-persetujuan-pa'])) {
         $naikStep = true;
     }
 
-    $cetakUrl = base_url() . '/mahasiswa/dokumen/persetujuan-pa/' . $nim_clean;
+    $cetakUrl = base_url() . '/dokumen/surat-permohonan-izin-kp/' . $nim_clean;
 
     echo json_encode([
         'status'    => true,
@@ -350,7 +348,7 @@ if (isset($_POST['cetak-persetujuan-pembimbing-kp']) || isset($_POST['cetak-pers
     }
 
     $nim_clean = bersihkan($nim_login);
-    $cetakUrl  = base_url() . '/mahasiswa/dokumen/persetujuan-pembimbing/' . $nim_clean;
+    $cetakUrl  = base_url() . '/dokumen/surat-keterangan-pembimbing-kp/' . $nim_clean;
 
     echo json_encode([
         'status'    => true,
@@ -370,7 +368,7 @@ if (isset($_POST['cetak-asistensi-kp']) || isset($_POST['cetak-lembar-asistensi'
     }
 
     $nim_clean = bersihkan($nim_login);
-    $cetakUrl  = base_url() . '/mahasiswa/dokumen/lembar-asistensi/' . $nim_clean;
+    $cetakUrl  = base_url() . '/dokumen/lembar-bimbingan-kp/' . $nim_clean;
 
     echo json_encode([
         'status'    => true,

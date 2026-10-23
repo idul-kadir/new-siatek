@@ -59,13 +59,13 @@ if (isset($_POST['edit-surat-penunjukkan'])) {
         $pg5 = isset($dosenList[4]) && trim($dosenList[4]) !== '' ? bersihkan($dosenList[4]) : '';
     }
 
-    $valP1 = "'$p1'";
-    $valP2 = "'$p2'";
-    $valPg1 = "'$pg1'";
-    $valPg2 = "'$pg2'";
-    $valPg3 = "'$pg3'";
-    $valPg4 = "'$pg4'";
-    $valPg5 = "'$pg5'";
+    $valP1 = ($p1 !== '') ? "'$p1'" : "NULL";
+    $valP2 = ($p2 !== '') ? "'$p2'" : "NULL";
+    $valPg1 = ($pg1 !== '') ? "'$pg1'" : "NULL";
+    $valPg2 = ($pg2 !== '') ? "'$pg2'" : "NULL";
+    $valPg3 = ($pg3 !== '') ? "'$pg3'" : "NULL";
+    $valPg4 = ($pg4 !== '') ? "'$pg4'" : "NULL";
+    $valPg5 = ($pg5 !== '') ? "'$pg5'" : "NULL";
 
     $update = query("UPDATE surat_penunjukkan SET 
         no_surat = '$no_surat', 

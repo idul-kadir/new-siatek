@@ -78,6 +78,12 @@ if ($userLevel === 9 && in_array($requestedView, $validViews, true)) {
         $_SESSION['beranda_view_level6'] = $requestedView;
     }
     $activeRoleView = $_SESSION['beranda_view_level6'] ?? $defaultRoleView;
+} elseif ($userLevel === 5) {
+    // Ketua Program Studi (Kaprodi) dapat beralih antara Mode Kaprodi dan Mode Dosen
+    if (in_array($requestedView, ['prodi', 'dosen'], true)) {
+        $_SESSION['beranda_view_level5'] = $requestedView;
+    }
+    $activeRoleView = $_SESSION['beranda_view_level5'] ?? $defaultRoleView;
 } else {
     $activeRoleView = $defaultRoleView;
 }
@@ -166,7 +172,7 @@ if (!function_exists('beranda_pick_color')) {
         </section>
         <?php endif; ?>
 
-        <!-- ============ DUAL-MODE SWITCHER (KHUSUS PENGELOLA JURUSAN LEVEL 6) ============ -->
+        <!-- ============ DUAL-MODE SWITCHER (KHUSUS PENGELOLA JURUSAN LEVEL 6 & KAPRODI LEVEL 5) ============ -->
         <?php if ($userLevel === 6): ?>
         <section class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 px-4 rounded-xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-2.5 text-xs text-slate-700">
@@ -179,6 +185,25 @@ if (!function_exists('beranda_pick_color')) {
                 <a href="/redesain-siatek/administrator/beranda?view=jurusan" 
                    class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'jurusan' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
                     <i class="fas fa-building-columns mr-1.5"></i> Mode Jurusan
+                </a>
+                <a href="/redesain-siatek/administrator/beranda?view=dosen" 
+                   class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'dosen' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-chalkboard-user mr-1.5"></i> Mode Dosen
+                </a>
+            </div>
+        </section>
+        <?php elseif ($userLevel === 5): ?>
+        <section class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 px-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2.5 text-xs text-slate-700">
+                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs font-bold">
+                    <i class="fas fa-arrows-rotate"></i>
+                </span>
+                <span>Mode Tampilan: <strong class="text-slate-900"><?= $activeRoleView === 'dosen' ? 'Mode Dosen (Pengajar & Pembimbing)' : 'Mode Kaprodi (' . htmlspecialchars($roleTeks) . ')' ?></strong></span>
+            </div>
+            <div class="inline-flex rounded-lg bg-slate-100 p-1 text-xs gap-1">
+                <a href="/redesain-siatek/administrator/beranda?view=prodi" 
+                   class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'prodi' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">
+                    <i class="fas fa-user-tie mr-1.5"></i> Mode Kaprodi
                 </a>
                 <a href="/redesain-siatek/administrator/beranda?view=dosen" 
                    class="px-3 py-1.5 rounded-md font-medium transition <?= $activeRoleView === 'dosen' ? 'bg-[#1a365d] text-white shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60' ?>">

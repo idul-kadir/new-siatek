@@ -88,7 +88,7 @@ if ($qKp && mysqli_num_rows($qKp) > 0) {
         $dKp['judul'] = $judulAsli;
     }
 
-    $instansiDb = trim((string)($rowKp['instansi'] ?? $rowKp['tempat_kp'] ?? $rowKp['tempat'] ?? ''));
+    $instansiDb = trim((string)($rowKp['nama_instansi'] ?? $rowKp['instansi'] ?? $rowKp['tempat_kp'] ?? $rowKp['tempat'] ?? ''));
     if ($instansiDb === '' && !empty($rowKp['lokasi'])) {
         $instansiDb = trim((string)$rowKp['lokasi']);
     }
@@ -1878,6 +1878,142 @@ $isTerdaftarBatch = ($dataPesertaBatch !== null);
                     <div class="progres-bar-fill <?= $isKpSelesai ? '!bg-emerald-500' : '' ?>" style="width:<?= $progres ?>%;"></div>
                 </div>
                 <p class="mt-2 text-[11px] text-slate-400"><?= $selesai ?> dari <?= $total ?> langkah SOP selesai.</p>
+            </div>
+
+            <!-- Widget Unduh Template & Dokumen KP (.docx) -->
+            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 text-xs font-bold">
+                            <i class="fas fa-file-word"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-800">Dokumen &amp; Template KP</h3>
+                            <p class="text-[10px] text-slate-400">Unduh format resmi berkas (.docx)</p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 border border-blue-200/50">
+                        .DOCX
+                    </span>
+                </div>
+
+                <div class="space-y-2">
+                    <!-- 1. Penilaian Pembimbing Lapangan -->
+                    <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Penilaian Pembimbing Lapangan</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Instansi tempat magang / KP</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/DAFTAR-PENILAIAN-LAPANGAN.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div>
+
+                    <!-- 2. Penilaian Dosen Pembimbing KP -->
+                    <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Format Laporan</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Panduan penyusunan laporan Kerja Praktek</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/FORMAT-LAPORAN-KP.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div>
+
+                    <!-- 3. Jurnal Harian / Logbook KP -->
+                    <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Jurnal Harian (Logbook KP)</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Catatan kegiatan harian magang</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/LAPORAN-KERJA-JURNAL-HARIAN.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div>
+
+                    <!-- 4. Lembar Kehadiran (Presensi) KP -->
+                    <!-- <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-clipboard-user"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Lembar Kehadiran (Presensi)</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Presensi kehadiran di instansi</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/Format_Lembar_Kehadiran_Presensi_KP.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div> -->
+
+                    <!-- 5. Lembar Pengesahan Laporan KP -->
+                    <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-stamp"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Lembar Pengesahan Laporan</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Pengesahan pembimbing &amp; kaprodi</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/LEMBAR-PENGESAHAN.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div>
+
+                    <!-- 6. Penilaian Seminar KP -->
+                    <!-- <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Penilaian Seminar KP</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Form nilai dosen penguji seminar</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/Format_Penilaian_Seminar_KP.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div> -->
+
+                    <!-- 7. Catatan Revisi Seminar KP -->
+                    <!-- <div class="p-2.5 rounded-lg border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-blue-300 hover:shadow-xs transition flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 text-sm">
+                                <i class="fas fa-pen-to-square"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 truncate">Catatan Revisi Seminar KP</h4>
+                                <p class="text-[10px] text-slate-400 truncate">Perbaikan hasil ujian seminar</p>
+                            </div>
+                        </div>
+                        <a href="<?= base_url() ?>/file/Format_Catatan_Revisi_Seminar_KP.docx" download class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-white border border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs transition">
+                            <i class="fas fa-download text-[10px]"></i> Unduh
+                        </a>
+                    </div> -->
+                </div>
+
+                <p class="text-[10px] text-slate-400 mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5">
+                    <i class="fas fa-info-circle text-blue-500"></i> Unduh berkas format .docx di atas, lengkapi sesuai kegiatan KP, lalu unggah pada tahapan SOP yang sesuai.
+                </p>
             </div>
 
             <!-- List Stepper SOP -->

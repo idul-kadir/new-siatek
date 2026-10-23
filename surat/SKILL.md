@@ -23,15 +23,16 @@ Rujukan visual: surat asli produksi di `https://siatek.web.id/adm/dokumen/cetak/
 1. **Simpel & aman**: pilih konten lewat switch whitelist — dilarang `include` file dari input URL mentah.
 2. **Full template**: isi surat = HTML murni (dummy). **Data tidak boleh pakai script PHP**.
 3. **Ukuran font**: **kecuali kop, SEMUA 12pt** (judul bold+underline, nomor, pembuka, tabel, penutup, TTD, tembusan).
+4. **Margin Kertas (MUTLAK - TIDAK BISA DITAWAR)**: **2,5 cm (25mm) dari atas, 2,5 cm dari samping kiri, 2,5 cm dari samping kanan, dan 2,5 cm dari bawah**. Kertas harus selalu pas **1 halaman A4**.
 
 ## Font & layout (sudah disamakan dengan produksi)
 
-- `body` → `font-size: 12pt`, `line-height: 1.35`, Times New Roman.
-- Kop: `.org` = **12pt**, `.addr` = **10pt**; teks `.brand` `text-align:center; margin-left:35px`; logo `width:100px; position:absolute; left:35px`; `hr` = `border:1px solid #000`.
-- `.judul` margin `18px 0 10px`; `.nomor` margin-top `8px`; `.pembuka` margin-top `28px`.
+- `body` → `font-size: 12pt`, `line-height: 1.25`, Times New Roman.
+- Kop: `.org` = **12pt**, `.addr` = **10pt**; teks `.brand` `text-align:center; margin: 0 22mm;`; logo `width:22mm; position:absolute; top:0; left:0;`; `hr` = `border:1.5px solid #000`.
+- `.judul` margin `8px 0 3px`; `.nomor` margin-top `3px`; `.pembuka` margin-top `10px`.
 - `table.data`: kolom no `40px`, kolom label `130px`, kolom titik dua `25px`.
-- Spacer antar-blok `height="20px"`; ruang TTD `.ttd-place` `100px` (cetak 95px); spacer sebelum tembusan `height="35px"`.
-- `.sheet` = `width:210mm`, padding `12mm 20mm 14mm`, `@page { size: A4 portrait; margin: 0 }`.
+- Spacer antar-blok `height="8px"`; ruang TTD `.ttd-place` `50px` (cetak 48px); spacer sebelum tembusan `height="8px"`.
+- `.sheet` = `width:210mm`, padding `25mm` (2.5 cm mutlak atas, kiri, kanan, bawah), `@page { size: A4 portrait; margin: 0 }`. Pas 1 halaman A4 untuk semua surat.
 
 ## Struktur isi surat (copy dari acuan produksi)
 

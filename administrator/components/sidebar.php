@@ -108,7 +108,11 @@ $activePage = $activePage ?? '';
                 <div class="nav-section-header border-t border-white/5 mt-2 pt-3">Master &amp; Pengaturan</div>
 
                 <!-- Bimbingan (nested) -->
-                <?php $bimbPages = ['bimbingan-skripsi','bimbingan-kp','bimbingan-pa']; $bimbActive = in_array($activePage, $bimbPages, true); ?>
+                <?php 
+                $showMenuBimbingan = in_array($userLevel, [1, 5, 6, 9], true);
+                if ($showMenuBimbingan):
+                $bimbPages = ['bimbingan-skripsi','bimbingan-kp','bimbingan-pa']; $bimbActive = in_array($activePage, $bimbPages, true); 
+                ?>
                 <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $bimbActive ? 'open' : '' ?>" data-target="sub-bimbingan">
                     <i class="fas fa-users w-5 text-center text-sm opacity-70"></i>
                     <span class="flex-1 text-left">Data Bimbingan</span>
@@ -119,6 +123,7 @@ $activePage = $activePage ?? '';
                     <a href="/redesain-siatek/administrator/bimbingan-kp" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'bimbingan-kp' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-briefcase w-5 text-center text-sm opacity-70"></i><span>Bimbingan KP</span></a>
                     <a href="/redesain-siatek/administrator/bimbingan-pa" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'bimbingan-pa' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-user w-5 text-center text-sm opacity-70"></i><span>Bimbingan PA</span></a>
                 </div>
+                <?php endif; ?>
 
                 <!-- Pengguna (nested) -->
                 <?php $pengPages = ['pengguna-mahasiswa','pengguna-dosen']; $pengActive = in_array($activePage, $pengPages, true); ?>

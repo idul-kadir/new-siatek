@@ -2,7 +2,7 @@
 /**
  * View Beranda: Pengelola Program Studi (Level 5 — Ketua Program Studi / Kaprodi)
  * Dasbor Otoritas Akademik Prodi SIATEK
- * Fokus: Penetapan Surat Penunjukkan (TTD), Monitoring Skripsi/KP Prodi, & Pemerataan Beban Bimbingan Dosen.
+ * Fokus: Antrean Penunjukkan Dosen Pembimbing & Penguji, Monitoring Mahasiswa Aktif, Kelayakan Ujian, & Tren Kelulusan.
  */
 declare(strict_types=1);
 
@@ -19,7 +19,7 @@ if ($userProdi === '') {
     }
 }
 
-// Ambil Profil Program Studi
+// Ambil Profil Resmi Program Studi
 $prodiInfo = ['kode' => $userProdi, 'nama' => 'Program Studi', 'jenjang' => 'S1'];
 $qPrInfo = query("SELECT kode, nama, jenjang FROM prodi WHERE kode = '" . bersihkan($userProdi) . "' LIMIT 1");
 if ($qPrInfo && ($r = mysqli_fetch_assoc($qPrInfo))) {
@@ -28,30 +28,32 @@ if ($qPrInfo && ($r = mysqli_fetch_assoc($qPrInfo))) {
 $namaProdiUser = $prodiInfo['nama'];
 $cleanProdi = bersihkan($userProdi);
 
-// 2. Metrik Kunci Otoritas Kaprodi
-// A. Surat Penunjukkan Belum TTD (Tugas Pokok Kaprodi)
-$qSPPending = query("
-    SELECT COUNT(*) AS c 
-    FROM surat_penunjukkan sp
-    JOIN mahasiswa m ON sp.nim = m.nim
-    WHERE (sp.ttd = '' OR sp.ttd IS NULL) AND m.prodi = '$cleanProdi'
-");
-$spPendingTotal = $qSPPending ? (int)mysqli_fetch_assoc($qSPPending)['c'] : 0;
+// 2. Antrean Penunjukkan Dosen Pembimbing & Penguji (Tugas Pokok & Wewenang Utama Kaprodi)
+$antreanPenunjukkanList = function_exists('ambil_antrian_penunjukkan') ? ambil_antrian_penunjukkan($cleanProdi) : [];
+$totalAntreanPenunjukkan = count($antreanPenunjukkanList);
 
-// B. Mahasiswa Aktif Prodi
-$qMhsAktif = query("SELECT COUNT(*) AS c FROM mahasiswa WHERE prodi = '$cleanProdi' AND status = 'Aktif'");
+// 3. Metrik Kunci Otoritas Kaprodi
+// A. Mahasiswa Aktif Prodi (Sesuai Regulasi S1: Maksimal 7 Angkatan Terakhir / 7 Tahun Berjalan)
+$aktifSince = (int)date('Y') - 6; // Pada tahun 2026: Angkatan 2020 s.d. 2026
+$qMhsAktif = query("
+    SELECT COUNT(*) AS c 
+    FROM mahasiswa 
+    WHERE prodi = '$cleanProdi' 
+      AND angkatan >= $aktifSince 
+      AND (status = 'Aktif' OR status = 'aktif')
+");
 $mhsAktifProdi = $qMhsAktif ? (int)mysqli_fetch_assoc($qMhsAktif)['c'] : 0;
 
-// C. Skripsi Berjalan di Prodi
+// B. Skripsi Berjalan di Prodi
 $qSkripsiAktif = query("
     SELECT COUNT(*) AS c 
     FROM skripsi s
     JOIN mahasiswa m ON s.nim = m.nim
-    WHERE s.status = 'aktif' AND m.prodi = '$cleanProdi'
+    WHERE (s.status = 'aktif' OR s.status = 'Aktif') AND m.prodi = '$cleanProdi'
 ");
 $skripsiProdiAktif = $qSkripsiAktif ? (int)mysqli_fetch_assoc($qSkripsiAktif)['c'] : 0;
 
-// D. Kerja Praktek Berjalan di Prodi
+// C. Kerja Praktek Berjalan di Prodi
 $qKpAktif = query("
     SELECT COUNT(*) AS c 
     FROM kp k
@@ -60,56 +62,159 @@ $qKpAktif = query("
 ");
 $kpProdiAktif = $qKpAktif ? (int)mysqli_fetch_assoc($qKpAktif)['c'] : 0;
 
-// 3. Antrean Surat Penunjukkan Siap TTD / Penetapan
-$daftarSPPending = [];
-$qListSP = query("
-    SELECT sp.id, sp.nim, sp.keterangan, sp.tanggal, sp.pembimbing1, sp.pembimbing2,
-           m.nama AS nama_mhs, m.angkatan
-    FROM surat_penunjukkan sp
-    JOIN mahasiswa m ON sp.nim = m.nim
-    WHERE (sp.ttd = '' OR sp.ttd IS NULL) AND m.prodi = '$cleanProdi'
-    ORDER BY sp.id DESC LIMIT 6
+// D. Total Alumni / Kelulusan Prodi
+$qAlumniProdi = query("
+    SELECT COUNT(DISTINCT nim) AS c FROM (
+        SELECT nim FROM alumni WHERE prodi = '$cleanProdi'
+        UNION
+        SELECT a.nim FROM alumni a JOIN mahasiswa m ON a.nim = m.nim WHERE m.prodi = '$cleanProdi'
+        UNION
+        SELECT nim FROM mahasiswa WHERE prodi = '$cleanProdi' AND LOWER(status) = 'alumni'
+    ) AS gabungan_alumni_prodi
 ");
-if ($qListSP) {
-    while ($sp = mysqli_fetch_assoc($qListSP)) {
-        $daftarSPPending[] = $sp;
+$totalAlumniProdi = $qAlumniProdi ? (int)mysqli_fetch_assoc($qAlumniProdi)['c'] : 0;
+
+// E. Antrean Siap Ujian Prodi (Data Telemetri)
+$totalAntreanUjian = function_exists('ambil_antrian_siap_ujian') ? count(ambil_antrian_siap_ujian(0, $cleanProdi)) : 0;
+
+// 4. Mahasiswa Expired / Kadaluarsa Status Skripsi & KP Prodi
+$kadaluarsaList = [];
+
+// Skripsi: status Kadaluarsa / Expired atau status Aktif tanpa progres lebih dari 180 hari
+$qSkrKadaluarsa = query("
+    SELECT s.nim, s.judul, s.status, 'Skripsi' AS jenis, m.nama AS nama_mhs, m.angkatan,
+           COALESCE(ps.waktu_terbaru, 0) AS last_time,
+           ps.proses_terbaru AS latest_step
+    FROM skripsi s
+    JOIN mahasiswa m ON s.nim = m.nim
+    LEFT JOIN (
+        SELECT mahasiswa, MAX(waktu) AS waktu_terbaru, MAX(proses) AS proses_terbaru
+        FROM progres_skripsi
+        GROUP BY mahasiswa
+    ) ps ON s.nim = ps.mahasiswa
+    WHERE m.prodi = '$cleanProdi'
+      AND (
+          LOWER(s.status) = 'kadaluarsa' 
+          OR LOWER(s.status) = 'expired'
+          OR (
+              (s.status = 'aktif' OR s.status = 'Aktif')
+              AND ps.waktu_terbaru > 0 
+              AND ps.waktu_terbaru < (UNIX_TIMESTAMP() - 15552000)
+          )
+      )
+    ORDER BY s.nim DESC
+");
+if ($qSkrKadaluarsa) {
+    while ($row = mysqli_fetch_assoc($qSkrKadaluarsa)) {
+        $row['is_overdue'] = (strtolower((string)$row['status']) !== 'kadaluarsa');
+        $kadaluarsaList[] = $row;
     }
 }
 
-// 4. Mahasiswa Siap Ujian di Prodi (Antrean Sidang/Seminar)
-$antreanUjianList = function_exists('ambil_antrian_siap_ujian') ? ambil_antrian_siap_ujian(0, $cleanProdi) : [];
-$totalAntreanUjian = count($antreanUjianList);
-
-// 5. Beban Bimbingan Dosen di Lingkungan Prodi (Pemerataan Pembimbingan)
-$bebanDosenList = [];
-$qBebanDosen = query("
-    SELECT d.id, d.nip, d.nama,
-           (
-               SELECT COUNT(*) FROM skripsi s 
-               JOIN mahasiswa m ON s.nim = m.nim 
-               WHERE (s.pembimbing1 = d.id OR s.pembimbing1 = d.nip OR s.pembimbing2 = d.id OR s.pembimbing2 = d.nip)
-                 AND s.status = 'aktif' AND m.prodi = '$cleanProdi'
-           ) AS bimbingan_skripsi,
-           (
-               SELECT COUNT(*) FROM kp k 
-               JOIN mahasiswa m ON k.nim = m.nim 
-               WHERE (k.dosen = d.id OR k.dosen = d.nip)
-                 AND (k.status = 'Aktif' OR k.status = 'aktif') AND m.prodi = '$cleanProdi'
-           ) AS bimbingan_kp
-    FROM dosen d
-    WHERE d.status = 'aktif'
-    ORDER BY (bimbingan_skripsi + bimbingan_kp) DESC LIMIT 5
+// KP: status Kadaluarsa / Expired atau status Aktif tanpa progres lebih dari 180 hari
+$qKpKadaluarsa = query("
+    SELECT k.nim, k.judul, k.status, 'Kerja Praktek' AS jenis, m.nama AS nama_mhs, m.angkatan,
+           COALESCE(pk.waktu_terbaru, 0) AS last_time,
+           pk.proses_terbaru AS latest_step
+    FROM kp k
+    JOIN mahasiswa m ON k.nim = m.nim
+    LEFT JOIN (
+        SELECT mahasiswa, MAX(waktu) AS waktu_terbaru, MAX(proses) AS proses_terbaru
+        FROM progres_kp
+        GROUP BY mahasiswa
+    ) pk ON k.nim = pk.mahasiswa
+    WHERE m.prodi = '$cleanProdi'
+      AND (
+          LOWER(k.status) = 'kadaluarsa' 
+          OR LOWER(k.status) = 'expired'
+          OR (
+              (k.status = 'aktif' OR k.status = 'Aktif')
+              AND pk.waktu_terbaru > 0 
+              AND pk.waktu_terbaru < (UNIX_TIMESTAMP() - 15552000)
+          )
+      )
+    ORDER BY k.nim DESC
 ");
-if ($qBebanDosen) {
-    while ($bd = mysqli_fetch_assoc($qBebanDosen)) {
-        $bd['total_bimbingan'] = (int)$bd['bimbingan_skripsi'] + (int)$bd['bimbingan_kp'];
-        $bebanDosenList[] = $bd;
+if ($qKpKadaluarsa) {
+    while ($row = mysqli_fetch_assoc($qKpKadaluarsa)) {
+        $row['is_overdue'] = (strtolower((string)$row['status']) !== 'kadaluarsa');
+        $kadaluarsaList[] = $row;
     }
 }
+$totalKadaluarsa = count($kadaluarsaList);
 
-// 6. Berita & Informasi Jurusan
+// 5. Distribusi Mahasiswa Prodi per Angkatan (7 Tahun Berjalan)
+$perAngkatanProdi = [];
+for ($ang = (int)date('Y'); $ang >= $aktifSince; $ang--) {
+    $qKpA = query("
+        SELECT COUNT(DISTINCT k.nim) AS c
+        FROM kp k JOIN mahasiswa m ON k.nim = m.nim
+        WHERE (k.status = 'aktif' OR k.status = 'Aktif') AND m.prodi = '$cleanProdi' AND m.angkatan = $ang
+    ");
+    $kpAktifAng = $qKpA ? (int)mysqli_fetch_assoc($qKpA)['c'] : 0;
+
+    $qSkA = query("
+        SELECT COUNT(DISTINCT s.nim) AS c
+        FROM skripsi s JOIN mahasiswa m ON s.nim = m.nim
+        WHERE (s.status = 'aktif' OR s.status = 'Aktif') AND m.prodi = '$cleanProdi' AND m.angkatan = $ang
+    ");
+    $skAktifAng = $qSkA ? (int)mysqli_fetch_assoc($qSkA)['c'] : 0;
+
+    $qAlmAng = query("
+        SELECT COUNT(DISTINCT nim) AS c FROM (
+            SELECT nim FROM alumni WHERE prodi = '$cleanProdi' AND (angkatan = '$ang' OR angkatan = $ang)
+            UNION
+            SELECT a.nim FROM alumni a JOIN mahasiswa m ON a.nim = m.nim WHERE m.prodi = '$cleanProdi' AND m.angkatan = $ang
+            UNION
+            SELECT nim FROM mahasiswa WHERE prodi = '$cleanProdi' AND angkatan = $ang AND LOWER(status) = 'alumni'
+        ) AS gabungan_alumni_ang
+    ");
+    $alumniAng = $qAlmAng ? (int)mysqli_fetch_assoc($qAlmAng)['c'] : 0;
+
+    $qTotAng = query("
+        SELECT COUNT(DISTINCT nim) AS c FROM (
+            SELECT nim FROM mahasiswa WHERE prodi = '$cleanProdi' AND angkatan = $ang
+            UNION
+            SELECT nim FROM alumni WHERE prodi = '$cleanProdi' AND (angkatan = '$ang' OR angkatan = $ang)
+        ) AS gabungan_populasi_ang
+    ");
+    $totalAng = $qTotAng ? (int)mysqli_fetch_assoc($qTotAng)['c'] : 0;
+    if ($totalAng <= 0 && $alumniAng > 0) {
+        $totalAng = $alumniAng;
+    }
+
+    $perAngkatanProdi[] = [
+        'angkatan' => $ang,
+        'total'    => $totalAng,
+        'kp'       => $kpAktifAng,
+        'skripsi'  => $skAktifAng,
+        'alumni'   => $alumniAng
+    ];
+}
+
+// 6. Tren Intake & Kelulusan Mahasiswa Prodi 5 Tahun Terakhir (Chart.js)
+$years = [];
+$mhsPerYear = [];
+$alumniPerYear = [];
+for ($y = (int)date('Y') - 4; $y <= (int)date('Y'); $y++) {
+    $years[] = (string)$y;
+    $qM = query("SELECT COUNT(*) AS c FROM mahasiswa WHERE prodi = '$cleanProdi' AND angkatan = $y");
+    $mhsPerYear[] = (int)mysqli_fetch_assoc($qM)['c'];
+
+    $qA = query("
+        SELECT COUNT(DISTINCT nim) AS c FROM (
+            SELECT nim FROM alumni WHERE prodi = '$cleanProdi' AND (tahun_lulus = '$y' OR YEAR(tanggal_lulus) = $y)
+            UNION
+            SELECT a.nim FROM alumni a JOIN mahasiswa m ON a.nim = m.nim 
+            WHERE m.prodi = '$cleanProdi' AND (a.tahun_lulus = '$y' OR YEAR(a.tanggal_lulus) = $y)
+        ) AS alm_yr
+    ");
+    $alumniPerYear[] = (int)mysqli_fetch_assoc($qA)['c'];
+}
+
+// 7. Berita & Informasi Jurusan (Maksimal 5 Berita Terbaru)
 $beritaItems = [];
-$qBerita = query("SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 3");
+$qBerita = query("SELECT judul, deskripsi, tanggal FROM berita WHERE judul <> '' ORDER BY tanggal DESC LIMIT 5");
 if ($qBerita) {
     while ($b = mysqli_fetch_assoc($qBerita)) { $beritaItems[] = $b; }
 }
@@ -136,47 +241,47 @@ if ($qBerita) {
         </div>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-        <a href="/redesain-siatek/administrator/mhs-penunjukkan"
-           class="inline-flex items-center gap-2 rounded-lg bg-[#f97316] hover:bg-[#ea580c] px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-orange-500/25 transition">
-            <i class="fas fa-file-signature"></i> Surat Penunjukkan
-            <?php if ($spPendingTotal > 0): ?>
-                <span class="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-bold"><?= $spPendingTotal ?></span>
-            <?php endif; ?>
-        </a>
         <a href="/redesain-siatek/administrator/mhs-skripsi"
            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition">
             <i class="fas fa-book-open text-[#1a365d]"></i> Monitoring Skripsi
         </a>
-        <a href="/redesain-siatek/administrator/mhs-ujian"
+        <a href="/redesain-siatek/administrator/mhs-kp"
            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition">
-            <i class="fas fa-graduation-cap text-orange-500"></i> Kelayakan Ujian (<?= $totalAntreanUjian ?>)
+            <i class="fas fa-briefcase text-sky-600"></i> Monitoring KP
+        </a>
+        <a href="/redesain-siatek/administrator/pengguna-mahasiswa"
+           class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs transition">
+            <i class="fas fa-users text-[#1a365d]"></i> Data Mahasiswa
         </a>
     </div>
 </section>
 
 <!-- ============ 4 KARTU METRIK UTAMA KAPRODI ============ -->
 <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- 1. KARTU JANGKAR NAVY: Surat Penunjukkan Menunggu TTD Kaprodi -->
+    <!-- 1. KARTU JANGKAR NAVY: Antrean Penunjukkan Dosen (Titik Fokus Otoritas & Tindakan Darurat) -->
     <a href="/redesain-siatek/administrator/mhs-penunjukkan"
        class="rounded-xl bg-[#1a365d] text-white p-5 shadow-md shadow-slate-900/10 flex flex-col justify-between relative overflow-hidden group hover:brightness-105 transition">
         <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/5 pointer-events-none"></div>
         <div>
             <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold uppercase tracking-widest text-orange-300 flex items-center gap-1.5">
-                    <?php if ($spPendingTotal > 0): ?>
-                        <span class="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse"></span>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-orange-300 flex items-center gap-2">
+                    <?php if ($totalAntreanPenunjukkan > 0): ?>
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-300 opacity-75" style="animation-duration: 3s;"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span>
+                        </span>
                     <?php endif; ?>
-                    Surat Penunjukkan
+                    Antrean Penunjukkan
                 </span>
                 <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-orange-300 text-xs">
-                    <i class="fas fa-file-signature"></i>
+                    <i class="fas fa-user-check"></i>
                 </span>
             </div>
-            <p class="mt-3 text-3xl sm:text-4xl font-bold font-mono tracking-tight text-white"><?= f($spPendingTotal) ?></p>
+            <p class="mt-3 text-3xl sm:text-4xl font-bold font-mono tracking-tight text-white"><?= f($totalAntreanPenunjukkan) ?></p>
         </div>
         <div class="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
-            <span class="text-slate-300">Menunggu TTD Kaprodi</span>
-            <span class="font-semibold text-orange-300 group-hover:underline">Buka Berkas &rarr;</span>
+            <span class="text-slate-300">Butuh Pembimbing/Penguji</span>
+            <span class="font-semibold text-orange-300 group-hover:underline">Tentukan Dosen &rarr;</span>
         </div>
     </a>
 
@@ -193,209 +298,310 @@ if ($qBerita) {
             <p class="mt-3 text-3xl font-bold font-mono tracking-tight text-slate-900"><?= f($mhsAktifProdi) ?></p>
         </div>
         <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Terdaftar di <?= htmlspecialchars($userProdi) ?></span>
+            <span>Angkatan <?= $aktifSince ?>–<?= date('Y') ?> (7 Thn)</span>
             <span class="font-semibold text-slate-700 group-hover:underline">Kelola &rarr;</span>
         </div>
     </a>
 
-    <!-- 3. Skripsi Berjalan Prodi -->
-    <a href="/redesain-siatek/administrator/mhs-skripsi"
-       class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-orange-300 transition block group flex flex-col justify-between">
+    <!-- 3. Skripsi & Kerja Praktek Berjalan -->
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
         <div>
             <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Skripsi Berjalan</span>
-                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600 text-xs group-hover:bg-[#f97316] group-hover:text-white transition">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Bimbingan Aktif</span>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600 text-xs">
                     <i class="fas fa-book-open"></i>
                 </span>
             </div>
-            <p class="mt-3 text-3xl font-bold font-mono tracking-tight text-slate-900"><?= f($skripsiProdiAktif) ?></p>
+            <div class="mt-3 flex items-baseline gap-2">
+                <span class="text-3xl font-bold font-mono tracking-tight text-slate-900"><?= f($skripsiProdiAktif) ?></span>
+                <span class="text-xs font-semibold text-slate-500">Skripsi</span>
+                <span class="text-slate-300">&bull;</span>
+                <span class="text-xl font-bold font-mono text-slate-700"><?= f($kpProdiAktif) ?></span>
+                <span class="text-xs font-semibold text-slate-500">KP</span>
+            </div>
         </div>
         <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Bimbingan skripsi aktif</span>
-            <span class="font-semibold text-orange-600 group-hover:underline">Pantau &rarr;</span>
+            <span>Total mahasiswa dibimbing</span>
+            <span class="font-semibold text-slate-700"><?= f($skripsiProdiAktif + $kpProdiAktif) ?> orang</span>
         </div>
-    </a>
+    </div>
 
-    <!-- 4. KP Berjalan Prodi -->
-    <a href="/redesain-siatek/administrator/mhs-kp"
-       class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-orange-300 transition block group flex flex-col justify-between">
+    <!-- 4. Total Alumni / Kelulusan Prodi -->
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
         <div>
             <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kerja Praktek</span>
-                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs group-hover:bg-[#1a365d] group-hover:text-white transition">
-                    <i class="fas fa-briefcase"></i>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Alumni / Kelulusan</span>
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 text-xs">
+                    <i class="fas fa-graduation-cap"></i>
                 </span>
             </div>
-            <p class="mt-3 text-3xl font-bold font-mono tracking-tight text-slate-900"><?= f($kpProdiAktif) ?></p>
+            <p class="mt-3 text-3xl font-bold font-mono tracking-tight text-slate-900"><?= f($totalAlumniProdi) ?></p>
         </div>
         <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Mahasiswa KP berjalan</span>
-            <span class="font-semibold text-slate-700 group-hover:underline">Pantau &rarr;</span>
+            <span>Total lulusan prodi terdata</span>
+            <span class="font-semibold text-emerald-600"><?= htmlspecialchars($prodiInfo['jenjang'] ?? 'S1') ?> Terakreditasi</span>
         </div>
-    </a>
+    </div>
 </section>
 
 <!-- ============ BENTO WORKSPACE 8 : 4 ============ -->
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-    <!-- ===== KOLOM KIRI (8 KOLOM / 66%): WORKSPACE KEPUTUSAN KAPRODI ===== -->
+    <!-- ===== KOLOM KIRI (8 KOLOM / 66%): WORKSPACE KEPUTUSAN & TELEMETRI ===== -->
     <div class="lg:col-span-8 space-y-5">
 
-        <!-- 1. Antrean Penetapan & Tanda Tangan Surat Penunjukkan -->
+        <!-- 1. Panel Mahasiswa Expired / Kadaluarsa Status Skripsi & KP -->
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 bg-slate-50/70">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 bg-slate-50/80">
                 <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs">
-                        <i class="fas fa-file-signature"></i>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-600 text-white shadow-2xs">
+                        <i class="fas fa-triangle-exclamation text-sm"></i>
                     </div>
                     <div>
-                        <h2 class="text-sm font-bold text-slate-800">
-                            Antrean Surat Penunjukkan Menunggu TTD Kaprodi
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Penetapan resmi dosen pembimbing &amp; dewan penguji prodi</p>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-bold text-slate-800">
+                                Mahasiswa Expired / Kadaluarsa (Skripsi &amp; KP)
+                            </h2>
+                            <?php if ($totalKadaluarsa > 0): ?>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                <?= $totalKadaluarsa ?> Mahasiswa
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Daftar mahasiswa yang masa berlaku skripsi/KP telah kadaluarsa atau stagnan melewati batas waktu</p>
                     </div>
                 </div>
-                <a href="/redesain-siatek/administrator/mhs-penunjukkan" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">
-                    Kelola Semua &rarr;
-                </a>
+                <div class="flex items-center gap-2">
+                    <a href="/redesain-siatek/administrator/mhs-skripsi" class="text-xs font-semibold text-rose-700 hover:text-rose-800 transition">
+                        Kelola Skripsi &rarr;
+                    </a>
+                </div>
             </div>
 
-            <?php if (count($daftarSPPending) === 0): ?>
-                <div class="px-5 py-10 text-center">
+            <?php if ($totalKadaluarsa === 0): ?>
+                <div class="px-5 py-8 text-center text-slate-400">
                     <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
                         <i class="fas fa-check-circle text-lg"></i>
                     </div>
-                    <p class="text-xs font-semibold text-slate-700">Semua surat penunjukkan prodi telah ditandatangani.</p>
-                    <p class="text-[11px] text-slate-400 mt-0.5">Tidak ada draf penetapan yang menunggu persetujuan Kaprodi saat ini.</p>
+                    <p class="text-xs font-medium text-slate-700">Tidak ada mahasiswa dengan status kadaluarsa.</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Seluruh skripsi dan kerja praktek di program studi ini berjalan aktif dalam batas waktu normal.</p>
                 </div>
             <?php else: ?>
-                <div class="divide-y divide-slate-100">
-                    <?php foreach ($daftarSPPending as $sp):
-                        $tglFmt = !empty($sp['tanggal']) ? date('d M Y', strtotime($sp['tanggal'])) : '-';
-                        $ket = !empty($sp['keterangan']) ? $sp['keterangan'] : 'Surat Penunjukkan Pembimbing/Penguji';
+                <div class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
+                    <?php foreach (array_slice($kadaluarsaList, 0, 8) as $kd): 
+                        $isSkr = ($kd['jenis'] === 'Skripsi');
+                        $linkTarget = $isSkr ? '/redesain-siatek/administrator/mhs-skripsi' : '/redesain-siatek/administrator/mhs-kp';
+                        $badgeBg = $isSkr ? 'bg-orange-50 text-orange-700 border-orange-200/60' : 'bg-sky-50 text-sky-700 border-sky-200/60';
+                        $tglUpdate = !empty($kd['last_time']) ? date('d M Y', (int)$kd['last_time']) : '-';
                     ?>
-                    <div class="p-3.5 px-5 hover:bg-slate-50/80 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex items-start gap-3 min-w-0">
-                            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600 shrink-0 text-xs mt-0.5">
-                                <i class="fas fa-file-contract"></i>
-                            </span>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="text-sm font-semibold text-slate-900"><?= htmlspecialchars($sp['nama_mhs']) ?></h4>
-                                    <span class="font-mono text-xs text-slate-400">(<?= htmlspecialchars($sp['nim']) ?>)</span>
-                                </div>
-                                <p class="text-xs text-slate-600 mt-0.5 truncate"><?= htmlspecialchars($ket) ?></p>
-                                <span class="text-[11px] text-slate-400 mt-0.5 inline-block">
-                                    <i class="far fa-calendar-alt mr-1"></i> Diajukan: <?= htmlspecialchars($tglFmt) ?>
+                    <div class="p-3.5 px-5 hover:bg-rose-50/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border <?= $badgeBg ?>">
+                                    <?= htmlspecialchars($kd['jenis']) ?>
                                 </span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 shrink-0 justify-end">
-                            <a href="/redesain-siatek/administrator/mhs-penunjukkan"
-                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a365d] hover:bg-[#234670] text-white text-xs font-semibold shadow-2xs transition">
-                                <i class="fas fa-signature text-[11px]"></i> Tinjau &amp; TTD
-                            </a>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </section>
-
-        <!-- 2. Antrean Mahasiswa Siap Ujian di Prodi (Kelayakan Sidang & Seminar) -->
-        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 bg-slate-50/70">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-800">
-                            Antrean Mahasiswa Siap Ujian (<?= htmlspecialchars($userProdi) ?>)
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Mahasiswa telah diverifikasi &amp; siap dialokasikan ke jadwal sidang/seminar</p>
-                    </div>
-                </div>
-                <a href="/redesain-siatek/administrator/mhs-ujian" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition">
-                    Jadwalkan Ujian &rarr;
-                </a>
-            </div>
-
-            <?php if ($totalAntreanUjian === 0): ?>
-                <div class="px-5 py-8 text-center text-slate-400">
-                    <i class="far fa-calendar-check text-2xl mb-1.5 inline-block opacity-40"></i>
-                    <p class="text-xs font-medium text-slate-500">Tidak ada antrean mahasiswa siap ujian di prodi ini saat ini.</p>
-                </div>
-            <?php else: ?>
-                <div class="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                    <?php foreach (array_slice($antreanUjianList, 0, 5) as $au): ?>
-                    <div class="p-3.5 px-5 hover:bg-slate-50/80 transition flex items-center justify-between gap-3">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="<?= $au['badge_class'] ?? 'bg-orange-100 text-orange-800' ?> px-2 py-0.5 rounded text-[10px] font-bold">
-                                    <?= htmlspecialchars($au['tahapan_label'] ?? 'Ujian') ?>
+                                <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                                    Kadaluarsa
                                 </span>
-                                <h4 class="text-xs font-semibold text-slate-900"><?= htmlspecialchars($au['nama_mhs']) ?></h4>
-                                <span class="font-mono text-xs text-slate-400">(<?= htmlspecialchars($au['nim']) ?>)</span>
+                                <h4 class="text-xs font-bold text-slate-900"><?= htmlspecialchars($kd['nama_mhs']) ?></h4>
+                                <span class="font-mono text-xs text-slate-400">(<?= htmlspecialchars($kd['nim']) ?>)</span>
+                                <?php if (!empty($kd['angkatan'])): ?>
+                                    <span class="text-[10px] text-slate-400 font-semibold">&bull; Angkatan <?= htmlspecialchars((string)$kd['angkatan']) ?></span>
+                                <?php endif; ?>
                             </div>
-                            <?php if (!empty($au['penguji'])): ?>
-                                <p class="text-[11px] text-slate-500 mt-1 truncate">
-                                    <i class="fas fa-user-check mr-1 text-slate-400"></i>
-                                    Penguji: <?= htmlspecialchars(implode(', ', array_slice($au['penguji'], 0, 2))) ?>
+                            <?php if (!empty($kd['judul'])): ?>
+                                <p class="text-[11px] text-slate-500 mt-1 line-clamp-1 italic">
+                                    &ldquo;<?= htmlspecialchars($kd['judul']) ?>&rdquo;
                                 </p>
                             <?php endif; ?>
+                            <div class="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                                <span><i class="far fa-clock mr-1 text-slate-400"></i>Aktivitas Terakhir: <?= htmlspecialchars($tglUpdate) ?></span>
+                                <?php if (!empty($kd['latest_step'])): ?>
+                                    <span>&bull;</span>
+                                    <span>Tahap SOP: <?= (int)$kd['latest_step'] ?></span>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                        <a href="/redesain-siatek/administrator/mhs-ujian" class="text-xs font-semibold text-orange-600 hover:text-orange-700 shrink-0">
-                            Proses &rarr;
+                        <a href="<?= $linkTarget ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold shadow-2xs shrink-0 transition">
+                            <span>Tinjau Status</span> &rarr;
                         </a>
                     </div>
                     <?php endforeach; ?>
                 </div>
+                <?php if ($totalKadaluarsa > 8): ?>
+                <div class="px-5 py-2.5 bg-slate-50/60 border-t border-slate-100 text-center">
+                    <span class="text-xs font-medium text-slate-500">
+                        Menampilkan 8 dari total <?= $totalKadaluarsa ?> mahasiswa kadaluarsa di prodi ini.
+                    </span>
+                </div>
+                <?php endif; ?>
             <?php endif; ?>
+        </section>
+
+        <!-- 2. Tabel Distribusi Mahasiswa Prodi per Angkatan (7 Tahun Terakhir) -->
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 bg-slate-50/70">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800">Distribusi Mahasiswa <?= htmlspecialchars($namaProdiUser) ?> per Angkatan</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Progres Kerja Praktek, Skripsi, dan Alumni 7 tahun terakhir</p>
+                </div>
+                <?php
+                $totalMasaProdi = 0;
+                foreach ($perAngkatanProdi as $pa) { $totalMasaProdi += $pa['kp'] + $pa['skripsi']; }
+                ?>
+                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs">
+                    <i class="fas fa-graduation-cap text-[#f97316]"></i> <?= f($totalMasaProdi) ?> Mahasiswa Berprogres
+                </span>
+            </div>
+            <?php if (count($perAngkatanProdi) === 0): ?>
+                <p class="py-10 text-center text-xs text-slate-400">Belum ada data mahasiswa per angkatan di prodi ini.</p>
+            <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-xs text-slate-500 font-semibold uppercase tracking-wider bg-slate-50/40">
+                            <th class="py-3 px-5">Tahun Angkatan</th>
+                            <th class="py-3 px-4 text-right">Total Mhs</th>
+                            <th class="py-3 px-4 text-right">Sedang KP</th>
+                            <th class="py-3 px-4 text-right">Sedang Skripsi</th>
+                            <th class="py-3 px-5 text-right">Kelulusan / Alumni</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm divide-y divide-slate-100">
+                        <?php foreach ($perAngkatanProdi as $pa):
+                            $pctAlumni = $pa['total'] > 0 ? round(($pa['alumni'] / $pa['total']) * 100) : 0;
+                        ?>
+                        <tr class="hover:bg-slate-50/70 transition">
+                            <td class="py-3 px-5 font-semibold text-slate-800">
+                                <span class="inline-flex items-center gap-2">
+                                    <span class="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-xs font-bold text-slate-700">
+                                        <?= substr((string)$pa['angkatan'], 2, 2) ?>
+                                    </span>
+                                    Angkatan <?= $pa['angkatan'] ?>
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right font-mono font-medium text-slate-700"><?= f($pa['total']) ?></td>
+                            <td class="py-3 px-4 text-right">
+                                <span class="inline-flex items-center font-mono font-semibold text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                    <?= f($pa['kp']) ?>
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <span class="inline-flex items-center font-mono font-semibold text-xs text-orange-700 bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded">
+                                    <?= f($pa['skripsi']) ?>
+                                </span>
+                            </td>
+                            <td class="py-3 px-5 text-right">
+                                <div class="flex items-center justify-end gap-2.5">
+                                    <span class="text-xs font-mono font-semibold text-slate-600"><?= f($pa['alumni']) ?> mhs</span>
+                                    <div class="w-16 h-2 overflow-hidden rounded-full bg-slate-100">
+                                        <div class="h-full rounded-full bg-[#1a365d] transition-all" style="width:<?= min(100, max($pctAlumni > 0 ? 4 : 0, $pctAlumni)) ?>%"></div>
+                                    </div>
+                                    <span class="text-xs font-mono font-bold text-slate-800 w-10 text-right"><?= $pctAlumni ?>%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </section>
+
+        <!-- 3. Dua Grafik Analitik Prodi (Twin Analisis Intake vs Kelulusan) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Tren Pendaftaran Mahasiswa</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Intake 5 tahun terakhir (<?= htmlspecialchars($namaProdiUser) ?>)</p>
+                    </div>
+                    <span class="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded">Mahasiswa Baru</span>
+                </div>
+                <div style="height:200px"><canvas id="enrollmentChart"></canvas></div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Tren Kelulusan / Alumni</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Lulusan 5 tahun terakhir (<?= htmlspecialchars($namaProdiUser) ?>)</p>
+                    </div>
+                    <span class="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200/60 px-2 py-0.5 rounded">Alumni</span>
+                </div>
+                <div style="height:200px"><canvas id="alumniChart"></canvas></div>
+            </div>
         </section>
 
     </div>
 
-    <!-- ===== KOLOM KANAN (4 KOLOM / 34%): BEBAN DOSEN & PINTASAN KAPRODI ===== -->
+    <!-- ===== KOLOM KANAN (4 KOLOM / 34%): TELEMETRI, PINTASAN & PENGUMUMAN ===== -->
     <div class="lg:col-span-4 space-y-5">
 
-        <!-- 1. Pemantauan Beban Bimbingan Dosen Prodi -->
+        <!-- 1. Ringkasan Status Akademik Prodi -->
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-4">
-                <h3 class="text-sm font-bold text-slate-800">Beban Bimbingan Dosen Prodi</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Monitoring kuota &amp; pemerataan mahasiswa bimbingan</p>
+                <h3 class="text-sm font-bold text-slate-800">Telemetri Akademik Prodi</h3>
+                <p class="text-xs text-slate-500 mt-0.5"><?= htmlspecialchars($namaProdiUser) ?></p>
             </div>
-
-            <?php if (count($bebanDosenList) === 0): ?>
-                <p class="text-xs text-slate-400 py-4 text-center">Belum ada data bimbingan dosen di prodi ini.</p>
-            <?php else: ?>
-                <div class="space-y-3">
-                    <?php foreach ($bebanDosenList as $bd): ?>
-                    <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-2">
-                        <div class="min-w-0 flex-1">
-                            <h4 class="text-xs font-semibold text-slate-800 truncate"><?= htmlspecialchars($bd['nama']) ?></h4>
-                            <p class="text-[11px] text-slate-400 mt-0.5">
-                                <?= $bd['bimbingan_skripsi'] ?> Skripsi &bull; <?= $bd['bimbingan_kp'] ?> KP
-                            </p>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-mono font-bold bg-white border border-slate-200 text-slate-800 shadow-2xs shrink-0">
-                            <?= $bd['total_bimbingan'] ?> Mhs
+            <div class="space-y-3">
+                <!-- Antrean Siap Ujian (Data Telemetri Prodi) -->
+                <?php if ($totalAntreanUjian > 0): ?>
+                <div class="p-3 rounded-lg bg-amber-50/60 border border-amber-200/70 flex items-center justify-between">
+                    <span class="text-xs text-slate-700 font-medium flex items-center gap-2">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" style="animation-duration: 3s;"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                         </span>
-                    </div>
-                    <?php endforeach; ?>
+                        Antrean Siap Ujian
+                    </span>
+                    <span class="text-xs font-mono font-bold text-amber-700 bg-white border border-amber-200/60 px-2 py-0.5 rounded shadow-2xs">
+                        <?= f($totalAntreanUjian) ?> mhs
+                    </span>
                 </div>
-            <?php endif; ?>
+                <?php else: ?>
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Antrean Siap Ujian</span>
+                    <span class="text-xs font-mono font-bold text-slate-400">0 mhs</span>
+                </div>
+                <?php endif; ?>
+
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Mahasiswa Aktif (7 Thn)</span>
+                    <span class="text-xs font-mono font-bold text-slate-900"><?= f($mhsAktifProdi) ?> mhs</span>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Mahasiswa Sedang Skripsi</span>
+                    <span class="text-xs font-mono font-bold text-orange-600"><?= f($skripsiProdiAktif) ?> mhs</span>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Mahasiswa Sedang KP</span>
+                    <span class="text-xs font-mono font-bold text-sky-600"><?= f($kpProdiAktif) ?> mhs</span>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Mahasiswa Kadaluarsa</span>
+                    <span class="text-xs font-mono font-bold text-rose-600"><?= f($totalKadaluarsa) ?> mhs</span>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between">
+                    <span class="text-xs text-slate-600 font-medium">Total Alumni Terdata</span>
+                    <span class="text-xs font-mono font-bold text-emerald-600"><?= f($totalAlumniProdi) ?> orang</span>
+                </div>
+            </div>
         </section>
 
         <!-- 2. Hub Pintasan Otoritas Kaprodi -->
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 class="text-sm font-bold text-slate-800 mb-3">Pusat Otoritas Kaprodi</h3>
             <div class="grid grid-cols-1 gap-2">
-                <a href="/redesain-siatek/administrator/mhs-penunjukkan" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs shrink-0"><i class="fas fa-file-signature"></i></span>
+                <a href="/redesain-siatek/administrator/mhs-penunjukkan" class="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50/30 hover:border-orange-400 hover:bg-orange-50/70 transition group">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600 text-xs shrink-0"><i class="fas fa-user-check"></i></span>
                     <div class="min-w-0 flex-1">
-                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Surat Penunjukkan SK</h4>
-                        <p class="text-[11px] text-slate-400 truncate">Persetujuan &amp; TTD pembimbing/penguji.</p>
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-800 group-hover:text-orange-600 transition">Penunjukkan Mahasiswa</h4>
+                            <?php if ($totalAntreanPenunjukkan > 0): ?>
+                                <span class="text-[10px] font-bold text-orange-700 bg-orange-200/80 px-1.5 py-0.2 rounded-full"><?= $totalAntreanPenunjukkan ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">Penetapan dosen pembimbing &amp; penguji.</p>
                     </div>
                 </a>
 
@@ -407,19 +613,27 @@ if ($qBerita) {
                     </div>
                 </a>
 
-                <a href="/redesain-siatek/administrator/bimbingan-skripsi" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs shrink-0"><i class="fas fa-users"></i></span>
+                <a href="/redesain-siatek/administrator/mhs-kp" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs shrink-0"><i class="fas fa-briefcase"></i></span>
                     <div class="min-w-0 flex-1">
-                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Rekap Bimbingan Prodi</h4>
-                        <p class="text-[11px] text-slate-400 truncate">Pemerataan kuota bimbingan dosen.</p>
+                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Monitoring Kerja Praktek</h4>
+                        <p class="text-[11px] text-slate-400 truncate">Pelaksanaan &amp; seminar KP prodi.</p>
                     </div>
                 </a>
 
-                <a href="/redesain-siatek/administrator/mhs-ujian" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs shrink-0"><i class="fas fa-calendar-check"></i></span>
+                <a href="/redesain-siatek/administrator/pengguna-mahasiswa" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs shrink-0"><i class="fas fa-users"></i></span>
                     <div class="min-w-0 flex-1">
-                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Jadwal Ujian Prodi</h4>
-                        <p class="text-[11px] text-slate-400 truncate">Kelayakan peserta seminar &amp; sidang.</p>
+                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Data Mahasiswa Prodi</h4>
+                        <p class="text-[11px] text-slate-400 truncate">Database mahasiswa per angkatan.</p>
+                    </div>
+                </a>
+
+                <a href="/redesain-siatek/administrator/bimbingan-skripsi" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50/40 transition group">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[#1a365d] text-xs shrink-0"><i class="fas fa-chalkboard-user"></i></span>
+                    <div class="min-w-0 flex-1">
+                        <h4 class="text-xs font-semibold text-slate-800 group-hover:text-orange-600 transition">Rekap Bimbingan Dosen</h4>
+                        <p class="text-[11px] text-slate-400 truncate">Pemerataan kuota bimbingan skripsi &amp; KP.</p>
                     </div>
                 </a>
             </div>
@@ -447,3 +661,17 @@ if ($qBerita) {
 
     </div>
 </div>
+
+<!-- Data untuk Chart.js -->
+<script>
+window.__berandaData = {
+    enrollment: {
+        labels: <?= json_encode($years) ?>,
+        values: <?= json_encode($mhsPerYear) ?>
+    },
+    alumni: {
+        labels: <?= json_encode($years) ?>,
+        values: <?= json_encode($alumniPerYear) ?>
+    }
+};
+</script>

@@ -220,7 +220,7 @@ if (isset($_POST['ambil-detail-penunjukkan'])) {
                     $saranDosen['penguji2'] = (string)($rBimb['pembimbing2'] ?? '');
                 }
             } elseif ($jenisTugas === 'penguji_tutup') {
-                // Saran: Ambil penguji 1-5 dari Penguji Hasil sebelumnya
+                // Saran: Ambil penguji 1-4 dari Penguji Hasil sebelumnya
                 $qHasil = query("SELECT sp.penguji1, sp.penguji2, sp.penguji3, sp.penguji4, sp.penguji5 FROM skripsi s JOIN surat_penunjukkan sp ON s.penunjukkan_hasil = sp.id WHERE s.nim = '$nim' LIMIT 1");
                 $rHasil = $qHasil ? mysqli_fetch_assoc($qHasil) : null;
                 if (!$rHasil) {
@@ -232,7 +232,6 @@ if (isset($_POST['ambil-detail-penunjukkan'])) {
                     $saranDosen['penguji2'] = (string)($rHasil['penguji2'] ?? '');
                     $saranDosen['penguji3'] = (string)($rHasil['penguji3'] ?? '');
                     $saranDosen['penguji4'] = (string)($rHasil['penguji4'] ?? '');
-                    $saranDosen['penguji5'] = (string)($rHasil['penguji5'] ?? '');
                 }
             }
         } elseif ($sumber === 'kp') {
@@ -365,6 +364,9 @@ if (isset($_POST['simpan-penunjukkan'])) {
                     exit;
                 }
 
+                $vPembimbing1 = ($pembimbing1 !== '') ? "'$pembimbing1'" : "NULL";
+                $vPembimbing2 = ($pembimbing2 !== '') ? "'$pembimbing2'" : "NULL";
+
                 // Masukkan teks nomor surat ke tabel nomor_surat, ambil integer ID-nya
                 $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Pembimbing Skripsi - $nim");
                 if ($idNomorSurat <= 0) {
@@ -376,11 +378,11 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PEMBIMBING SKRIPSI' ORDER BY id DESC LIMIT 1");
                 if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
                     $idSurat = (int)$rCek['id'];
-                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, pembimbing1 = '$pembimbing1', pembimbing2 = '$pembimbing2', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, pembimbing1 = $vPembimbing1, pembimbing2 = $vPembimbing2, tanggal = '$tanggalSekarang' WHERE id = $idSurat");
                 } else {
                     $idSurat = $dapatkanIdSuratBaru();
                     $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, pembimbing1, pembimbing2, tanggal, keterangan) 
-                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$pembimbing1', '$pembimbing2', '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', $vPembimbing1, $vPembimbing2, '$tanggalSekarang', 'PEMBIMBING SKRIPSI')");
                 }
 
                 if ($ins) {
@@ -401,12 +403,16 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $penguji2 = bersihkan($_POST['penguji2'] ?? '');
                 $penguji3 = bersihkan($_POST['penguji3'] ?? '');
                 $penguji4 = bersihkan($_POST['penguji4'] ?? '');
-                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
 
                 if ($penguji1 === '') {
                     echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
                     exit;
                 }
+
+                $vPenguji1 = ($penguji1 !== '') ? "'$penguji1'" : "NULL";
+                $vPenguji2 = ($penguji2 !== '') ? "'$penguji2'" : "NULL";
+                $vPenguji3 = ($penguji3 !== '') ? "'$penguji3'" : "NULL";
+                $vPenguji4 = ($penguji4 !== '') ? "'$penguji4'" : "NULL";
 
                 $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Hasil Skripsi - $nim");
                 if ($idNomorSurat <= 0) {
@@ -417,11 +423,11 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI HASIL' ORDER BY id DESC LIMIT 1");
                 if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
                     $idSurat = (int)$rCek['id'];
-                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', penguji4 = '$penguji4', penguji5 = '$penguji5', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = $vPenguji1, penguji2 = $vPenguji2, penguji3 = $vPenguji3, penguji4 = $vPenguji4, penguji5 = NULL, tanggal = '$tanggalSekarang' WHERE id = $idSurat");
                 } else {
                     $idSurat = $dapatkanIdSuratBaru();
                     $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
-                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI HASIL')");
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', $vPenguji1, $vPenguji2, $vPenguji3, $vPenguji4, NULL, '$tanggalSekarang', 'PENGUJI HASIL')");
                 }
 
                 if ($ins) {
@@ -442,12 +448,16 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $penguji2 = bersihkan($_POST['penguji2'] ?? '');
                 $penguji3 = bersihkan($_POST['penguji3'] ?? '');
                 $penguji4 = bersihkan($_POST['penguji4'] ?? '');
-                $penguji5 = bersihkan($_POST['penguji5'] ?? '');
 
                 if ($penguji1 === '') {
                     echo json_encode(['status' => false, 'pesan' => 'Dosen Penguji 1 wajib dipilih']);
                     exit;
                 }
+
+                $vPenguji1 = ($penguji1 !== '') ? "'$penguji1'" : "NULL";
+                $vPenguji2 = ($penguji2 !== '') ? "'$penguji2'" : "NULL";
+                $vPenguji3 = ($penguji3 !== '') ? "'$penguji3'" : "NULL";
+                $vPenguji4 = ($penguji4 !== '') ? "'$penguji4'" : "NULL";
 
                 $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Tutup Skripsi - $nim");
                 if ($idNomorSurat <= 0) {
@@ -458,11 +468,11 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND keterangan = 'PENGUJI TUTUP' ORDER BY id DESC LIMIT 1");
                 if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
                     $idSurat = (int)$rCek['id'];
-                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', penguji4 = '$penguji4', penguji5 = '$penguji5', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = $vPenguji1, penguji2 = $vPenguji2, penguji3 = $vPenguji3, penguji4 = $vPenguji4, penguji5 = NULL, tanggal = '$tanggalSekarang' WHERE id = $idSurat");
                 } else {
                     $idSurat = $dapatkanIdSuratBaru();
                     $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, penguji4, penguji5, tanggal, keterangan) 
-                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$penguji4', '$penguji5', '$tanggalSekarang', 'PENGUJI TUTUP')");
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', $vPenguji1, $vPenguji2, $vPenguji3, $vPenguji4, NULL, '$tanggalSekarang', 'PENGUJI TUTUP')");
                 }
 
                 if ($ins) {
@@ -527,6 +537,10 @@ if (isset($_POST['simpan-penunjukkan'])) {
                     exit;
                 }
 
+                $vPenguji1 = ($penguji1 !== '') ? "'$penguji1'" : "NULL";
+                $vPenguji2 = ($penguji2 !== '') ? "'$penguji2'" : "NULL";
+                $vPenguji3 = ($penguji3 !== '') ? "'$penguji3'" : "NULL";
+
                 $idNomorSurat = (int)tambah_nomor($noSuratTeks, "Penunjukkan Penguji Seminar KP - $nim");
                 if ($idNomorSurat <= 0) {
                     echo json_encode(['status' => false, 'pesan' => 'Gagal membuat nomor surat penguji seminar KP']);
@@ -536,11 +550,11 @@ if (isset($_POST['simpan-penunjukkan'])) {
                 $qCek = query("SELECT id FROM surat_penunjukkan WHERE nim = '$nim' AND (keterangan = 'PENGUJI KP' OR keterangan LIKE '%PENGUJI%KP%') ORDER BY id DESC LIMIT 1");
                 if ($qCek && ($rCek = mysqli_fetch_assoc($qCek))) {
                     $idSurat = (int)$rCek['id'];
-                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = '$penguji1', penguji2 = '$penguji2', penguji3 = '$penguji3', tanggal = '$tanggalSekarang' WHERE id = $idSurat");
+                    $ins = query("UPDATE surat_penunjukkan SET no_surat = $idNomorSurat, penguji1 = $vPenguji1, penguji2 = $vPenguji2, penguji3 = $vPenguji3, tanggal = '$tanggalSekarang' WHERE id = $idSurat");
                 } else {
                     $idSurat = $dapatkanIdSuratBaru();
                     $ins = query("INSERT INTO surat_penunjukkan (id, no_surat, nim, penguji1, penguji2, penguji3, tanggal, keterangan) 
-                                  VALUES ($idSurat, $idNomorSurat, '$nim', '$penguji1', '$penguji2', '$penguji3', '$tanggalSekarang', 'PENGUJI KP')");
+                                  VALUES ($idSurat, $idNomorSurat, '$nim', $vPenguji1, $vPenguji2, $vPenguji3, '$tanggalSekarang', 'PENGUJI KP')");
                 }
 
                 if ($ins) {
