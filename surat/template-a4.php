@@ -83,11 +83,12 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
     }
 
     /* ---- Kop surat ---- */
-    .kop { position: relative; min-height: 24mm; }
-    .kop img.logo { position: absolute; top: 0; left: 0; width: 22mm; }
-    .kop .brand { text-align: center; margin: 0 22mm; }
-    .kop .brand .org { font-size: 12pt; margin: 0; line-height: 1.22; }
-    .kop .brand .addr { font-size: 10pt; margin: 0; line-height: 1.22; }
+    .kop { position: relative; margin-bottom: 4px; }
+    .kop .kop-header { display: flex; align-items: center; justify-content: center; position: relative; }
+    .kop img.logo { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 22mm; height: auto; }
+    .kop .brand { text-align: center; margin: 0 24mm; width: 100%; }
+    .kop .brand .org { font-family: 'Times New Roman', Times, serif; font-size: 14pt; font-weight: bold; margin: 0; line-height: 1.0; }
+    .kop .brand .addr { font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-style: italic; margin: 3px 0 0; line-height: 1.0; }
     .kop hr { border: 1.5px solid #000; margin: 4px 0 0; }
 
     /* ---- Isi surat ---- */
@@ -147,8 +148,9 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
             page-break-after: avoid;
             break-after: avoid;
         }
-        .kop .brand .org { font-size: 12pt; line-height: 1.22; }
-        .kop .brand .addr { font-size: 10pt; line-height: 1.22; }
+        .kop img.logo { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 22mm; height: auto; }
+        .kop .brand .org { font-family: 'Times New Roman', Times, serif; font-size: 14pt; font-weight: bold; line-height: 1.0; margin: 0; }
+        .kop .brand .addr { font-family: 'Times New Roman', Times, serif; font-size: 11pt; font-style: italic; line-height: 1.0; margin: 3px 0 0; }
         .judul { margin: 8px 0 3px; }
         .nomor { margin-top: 3px; }
         .pembuka { margin-top: 10px; }

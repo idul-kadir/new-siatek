@@ -198,11 +198,24 @@ $activePage = $pageKey;
         .nav-active > span { color: #fff !important; }
 
         .nav-parent.has-active {
-            background-color: #234670 !important;
+            background-color: #234670 !important; color: #fff !important; font-weight: 500 !important; border-left: 4px solid #f97316 !important; } /*
             color: #fff !important;
             font-weight: 500 !important;
         }
-        .nav-parent.has-active > i { color: #f97316 !important; opacity: 1 !important; }
+            border-left: 4px solid #f97316 !important;
+        }
+        */ .nav-parent.has-active > i:first-child { color: #f97316 !important; opacity: 1 !important; }
+        .nav-parent.has-active > span { color: #fff !important; }
+        .nav-parent.has-active .nav-chevron { color: #94a3b8 !important; opacity: 0.7 !important; }
+
+        .sub-parent.has-active {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            color: #fff !important;
+            font-weight: 500 !important;
+        }
+        .sub-parent.has-active > i:first-child { color: #f97316 !important; opacity: 1 !important; }
+        .sub-parent.has-active > span { color: #fff !important; }
+        .sub-parent.has-active .sub-chevron { color: #94a3b8 !important; opacity: 0.7 !important; }
 
         /* ===== Nav Group Section Header ===== */
         .nav-section-header {

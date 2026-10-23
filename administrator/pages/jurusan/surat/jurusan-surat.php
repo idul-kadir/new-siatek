@@ -36,6 +36,9 @@ if ($qFN) {
 }
 ?>
 
+<!-- TinyMCE 6 Rich Text Editor (Full Suite: Table Tools, Resizing, Merge/Split Cells, Font Formatting) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
 
@@ -71,6 +74,7 @@ if ($qFN) {
         flex: 1;
         width: 100%;
         text-align: center;
+        cursor: default;
     }
 
     /* Container yang menampung lembar-lembar halaman A4/F4 fisik */
@@ -81,6 +85,7 @@ if ($qFN) {
         gap: 36px; /* Jarak meja kerja realistis antar lembar kertas */
         margin: 0 auto;
         width: fit-content;
+        cursor: default;
     }
 
     /* Satu Lembar Kertas Fisik A4 / F4 — TINGGI TERKUNCI MUTLAK! TIDAK AKAN PERNAH MOLOR KELUAR UKURAN KERTAS */
@@ -94,9 +99,9 @@ if ($qFN) {
         padding: 20mm 25mm 15mm 25mm;
         border: 1px solid #94a3b8;
         box-shadow: 0 15px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3);
-        font-family: 'Times New Roman', Georgia, serif;
+        font-family: 'Times New Roman', Times, serif;
         font-size: 12pt;
-        line-height: 1.25;
+        line-height: 1.35;
         color: #000;
         box-sizing: border-box;
         position: relative;
@@ -105,6 +110,7 @@ if ($qFN) {
         flex-direction: column;
         overflow: hidden; /* Mutlak: Kertas fisik tidak boleh bertambah panjang saat ditekan enter */
         transition: width .2s ease, height .2s ease;
+        cursor: text;
     }
     .a4-page.is-f4 {
         width: 215mm;
@@ -125,45 +131,162 @@ if ($qFN) {
         font-family: 'Times New Roman', Times, serif;
         font-size: 12pt;
         line-height: 1.35;
-        color: #000;
+        color: #000000;
+        caret-color: #000000; /* KURSOR KETIK TEGAS DAN JELAS */
         text-align: justify;
         word-break: break-word;
-        cursor: text;
+        cursor: text !important;
         padding: 0;
         margin: 0;
         overflow: hidden; /* Mencegah scrollbar internal merusak kertas */
     }
     .page-editor:focus {
         box-shadow: none;
+        caret-color: #000000;
+        cursor: text !important;
+    }
+    /* ===== ISOLASI GAYA DOKUMEN & FONT DARI INDUK (Mencegah Kebocoran 'Inter' dari administrator/index.php) ===== */
+    #pagesContainer .page-editor {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        color: #000000;
+        font-weight: normal;
+    }
+    #pagesContainer .page-editor,
+    #pagesContainer .page-editor * {
+        font-family: inherit;
+        cursor: text;
+    }
+    #pagesContainer .page-editor table,
+    #pagesContainer .page-editor table tr,
+    #pagesContainer .page-editor table td,
+    #pagesContainer .page-editor table th {
+        font-family: inherit;
+        font-size: inherit;
+        color: #000000;
+        text-align: left;
+        cursor: text !important;
+    }
+    #pagesContainer .page-editor table.ttd-table {
+        margin-top: 24px;
+        margin-bottom: 8px;
+        border-collapse: collapse;
+        width: 100%;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: normal !important;
+    }
+    #pagesContainer .page-editor table.ttd-table tr,
+    #pagesContainer .page-editor table.ttd-table td,
+    #pagesContainer .page-editor table.ttd-table td * {
+        padding: 0;
+        border: none !important;
+        font-family: inherit !important;
+        font-size: inherit;
+        font-weight: normal !important;
+        line-height: 1.25;
+        vertical-align: top;
+        color: #000000 !important;
+    }
+    #pagesContainer .page-editor table.ttd-table td u {
+        text-decoration: underline !important;
+        font-weight: normal !important;
+    }
+    .page-editor img {
+        cursor: pointer !important;
     }
     .page-editor:empty:before {
         content: attr(data-placeholder);
         color: #94a3b8;
         font-style: italic;
         pointer-events: none;
+        cursor: text !important;
         display: block;
     }
     .page-editor p {
         margin: 0 0 0.35rem 0;
+        font-family: inherit;
+        font-size: inherit;
         line-height: inherit;
+        min-height: 1.35em;
     }
-    .page-editor table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 8px 0;
+    /* Tabel Standar Kanvas Surat (Word-grade Table) */
+    .page-editor table:not(.ttd-table) {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 12px 0 !important;
+        font-family: inherit;
         font-size: inherit;
     }
-    .page-editor table td, .page-editor table th {
-        padding: 4px 6px;
+    .page-editor table:not(.ttd-table) td,
+    .page-editor table:not(.ttd-table) th {
+        border: 1px solid #000000 !important;
+        padding: 6px 10px !important;
+        height: 28px !important;
+        min-height: 28px !important;
         vertical-align: top;
+        font-family: inherit;
+        font-size: 12pt;
+        color: #000000;
+        box-sizing: border-box;
     }
-    .page-editor table.border-grid td, .page-editor table.border-grid th,
-    .page-editor table.table-bordered td, .page-editor table.table-bordered th {
-        border: 1px solid #000;
+    .page-editor table:not(.ttd-table) th {
+        background-color: #f8fafc;
+        font-weight: bold;
     }
     .page-editor table.borderless td, .page-editor table.borderless th,
     .page-editor table.table-borderless td, .page-editor table.table-borderless th {
         border: none !important;
+    }
+    /* TinyMCE Ribbon Header & Dark Oxide Integration */
+    #deskTopRibbon .tox-tinymce-inline {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        display: none !important;
+    }
+    #deskTopRibbon .tox-tinymce-inline.active-ribbon {
+        display: block !important;
+    }
+    #deskTopRibbon .tox .tox-menubar {
+        background: #0f172a !important;
+        border-bottom: 1px solid #334155 !important;
+        padding: 2px 8px !important;
+    }
+    #deskTopRibbon .tox .tox-toolbar,
+    #deskTopRibbon .tox .tox-toolbar__primary,
+    #deskTopRibbon .tox .tox-toolbar__overflow {
+        background: #1e293b !important;
+        border: none !important;
+        padding: 2px 6px !important;
+    }
+    #deskTopRibbon .tox .tox-tbtn {
+        color: #cbd5e1 !important;
+    }
+    #deskTopRibbon .tox .tox-tbtn:hover {
+        background: #334155 !important;
+        color: #ffffff !important;
+    }
+    #deskTopRibbon .tox .tox-tbtn--enabled,
+    #deskTopRibbon .tox .tox-tbtn--active {
+        background: #334155 !important;
+        color: #38bdf8 !important;
+    }
+    #deskTopRibbon .tox .tox-mbtn {
+        color: #cbd5e1 !important;
+    }
+    #deskTopRibbon .tox .tox-mbtn:hover,
+    #deskTopRibbon .tox .tox-mbtn--active {
+        background: #334155 !important;
+        color: #ffffff !important;
+    }
+    /* TinyMCE Popups, Grid Picker, Contextual Floating Table Toolbar, and Dialogs must appear ABOVE canvasModal (z-index: 1060) */
+    .tox.tox-tinymce-aux,
+    .tox-dialog-wrap,
+    .tox-dialog,
+    .tox-pop {
+        z-index: 99999 !important;
     }
     .page-editor ol {
         margin: 4px 0 6px 24px;
@@ -402,16 +525,21 @@ if ($qFN) {
             <div id="fallbackRibbon" class="flex flex-wrap items-center gap-1.5 w-full text-xs">
                 <!-- Font & Size -->
                 <select id="selFontFamily" class="sb-select !w-36 !py-1">
-                    <option value="Times New Roman" selected>Times New Roman</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Calibri">Calibri</option>
-                    <option value="Georgia">Georgia</option>
+                    <option value="'Times New Roman', Times, serif" selected>Times New Roman</option>
+                    <option value="Arial, Helvetica, sans-serif">Arial</option>
+                    <option value="Calibri, Candara, Segoe, sans-serif">Calibri</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="'Courier New', Courier, monospace">Courier New</option>
+                    <option value="Verdana, Geneva, sans-serif">Verdana</option>
                 </select>
                 <select id="selFontSize" class="sb-select !w-24 !py-1">
-                    <option value="2">10pt</option>
-                    <option value="3" selected>12pt (Resmi)</option>
-                    <option value="4">14pt (Judul)</option>
-                    <option value="5">18pt (Besar)</option>
+                    <option value="10pt">10pt</option>
+                    <option value="11pt">11pt</option>
+                    <option value="12pt" selected>12pt (Resmi)</option>
+                    <option value="14pt">14pt (Judul)</option>
+                    <option value="16pt">16pt</option>
+                    <option value="18pt">18pt (Besar)</option>
+                    <option value="24pt">24pt</option>
                 </select>
 
                 <div class="h-5 w-[1px] bg-slate-700 mx-0.5"></div>
@@ -444,22 +572,35 @@ if ($qFN) {
 
                 <div class="h-5 w-[1px] bg-slate-700 mx-0.5"></div>
 
-                <!-- Lists & Indent -->
+                <!-- Lists & Indent & Tabulasi -->
                 <button type="button" class="sb-btn" data-cmd="insertOrderedList" title="Penomoran (1, 2, 3...)"><i class="fas fa-list-ol"></i></button>
                 <button type="button" class="sb-btn" data-cmd="insertUnorderedList" title="Daftar Poin (Bullets)"><i class="fas fa-list-ul"></i></button>
-                <button type="button" class="sb-btn" data-cmd="outdent" title="Kurangi Indentasi"><i class="fas fa-outdent"></i></button>
+                <button type="button" class="sb-btn" data-cmd="outdent" title="Kurangi Indentasi (Shift+Tab)"><i class="fas fa-outdent"></i></button>
                 <button type="button" class="sb-btn" data-cmd="indent" title="Tambah Indentasi"><i class="fas fa-indent"></i></button>
+                <button type="button" class="sb-btn !w-auto !px-2 text-[11px] gap-1" id="btnInsertTab" title="Sisipkan Tabulasi / Tab Stop (Tombol Tab)"><i class="fas fa-arrow-right-to-bracket text-sky-400"></i><span>Tab</span></button>
 
                 <div class="h-5 w-[1px] bg-slate-700 mx-0.5"></div>
 
-                <!-- Spasi Baris -->
-                <select id="selLineHeight" class="sb-select !w-24 !py-1" title="Spasi Baris">
+                <!-- Spasi Baris & Paragraf (Word Style) -->
+                <select id="selLineHeight" class="sb-select !w-24 !py-1" title="Spasi Baris (Line Spacing)">
                     <option value="1.0">1.0</option>
                     <option value="1.15">1.15</option>
                     <option value="1.35" selected>1.35</option>
                     <option value="1.5">1.5</option>
                     <option value="2.0">2.0</option>
                 </select>
+
+                <!-- Tombol Add / Remove Space Before Paragraph (Word) -->
+                <button type="button" class="sb-btn !w-auto !px-2.5 text-[11px] gap-1.5" id="btnSpaceBefore" title="Tambah / Hapus Spasi Sebelum Paragraf (Add Space Before Paragraph)">
+                    <i class="fas fa-arrow-up text-sky-400"></i>
+                    <span id="labelSpaceBefore">Space Before</span>
+                </button>
+
+                <!-- Tombol Add / Remove Space After Paragraph (Word) -->
+                <button type="button" class="sb-btn !w-auto !px-2.5 text-[11px] gap-1.5" id="btnSpaceAfter" title="Tambah / Hapus Spasi Setelah Paragraf (Add Space After Paragraph)">
+                    <i class="fas fa-arrow-down text-orange-400"></i>
+                    <span id="labelSpaceAfter">Space After</span>
+                </button>
 
                 <button type="button" id="btnInsertHr" class="sb-btn" title="Garis Pembatas Horizontal"><i class="fas fa-minus"></i></button>
 
@@ -598,7 +739,7 @@ if ($qFN) {
                             <!-- Checkbox Tanggal Digunakan di Dalam Surat -->
                             <div class="mt-2.5 p-2 rounded-lg bg-slate-800/80 border border-slate-700/80 space-y-2">
                                 <label class="flex items-start gap-2 cursor-pointer select-none">
-                                    <input type="checkbox" id="swPakaiTanggalHeader" class="rounded text-orange-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer" checked>
+                                    <input type="checkbox" id="swPakaiTanggalHeader" class="rounded text-orange-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer">
                                     <div>
                                         <div class="text-[11px] font-semibold text-slate-200">Gunakan Tanggal di Bawah Kop</div>
                                         <div class="text-[10px] text-slate-400 leading-tight">Posisi di bawah kop sebelah kanan: <span id="previewTglKanan" class="text-sky-300 font-medium">Gorontalo, <?= function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d F Y') ?></span></div>
@@ -630,8 +771,11 @@ if ($qFN) {
                         <div id="wrapTtdProdi" class="hidden">
                             <label class="block text-[11px] text-slate-400 font-semibold mb-1">Pilih Program Studi:</label>
                             <select id="swTtdProdi" class="sb-select font-medium">
-                                <?php foreach ($daftarProdi as $pr): ?>
-                                <option value="<?= htmlspecialchars($pr['kode']) ?>"><?= htmlspecialchars(($pr['jenjang'] ? $pr['jenjang'] . ' ' : '') . $pr['nama']) ?></option>
+                                <?php foreach ($daftarProdi as $pr): 
+                                    $namaProdiBersih = preg_replace('/^(S1|D3|D4|S2|S3)\s+/i', '', trim($pr['nama']));
+                                    $labelProdi = ($pr['jenjang'] ? trim($pr['jenjang']) . ' ' : '') . $namaProdiBersih;
+                                ?>
+                                <option value="<?= htmlspecialchars($pr['kode']) ?>" data-nama="<?= htmlspecialchars($namaProdiBersih) ?>"><?= htmlspecialchars($labelProdi) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -644,6 +788,29 @@ if ($qFN) {
 
                         <button type="button" id="btnSisipTtd" class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-sm text-xs">
                             <i class="fas fa-file-signature"></i> Sisipkan TTD ke Posisi Kursor
+                        </button>
+                    </div>
+
+                    <!-- KONTROL SISIPKAN TABEL KUSTOM -->
+                    <div class="bg-slate-900/90 rounded-xl border border-slate-800 p-3 space-y-2.5">
+                        <div class="sb-section-title">
+                            <i class="fas fa-table text-orange-400"></i> Sisipkan Tabel
+                        </div>
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            Tentukan jumlah kolom & baris, lalu klik tombol di bawah untuk memasukkan tabel ke posisi kursor:
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] text-slate-400 font-semibold mb-1">Kolom:</label>
+                                <input type="number" id="tblJmlKolom" class="sb-input text-center font-bold !py-1 text-slate-100" value="3" min="1" max="15">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-slate-400 font-semibold mb-1">Baris:</label>
+                                <input type="number" id="tblJmlBaris" class="sb-input text-center font-bold !py-1 text-slate-100" value="3" min="1" max="50">
+                            </div>
+                        </div>
+                        <button type="button" id="btnSisipTabelCustom" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-semibold rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5 text-xs shadow-sm">
+                            <i class="fas fa-plus"></i> + Sisipkan Tabel ke Kursor
                         </button>
                     </div>
 
@@ -665,7 +832,21 @@ if ($qFN) {
     </div>
 </div>
 
+<?php
+// Single Source of Truth: Render Kop Surat langsung dari komponen kop-surat.php
+$kopFilePath = dirname(__DIR__, 4) . '/surat/content-surat/kop-surat.php';
+$kopHtmlContent = '';
+if (file_exists($kopFilePath)) {
+    ob_start();
+    include $kopFilePath;
+    $kopHtmlContent = ob_get_clean();
+    // Hilangkan komentar HTML pembuka agar rapi
+    $kopHtmlContent = preg_replace('/<!--.*?-->/s', '', $kopHtmlContent);
+    $kopHtmlContent = trim($kopHtmlContent);
+}
+?>
 <script>
+var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
 (function() {
     var PROSES_URL = '<?= base_url() ?>/administrator/pages/jurusan/surat/proses.php';
     var rowsData = [];
@@ -755,6 +936,145 @@ if ($qFN) {
         return firstEd;
     }
 
+    // ================= RICH TEXT ENGINE (TINYMCE 6 + FULL TABLE SUITE) =================
+    function activateEditorRibbon(editor) {
+        if (!editor) return;
+        var container = (typeof editor.getContainer === 'function') ? editor.getContainer() : null;
+        if (container) {
+            $('#deskTopRibbon .tox-tinymce-inline').removeClass('active-ribbon');
+            $(container).addClass('active-ribbon');
+        }
+    }
+
+    // Helper Pembuat Template Tabel Standar Word
+    function generateTableHtml(rows, cols) {
+        var rCount = parseInt(rows) || 3;
+        var cCount = parseInt(cols) || 3;
+        if (rCount < 1) rCount = 1;
+        if (cCount < 1) cCount = 1;
+
+        var html = '<table class="border-grid" style="width: 100%; border-collapse: collapse; margin: 12px 0; font-family: \'Times New Roman\', Times, serif; font-size: 12pt;">';
+        html += '<tbody>';
+        for (var r = 0; r < rCount; r++) {
+            html += '<tr>';
+            for (var c = 0; c < cCount; c++) {
+                var isHeader = (r === 0);
+                var tag = isHeader ? 'th' : 'td';
+                var bg = isHeader ? 'background: #f8fafc;' : '';
+                var bold = isHeader ? 'font-weight: bold;' : '';
+                var align = (c === 0 && cCount > 1) ? 'text-align: center; width: 45px;' : 'text-align: left;';
+                var content = isHeader 
+                    ? (c === 0 ? 'No.' : (c === 1 ? 'Uraian' : (c === 2 ? 'Keterangan' : 'Kolom ' + (c + 1))))
+                    : (c === 0 && cCount > 1 ? r + '.' : '&nbsp;');
+                html += '<' + tag + ' style="border: 1px solid #000000; padding: 6px 10px; height: 28px; ' + bg + bold + align + '">' + content + '</' + tag + '>';
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table><p><br></p>';
+        return html;
+    }
+
+    function getTinyMceConfig(targetSelector) {
+        return {
+            selector: targetSelector || '.page-editor',
+            inline: true,
+            toolbar_persist: true,
+            fixed_toolbar_container: '#deskTopRibbon',
+            skin: 'oxide-dark',
+            content_css: 'dark',
+            menubar: 'edit insert view format table tools',
+            menu: {
+                edit: { title: 'Edit', items: 'undo redo | cut copy paste pastetext | selectall' },
+                insert: { title: 'Sisipkan', items: 'image link table hr | charmap emoticons | insertdatetime' },
+                view: { title: 'Tampilan', items: 'visualaid visualblocks' },
+                format: { title: 'Format', items: 'bold italic underline strikethrough superscript subscript | styles blocks fontfamily fontsize align lineheight | forecolor backcolor | removeformat' },
+                table: { title: 'Tabel', items: 'inserttable | cell row column | tableprops deletetable' },
+                tools: { title: 'Alat', items: 'code wordcount' }
+            },
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'wordcount'
+            ],
+            toolbar: [
+                'undo redo | fontfamily fontsize | bold italic underline strikethrough forecolor backcolor | alignleft aligncenter alignright alignjustify | lineheight',
+                'bullist numlist outdent indent | quicktable table tableprops | image hr | removeformat code'
+            ],
+            font_family_formats: 'Times New Roman=times new roman,times,serif; Arial=arial,helvetica,sans-serif; Calibri=calibri,sans-serif; Georgia=georgia,serif; Courier New=courier new,courier,monospace; Verdana=verdana,sans-serif',
+            font_size_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 24pt 36pt',
+            line_height_formats: '1.0 1.15 1.25 1.35 1.5 2.0',
+            table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | tablecellprops tablemergecells tablesplitcells',
+            table_appearance_options: true,
+            table_advtab: true,
+            table_cell_advtab: true,
+            table_row_advtab: true,
+            table_resize_bars: true,
+            table_default_attributes: {
+                border: '1',
+                class: 'border-grid'
+            },
+            table_default_styles: {
+                'border-collapse': 'collapse',
+                'width': '100%',
+                'margin': '12px 0'
+            },
+            setup: function(editor) {
+                // Tombol Cepat Sisipkan Tabel Standar (3x3) langsung di Toolbar Ribbon
+                editor.ui.registry.addButton('quicktable', {
+                    icon: 'table',
+                    tooltip: 'Sisipkan Tabel Standar (3x3)',
+                    text: 'Tabel (3x3)',
+                    onAction: function() {
+                        var tHtml = generateTableHtml(3, 3);
+                        editor.insertContent(tHtml);
+                    }
+                });
+
+                editor.on('init', function() {
+                    $('#fallbackRibbon').hide();
+                    var body = editor.getBody();
+                    if (body) {
+                        body.style.fontSize = '12pt';
+                        body.style.fontFamily = "'Times New Roman', Times, serif";
+                    }
+                    if ($('#deskTopRibbon .tox-tinymce-inline.active-ribbon').length === 0) {
+                        activateEditorRibbon(editor);
+                    }
+                });
+                editor.on('focus', function() {
+                    currentActiveEditor = editor.getBody();
+                    activateEditorRibbon(editor);
+                });
+            }
+        };
+    }
+
+    function initTinyMCE(targetSelector) {
+        if (!window.tinymce) {
+            $('#fallbackRibbon').show();
+            return false;
+        }
+
+        try {
+            var selector = targetSelector || '.page-editor';
+            // Jika targetSelector berupa ID spesifik (misal penambahan lembar baru), inisialisasi hanya elemen tersebut
+            if (targetSelector && targetSelector.startsWith('#')) {
+                tinymce.init(getTinyMceConfig(selector));
+                return true;
+            }
+
+            // Inisialisasi awal kanvas: bersihkan seluruh instance lama dan DOM container toolbar
+            tinymce.remove();
+            $('#deskTopRibbon .tox-tinymce-inline').remove();
+            tinymce.init(getTinyMceConfig(selector));
+            return true;
+        } catch (e) {
+            console.warn('TinyMCE initialization error, using fallback:', e);
+            $('#fallbackRibbon').show();
+            return false;
+        }
+    }
+
     // Simpan & Pulihkan Seleksi Kursor (Untuk Format Toolbar)
     function saveSelection() {
         var sel = window.getSelection();
@@ -776,39 +1096,312 @@ if ($qFN) {
         }
     }
 
+    // Helper normalisasi font-family
+    function normalizeFontFamily(fontStr) {
+        if (!fontStr) return "'Times New Roman', Times, serif";
+        var f = fontStr.toLowerCase().replace(/['"]/g, '');
+        if (f.indexOf('times') !== -1) return "'Times New Roman', Times, serif";
+        if (f.indexOf('arial') !== -1) return "Arial, Helvetica, sans-serif";
+        if (f.indexOf('calibri') !== -1) return "Calibri, Candara, Segoe, sans-serif";
+        if (f.indexOf('georgia') !== -1) return "Georgia, serif";
+        if (f.indexOf('courier') !== -1) return "'Courier New', Courier, monospace";
+        if (f.indexOf('verdana') !== -1) return "Verdana, Geneva, sans-serif";
+        return "'Times New Roman', Times, serif";
+    }
+
+    // Helper normalisasi font-size ke skala Word (10pt, 11pt, 12pt, 14pt, 16pt, 18pt, 24pt)
+    function normalizeFontSize(sizeStr) {
+        if (!sizeStr) return "12pt";
+        var s = sizeStr.toString().toLowerCase().trim();
+        if (s.indexOf('pt') !== -1) {
+            var num = parseFloat(s);
+            if (num <= 10.5) return "10pt";
+            if (num <= 11.5) return "11pt";
+            if (num <= 13) return "12pt";
+            if (num <= 15) return "14pt";
+            if (num <= 17) return "16pt";
+            if (num <= 21) return "18pt";
+            return "24pt";
+        }
+        if (s.indexOf('px') !== -1) {
+            var px = parseFloat(s);
+            var pt = px * 0.75;
+            if (pt <= 10.5) return "10pt";
+            if (pt <= 11.5) return "11pt";
+            if (pt <= 13) return "12pt";
+            if (pt <= 15) return "14pt";
+            if (pt <= 17) return "16pt";
+            if (pt <= 21) return "18pt";
+            return "24pt";
+        }
+        return "12pt";
+    }
+
+    // Deteksi Format Aktif pada Posisi Kursor / Seleksi
+    function getActiveFormatting() {
+        var defaultFmt = { font: "'Times New Roman', Times, serif", size: "12pt" };
+        var sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return defaultFmt;
+
+        var ed = getActiveEditor();
+        if (!ed) return defaultFmt;
+
+        var range = sel.getRangeAt(0);
+        var node = range.startContainer;
+        if (node.nodeType === 3) node = node.parentNode;
+        if (!node || !ed.contains(node)) return defaultFmt;
+
+        var cur = node;
+        var inlineFont = '';
+        var inlineSize = '';
+        while (cur && cur !== ed && cur !== document.body) {
+            if (!inlineFont && cur.style && cur.style.fontFamily) {
+                inlineFont = cur.style.fontFamily;
+            }
+            if (!inlineSize && cur.style && cur.style.fontSize) {
+                inlineSize = cur.style.fontSize;
+            }
+            cur = cur.parentNode;
+        }
+
+        var comp = window.getComputedStyle(node);
+        var effFont = inlineFont || comp.fontFamily;
+        var effSize = inlineSize || comp.fontSize;
+
+        return {
+            font: normalizeFontFamily(effFont),
+            size: normalizeFontSize(effSize)
+        };
+    }
+
+    // Helper untuk mendeteksi elemen paragraf / blok teks yang disentuh kursor atau seleksi
+    function getSelectedParagraphs() {
+        var ed = getActiveEditor();
+        if (!ed) return [];
+        var sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return [];
+        var range = sel.getRangeAt(0);
+        if (!ed.contains(range.commonAncestorContainer)) return [];
+
+        function isBlock(el) {
+            if (!el || el.nodeType !== 1) return false;
+            var t = el.tagName.toLowerCase();
+            return t === 'p' || t === 'div' || t === 'li' || t === 'h1' || t === 'h2' || t === 'h3' || t === 'blockquote';
+        }
+
+        var startNode = range.startContainer;
+        if (startNode.nodeType === 3) startNode = startNode.parentNode;
+        var startBlock = startNode;
+        while (startBlock && startBlock !== ed && !isBlock(startBlock)) {
+            startBlock = startBlock.parentNode;
+        }
+
+        var endNode = range.endContainer;
+        if (endNode.nodeType === 3) endNode = endNode.parentNode;
+        var endBlock = endNode;
+        while (endBlock && endBlock !== ed && !isBlock(endBlock)) {
+            endBlock = endBlock.parentNode;
+        }
+
+        if (startBlock && startBlock !== ed && startBlock === endBlock) {
+            return [startBlock];
+        }
+
+        var blocks = [];
+        var allBlocks = ed.querySelectorAll('p, div, li, h1, h2, h3, blockquote');
+        for (var i = 0; i < allBlocks.length; i++) {
+            var b = allBlocks[i];
+            var intersects = false;
+            try {
+                if (range.intersectsNode) {
+                    intersects = range.intersectsNode(b);
+                } else {
+                    intersects = true;
+                }
+            } catch(e) {
+                intersects = true;
+            }
+            if (intersects) {
+                blocks.push(b);
+            }
+        }
+        if (blocks.length === 0 && startBlock && startBlock !== ed) {
+            blocks.push(startBlock);
+        }
+        return blocks;
+    }
+
+    // Sinkronkan Dropdown Toolbar dengan Format Posisi Kursor
+    var toolbarSyncTimeout = null;
+    function updateToolbarState() {
+        if (window.tinymce && tinymce.activeEditor && !tinymce.activeEditor.isHidden()) return;
+        if (toolbarSyncTimeout) clearTimeout(toolbarSyncTimeout);
+        toolbarSyncTimeout = setTimeout(function() {
+            var ed = getActiveEditor();
+            if (!ed || !$('#canvasModal').hasClass('show')) return;
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+            var range = sel.getRangeAt(0);
+            if (!ed.contains(range.commonAncestorContainer)) return;
+
+            var fmt = getActiveFormatting();
+            $('#selFontFamily').val(fmt.font);
+            $('#selFontSize').val(fmt.size);
+
+            try {
+                $('.sb-btn[data-cmd="bold"]').toggleClass('active bg-slate-700 text-sky-400', document.queryCommandState('bold'));
+                $('.sb-btn[data-cmd="italic"]').toggleClass('active bg-slate-700 text-sky-400', document.queryCommandState('italic'));
+                $('.sb-btn[data-cmd="underline"]').toggleClass('active bg-slate-700 text-sky-400', document.queryCommandState('underline'));
+                $('.sb-btn[data-cmd="strikeThrough"]').toggleClass('active bg-slate-700 text-sky-400', document.queryCommandState('strikeThrough'));
+            } catch(e) {}
+
+            // Sinkronkan Status Spasi Paragraf (Space Before & Space After) seperti Microsoft Word
+            try {
+                var pList = getSelectedParagraphs();
+                if (pList && pList.length > 0) {
+                    var curP = pList[0];
+                    var topVal = parseFloat(window.getComputedStyle(curP).marginTop || '0');
+                    var hasBefore = (topVal > 3 || (curP.style.marginTop && parseFloat(curP.style.marginTop) > 0));
+
+                    var botVal = parseFloat(window.getComputedStyle(curP).marginBottom || '0');
+                    var hasAfter = (botVal >= 11 || (curP.style.marginBottom && parseFloat(curP.style.marginBottom) >= 8));
+
+                    if (hasBefore) {
+                        $('#btnSpaceBefore').addClass('active bg-slate-700 text-sky-400 border border-sky-500/50')
+                            .attr('title', 'Hapus Spasi Sebelum Paragraf (Remove Space Before Paragraph)');
+                        $('#labelSpaceBefore').text('Remove Space Before');
+                    } else {
+                        $('#btnSpaceBefore').removeClass('active bg-slate-700 text-sky-400 border border-sky-500/50')
+                            .attr('title', 'Tambah Spasi Sebelum Paragraf (Add Space Before Paragraph)');
+                        $('#labelSpaceBefore').text('Add Space Before');
+                    }
+
+                    if (hasAfter) {
+                        $('#btnSpaceAfter').addClass('active bg-slate-700 text-orange-400 border border-orange-500/50')
+                            .attr('title', 'Hapus Spasi Setelah Paragraf (Remove Space After Paragraph)');
+                        $('#labelSpaceAfter').text('Remove Space After');
+                    } else {
+                        $('#btnSpaceAfter').removeClass('active bg-slate-700 text-orange-400 border border-orange-500/50')
+                            .attr('title', 'Tambah Spasi Setelah Paragraf (Add Space After Paragraph)');
+                        $('#labelSpaceAfter').text('Add Space After');
+                    }
+
+                    if (curP.style.lineHeight) {
+                        $('#selLineHeight').val(curP.style.lineHeight);
+                    }
+                }
+            } catch(e) {}
+        }, 30);
+    }
+
     function insertHtmlAtCursor(html) {
         var ed = getActiveEditor();
         if (!ed) return;
         restoreSelection();
         ed.focus();
-        if (document.queryCommandSupported('insertHTML')) {
-            document.execCommand('insertHTML', false, html);
-        } else {
-            var sel = window.getSelection();
-            if (sel && sel.rangeCount) {
-                var range = sel.getRangeAt(0);
-                range.deleteContents();
-                var el = document.createElement('div');
-                el.innerHTML = html;
-                var frag = document.createDocumentFragment(), node, lastNode;
-                while ((node = el.firstChild)) {
-                    lastNode = frag.appendChild(node);
+
+        // Pastikan HTML yang disisipkan mewarisi styling aktif jika belum memiliki span, table, div, hr, atau img
+        if (html.indexOf('<table') === -1 && html.indexOf('<div') === -1 && html.indexOf('<span') === -1 && html.indexOf('<img') === -1 && html.indexOf('<hr') === -1) {
+            var curFmt = getActiveFormatting();
+            var f = $('#selFontFamily').val() || curFmt.font || "'Times New Roman', Times, serif";
+            var s = $('#selFontSize').val() || curFmt.size || "12pt";
+            html = '<span style="font-family: ' + f + '; font-size: ' + s + ';">' + html + '</span>';
+        }
+
+        var sel = window.getSelection();
+        var range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : null;
+
+        // Jika tidak ada seleksi valid atau seleksi berada di luar editor aktif, posisikan kursor di akhir
+        if (!range || !ed.contains(range.commonAncestorContainer)) {
+            range = document.createRange();
+            range.selectNodeContents(ed);
+            range.collapse(false);
+            if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+
+        // Cek apakah konten berupa elemen block (seperti table, div, blockquote, hr)
+        var isBlock = /^\s*<(table|div|blockquote|hr)/i.test(html);
+        var template = document.createElement('template');
+        template.innerHTML = html.trim();
+        var frag = template.content;
+        var lastNode = frag.lastChild;
+
+        if (isBlock) {
+            // Temukan elemen blok level teratas yang merupakan direct child dari editor (misal <p>, <div>, <table>)
+            var node = range.commonAncestorContainer;
+            if (node.nodeType === 3) node = node.parentNode;
+            var topBlock = node;
+            while (topBlock && topBlock.parentNode && topBlock.parentNode !== ed) {
+                topBlock = topBlock.parentNode;
+            }
+
+            if (topBlock && topBlock.parentNode === ed) {
+                var blockText = (topBlock.textContent || '').replace(/\u200B/g, '').trim();
+                var isEmptyBlock = (blockText === '' || topBlock.innerHTML === '<br>' || topBlock.innerHTML === '<b><br></b>' || topBlock.innerHTML === '');
+
+                if (isEmptyBlock) {
+                    // Blok kosong: gantikan langsung blok kosong ini dengan konten tabel
+                    ed.insertBefore(frag, topBlock);
+                    ed.removeChild(topBlock);
+                } else {
+                    // Blok ada isinya: sisipkan tabel persis SETELAH blok ini (bukan di dalam <p> atau <b>)
+                    if (topBlock.nextSibling) {
+                        ed.insertBefore(frag, topBlock.nextSibling);
+                    } else {
+                        ed.appendChild(frag);
+                    }
                 }
-                range.insertNode(frag);
-                if (lastNode) {
-                    range = range.cloneRange();
-                    range.setStartAfter(lastNode);
-                    range.collapse(true);
+
+                var newRange = document.createRange();
+                if (lastNode && lastNode.nodeType === 1 && lastNode.tagName.toLowerCase() === 'p') {
+                    newRange.setStart(lastNode, 0);
+                    newRange.collapse(true);
+                } else if (lastNode) {
+                    newRange.setStartAfter(lastNode);
+                    newRange.collapse(true);
+                } else {
+                    newRange.selectNodeContents(ed);
+                    newRange.collapse(false);
+                }
+                if (sel) {
                     sel.removeAllRanges();
-                    sel.addRange(range);
+                    sel.addRange(newRange);
                 }
+                saveSelection();
+                return;
+            }
+        }
+
+        // Standar Modern DOM Range Insertion
+        range.deleteContents();
+        range.insertNode(frag);
+
+        if (lastNode) {
+            var newRange = document.createRange();
+            if (lastNode.nodeType === 1 && lastNode.tagName.toLowerCase() === 'p') {
+                newRange.setStart(lastNode, 0);
+                newRange.collapse(true);
+            } else {
+                newRange.setStartAfter(lastNode);
+                newRange.collapse(true);
+            }
+            if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(newRange);
             }
         }
         saveSelection();
     }
 
     function insertCanvasContent(html) {
-        insertHtmlAtCursor(html);
+        if (window.tinymce && tinymce.activeEditor && !tinymce.activeEditor.isHidden()) {
+            tinymce.activeEditor.insertContent(html);
+        } else {
+            insertHtmlAtCursor(html);
+        }
     }
 
     function updatePageCountBadge() {
@@ -842,17 +1435,12 @@ if ($qFN) {
 
         var html = '<div class="a4-page' + f4Class + '" data-page="' + pageIndex + '">';
 
-        // Kop Surat HANYA untuk Halaman 1
+        // Kop Surat HANYA untuk Halaman 1 (Single Source of Truth dari kop-surat.php)
         if (pageIndex === 1) {
-            html += '<div id="cvKop" style="position: relative; min-height: 24mm; margin-bottom: 4px; user-select: none;">' +
-                '<img src="<?= base_url() ?>/surat/img/logo.png" alt="Logo UNG" style="position: absolute; top: 0; left: 0; width: 22mm;">' +
-                '<div style="text-align: center; margin: 0 22mm;">' +
-                    '<p style="font-size: 12pt; margin: 0; line-height: 1.22;">KEMENTERIAN PENDIDIKAN,KEBUDAYAAN,<br>RISET DAN TEKNOLOGI<br>UNIVERSITAS NEGERI GORONTALO<br>FAKULTAS TEKNIK<br>JURUSAN TEKNIK ELEKTRO DAN KOMPUTER</p>' +
-                    '<p style="font-size: 10pt; margin: 0; line-height: 1.22;">Jalan B.J.Habibie Desa Moutong Kecamatan Tilongkabila Kab.Bone Bolango<br>Telp. (0435) 821125, Fax. (0435) 821752 Gorontalo<br>Laman :http:// www.ft.ung.ac.id</p>' +
-                '</div>' +
-                '<hr style="border: 1.5px solid #000; margin: 4px 0 0;">' +
-            '</div>' +
-            '<div id="cvSpacerNoKop" style="height: 12mm; display: none;"></div>' +
+            html += (typeof GLOBAL_KOP_HTML === 'string' && GLOBAL_KOP_HTML.length > 0)
+                ? GLOBAL_KOP_HTML
+                : '<div id="cvKop" style="position: relative; margin-bottom: 4px; user-select: none;"></div>';
+            html += '<div id="cvSpacerNoKop" style="height: 12mm; display: none;"></div>' +
             '<!-- TANGGAL SURAT DI BAWAH KOP SEBELAH KANAN -->' +
             '<div id="cvTanggalWrap" style="text-align: right; margin-top: 6px; margin-bottom: 10px; font-family: \'Times New Roman\', Times, serif; font-size: 12pt; user-select: none;">' +
                 '<span id="cvTanggalText">Gorontalo, <?= function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d F Y') ?></span>' +
@@ -881,6 +1469,13 @@ if ($qFN) {
     }
 
     function renderPages(contentsArray) {
+        if (window.tinymce) {
+            try {
+                tinymce.remove();
+                $('#deskTopRibbon .tox-tinymce-inline').remove();
+            } catch(e) {}
+        }
+
         if (!contentsArray || contentsArray.length === 0) {
             contentsArray = ['<p><br></p>'];
         }
@@ -901,12 +1496,19 @@ if ($qFN) {
         updatePageCountBadge();
 
         setTimeout(function() {
+            initTinyMCE();
             var firstEd = document.querySelector('.page-editor');
             if (firstEd) {
                 currentActiveEditor = firstEd;
-                firstEd.focus();
+                if (window.tinymce && tinymce.get(firstEd.id)) {
+                    var edInst = tinymce.get(firstEd.id);
+                    edInst.focus();
+                    activateEditorRibbon(edInst);
+                } else {
+                    firstEd.focus();
+                }
             }
-        }, 50);
+        }, 100);
     }
 
     function tambahHalamanBaru(contentHtml) {
@@ -916,14 +1518,24 @@ if ($qFN) {
 
         updatePageCountBadge();
 
+        var newEd = newPage.find('.page-editor')[0];
+        if (newEd && window.tinymce) {
+            initTinyMCE('#' + newEd.id);
+        }
+
         setTimeout(function() {
-            var ed = newPage.find('.page-editor')[0];
-            if (ed) {
-                currentActiveEditor = ed;
-                ed.focus();
+            if (newEd) {
+                currentActiveEditor = newEd;
+                if (window.tinymce && tinymce.get(newEd.id)) {
+                    var edInst = tinymce.get(newEd.id);
+                    edInst.focus();
+                    activateEditorRibbon(edInst);
+                } else {
+                    newEd.focus();
+                }
                 newPage[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        }, 50);
+        }, 150);
 
         return newPage;
     }
@@ -959,10 +1571,17 @@ if ($qFN) {
         $('#pagesContainer .a4-page').each(function(idx) {
             var editor = $(this).find('.page-editor')[0];
             if (editor) {
-                var content = editor.innerHTML.trim();
+                var content = '';
+                if (window.tinymce && tinymce.get(editor.id)) {
+                    content = tinymce.get(editor.id).getContent();
+                } else {
+                    content = editor.innerHTML.trim();
+                }
+
+                content = content.replace(/\u200B/g, '');
+
                 // Jika halaman 1 dan opsi tanggal aktif, pastikan elemen tanggal masuk dalam konten dokumen yang tersimpan
                 if (idx === 0 && pakaiTanggalHeader) {
-                    // Cek apakah konten editor belum memiliki tanggal
                     if (content.indexOf('Gorontalo,') === -1 && content.indexOf('cv-tanggal-header') === -1) {
                         var headerTglHtml = '<div class="cv-tanggal-header" style="text-align: right; margin-top: 4px; margin-bottom: 12px; font-family: \'Times New Roman\', Times, serif; font-size: 12pt;">' + tglTeks + '</div>';
                         content = headerTglHtml + content;
@@ -1085,7 +1704,7 @@ if ($qFN) {
         var modal = document.getElementById('canvasModal');
 
         // Cegah tombol toolbar menghilangkan fokus/seleksi teks di kanvas
-        $(document).on('mousedown', '.sb-btn, #btnSisipTtd, #btnSisipNomor, #btnQuickTable, #btnInsertHr, #btnTambahHalaman', function(e) {
+        $(document).on('mousedown', '.sb-btn, #btnSisipTtd, #btnSisipNomor, #btnQuickTable, #btnInsertHr, #btnTambahHalaman, #btnSpaceBefore, #btnSpaceAfter, #btnInsertTab, #btnSisipTabelCustom', function(e) {
             e.preventDefault();
         });
 
@@ -1139,9 +1758,9 @@ if ($qFN) {
                 $('#previewTtdNama').text(currentPejabat.nama);
                 $('#previewTtdNip').text('NIP. ' + (currentPejabat.nip || '-'));
 
-                // Cek apakah di dalam d.isi_surat sudah ada tanggal kanan tersimpan
-                var hasTanggalInDoc = (d.isi_surat && d.isi_surat.indexOf('Gorontalo,') !== -1);
-                $('#swPakaiTanggalHeader').prop('checked', !hasTanggalInDoc);
+                // Cek apakah di dalam d.isi_surat ada penanda tanggal header yang tersimpan
+                var hasTanggalInDoc = (d.isi_surat && (d.isi_surat.indexOf('cv-tanggal-header') !== -1));
+                $('#swPakaiTanggalHeader').prop('checked', hasTanggalInDoc);
                 updateTanggalHeaderCanvas();
 
                 // Muat isi kanvas persis apa yang tersimpan
@@ -1150,7 +1769,7 @@ if ($qFN) {
                 $('#canvasTitle').text('Surat Baru (Lembar Polos)');
                 $('#cvId').val('');
                 $('#swTanggalSurat').val('<?= date('Y-m-d') ?>');
-                $('#swPakaiTanggalHeader').prop('checked', true);
+                $('#swPakaiTanggalHeader').prop('checked', false);
                 $('#swPakaiKop').prop('checked', true);
                 updateKopCanvas(true);
                 updateTanggalHeaderCanvas();
@@ -1168,6 +1787,11 @@ if ($qFN) {
                 // Muat data pejabat dan nomor di background tanpa mengubah isi lembar polos
                 loadPejabat('kajur', '');
                 tarikNomorOtomatis();
+
+                // Reset Toolbar Format ke Default Resmi (Times New Roman 12pt)
+                $('#selFontFamily').val("'Times New Roman', Times, serif");
+                $('#selFontSize').val("12pt");
+                $('#selLineHeight').val("1.35");
             }
 
             modal.classList.add('show');
@@ -1178,7 +1802,22 @@ if ($qFN) {
                 if (firstEd) {
                     currentActiveEditor = firstEd;
                     firstEd.focus();
-                    saveSelection();
+
+                    // Tempatkan kursor di awal editor secara eksplisit dan tampilkan kursor
+                    var range = document.createRange();
+                    if (firstEd.firstChild) {
+                        range.setStart(firstEd.firstChild, 0);
+                        range.collapse(true);
+                    } else {
+                        range.selectNodeContents(firstEd);
+                        range.collapse(true);
+                    }
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    savedRange = range;
+
+                    updateToolbarState();
                 }
             }, 120);
         }
@@ -1192,6 +1831,12 @@ if ($qFN) {
                         return;
                     }
                 }
+            }
+            if (window.tinymce) {
+                try {
+                    tinymce.remove();
+                    $('#deskTopRibbon .tox-tinymce-inline').remove();
+                } catch(e) {}
             }
             modal.classList.remove('show');
             document.body.style.overflow = '';
@@ -1316,39 +1961,175 @@ if ($qFN) {
             }
         });
 
-        // Sisipkan Blok Tanda Tangan ke Posisi Kursor
+        // Sisipkan Blok Tanda Tangan ke Posisi Kursor (Mengikuti format font & size aktif)
         $('#btnSisipTtd').on('click', function() {
-            var pj = currentPejabat;
-            var ttdHtml = '<table class="borderless ttd-table" style="width: 100%; margin-top: 20px; border-collapse: collapse;">' +
+            var pj = currentPejabat || { dosen_id: '', nama: 'Nama Pejabat', nip: '-', jabatan: 'Ketua Jurusan' };
+            var curFmt = getActiveFormatting();
+            var fontVal = $('#selFontFamily').val() || curFmt.font || "'Times New Roman', Times, serif";
+            var sizeVal = $('#selFontSize').val() || curFmt.size || "12pt";
+
+            // Pastikan fontVal bersih dan konsisten
+            var cleanFont = (fontVal.indexOf('Times') !== -1) ? "'Times New Roman', Times, serif" : fontVal;
+
+            var ttdHtml = '<table class="borderless ttd-table" style="width: 100%; margin-top: 24px; border-collapse: collapse; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; font-weight: normal !important;">' +
+                '<tbody>' +
                 '<tr>' +
-                    '<td style="width: 47%;"></td>' +
-                    '<td style="width: 53%; line-height: 1.25; vertical-align: top;">' + pj.jabatan + ',</td>' +
-                '</tr>' +
-                '<tr style="height: 55px;"><td></td><td></td></tr>' +
-                '<tr>' +
-                    '<td></td>' +
-                    '<td style="line-height: 1.15; padding: 0; vertical-align: top;">' +
-                        '<b><u>' + pj.nama + '</u></b><br>' +
-                        '<span>NIP. ' + (pj.nip || '-') + '</span>' +
+                    '<td style="width: 47%; border: none; padding: 0;"></td>' +
+                    '<td style="width: 53%; border: none; padding: 0; line-height: 1.25; vertical-align: top; font-weight: normal !important; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; color: #000000;">' +
+                        '<span style="font-weight: normal !important; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; color: #000000;">' + (pj.jabatan || 'Ketua Jurusan') + '</span>' +
                     '</td>' +
                 '</tr>' +
+                '<tr style="height: 75px;"><td style="border: none; padding: 0;"></td><td style="border: none; padding: 0;"></td></tr>' +
+                '<tr>' +
+                    '<td style="border: none; padding: 0;"></td>' +
+                    '<td style="border: none; padding: 0; line-height: 1.15; vertical-align: top; font-weight: normal !important; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; color: #000000;">' +
+                        '<u style="font-weight: normal !important; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; color: #000000; text-decoration: underline;">' + (pj.nama || 'Nama Pejabat') + '</u><br>' +
+                        '<span style="font-weight: normal !important; font-family: ' + cleanFont + '; font-size: ' + sizeVal + '; color: #000000;">NIP. ' + (pj.nip || '-') + '</span>' +
+                    '</td>' +
+                '</tr>' +
+                '</tbody>' +
             '</table><p><br></p>';
 
             insertCanvasContent(ttdHtml);
+        });
+
+        // Helper Apply Inline Style pada Range Seleksi (Cross-Browser Rich Text)
+        // Menjamin pengubahan jenis huruf TIDAK AKAN mengubah ukuran font,
+        // dan pengubahan ukuran font TIDAK AKAN mengubah jenis huruf!
+        function applyStyleToSelection(cssProp, cssVal) {
+            restoreSelection();
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+
+            var ed = getActiveEditor();
+            if (!ed) return;
+
+            var range = sel.getRangeAt(0);
+            if (!ed.contains(range.commonAncestorContainer)) return;
+
+            // Baca formatting aktif saat ini agar properti pendamping tetap terkunci
+            var curFmt = getActiveFormatting();
+            var targetFont = (cssProp === 'font-family') ? cssVal : curFmt.font;
+            var targetSize = (cssProp === 'font-size') ? cssVal : curFmt.size;
+
+            if (range.isCollapsed) {
+                // Kursor berkedip tanpa blok teks: sisipkan placeholder span dengan font & size aktif
+                var emptySpan = document.createElement('span');
+                emptySpan.style.fontFamily = targetFont;
+                emptySpan.style.fontSize = targetSize;
+                emptySpan.innerHTML = '&#8203;'; // zero-width space
+                range.insertNode(emptySpan);
+
+                var r = document.createRange();
+                r.setStart(emptySpan.firstChild, 1);
+                r.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(r);
+                savedRange = r;
+
+                $('#selFontFamily').val(targetFont);
+                $('#selFontSize').val(targetSize);
+                return;
+            }
+
+            var common = range.commonAncestorContainer;
+            var commonElem = (common.nodeType === 1) ? common : common.parentNode;
+
+            // Jika teks yang diblok persis berada dalam satu SPAN yang sama
+            if (commonElem && commonElem.tagName === 'SPAN' && ed.contains(commonElem)) {
+                var spanText = (commonElem.textContent || '').trim();
+                var selText = sel.toString().trim();
+                if (spanText === selText && spanText.length > 0) {
+                    commonElem.style.fontFamily = targetFont;
+                    commonElem.style.fontSize = targetSize;
+
+                    // Bersihkan inner span yang bertentangan
+                    $(commonElem).find('span').each(function() {
+                        if (cssProp === 'font-family') this.style.fontFamily = '';
+                        if (cssProp === 'font-size') this.style.fontSize = '';
+                    });
+
+                    var newRange = document.createRange();
+                    newRange.selectNodeContents(commonElem);
+                    sel.removeAllRanges();
+                    sel.addRange(newRange);
+                    savedRange = newRange;
+
+                    $('#selFontFamily').val(targetFont);
+                    $('#selFontSize').val(targetSize);
+                    return;
+                }
+            }
+
+            // Seleksi teks melintasi sebagian span atau teks biasa: ekstrak dan bungkus secara aman
+            var frag = range.extractContents();
+            var span = document.createElement('span');
+            span.style.fontFamily = targetFont;
+            span.style.fontSize = targetSize;
+
+            // Bersihkan inner span di dalam fragmen agar tidak menimpa properti yang baru diubah
+            var innerSpans = frag.querySelectorAll ? frag.querySelectorAll('span') : [];
+            for (var i = 0; i < innerSpans.length; i++) {
+                var ispan = innerSpans[i];
+                if (cssProp === 'font-family') {
+                    ispan.style.fontFamily = '';
+                } else if (cssProp === 'font-size') {
+                    ispan.style.fontSize = '';
+                }
+                var styleAttr = (ispan.getAttribute('style') || '').trim();
+                if (!styleAttr || styleAttr === ';') {
+                    while (ispan.firstChild) {
+                        ispan.parentNode.insertBefore(ispan.firstChild, ispan);
+                    }
+                    if (ispan.parentNode) {
+                        ispan.parentNode.removeChild(ispan);
+                    }
+                }
+            }
+
+            span.appendChild(frag);
+            range.insertNode(span);
+
+            // Bersihkan parent span jika parent menjadi redundan
+            var parent = span.parentNode;
+            if (parent && parent.tagName === 'SPAN' && parent.textContent.trim() === span.textContent.trim()) {
+                if (parent.style.color && !span.style.color) span.style.color = parent.style.color;
+                if (parent.style.backgroundColor && !span.style.backgroundColor) span.style.backgroundColor = parent.style.backgroundColor;
+                if (parent.parentNode) {
+                    parent.parentNode.replaceChild(span, parent);
+                }
+            }
+
+            var newRange = document.createRange();
+            newRange.selectNodeContents(span);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            savedRange = newRange;
+
+            $('#selFontFamily').val(targetFont);
+            $('#selFontSize').val(targetSize);
+        }
+
+        // Tangkap seleksi sebelum dropdown kehilangan fokus
+        $('#selFontFamily, #selFontSize').on('mousedown focus', function() {
+            saveSelection();
         });
 
         // ================= FALLBACK RIBBON FORMATTING ACTIONS =================
         $('.sb-btn[data-cmd]').on('click', function() {
             var cmd = $(this).data('cmd');
             restoreSelection();
+            try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
             document.execCommand(cmd, false, null);
             saveSelection();
+            updateToolbarState();
         });
 
         // Warna Teks
         $('#nativeForeColor').on('input change', function() {
             var color = $(this).val();
             restoreSelection();
+            try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
             document.execCommand('foreColor', false, color);
             saveSelection();
         });
@@ -1357,30 +2138,89 @@ if ($qFN) {
         $('#nativeBackColor').on('input change', function() {
             var color = $(this).val();
             restoreSelection();
+            try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
             document.execCommand('hiliteColor', false, color);
             saveSelection();
         });
 
-        // Font Family
+        // Font Family (Bekerja 100% pada teks yang diblok tanpa mengubah ukuran font!)
         $('#selFontFamily').on('change', function() {
             var val = $(this).val();
-            restoreSelection();
-            document.execCommand('fontName', false, val);
-            saveSelection();
+            applyStyleToSelection('font-family', val);
         });
 
-        // Font Size
+        // Font Size (Bekerja 100% pada teks yang diblok tanpa mengubah jenis huruf!)
         $('#selFontSize').on('change', function() {
-            var val = $(this).val();
-            restoreSelection();
-            document.execCommand('fontSize', false, val);
-            saveSelection();
+            var val = $(this).val(); // misal '10pt', '12pt', '14pt', '18pt'
+            applyStyleToSelection('font-size', val);
         });
 
-        // Spasi Baris
+        // Add / Remove Space Before Paragraph (Word-Style)
+        function toggleSpaceBefore() {
+            restoreSelection();
+            var pList = getSelectedParagraphs();
+            if (!pList || pList.length === 0) return;
+
+            var firstP = pList[0];
+            var currentTop = parseFloat(window.getComputedStyle(firstP).marginTop || '0');
+            var hasSpace = (currentTop > 3 || (firstP.style.marginTop && parseFloat(firstP.style.marginTop) > 0));
+
+            for (var i = 0; i < pList.length; i++) {
+                if (hasSpace) {
+                    pList[i].style.marginTop = '0px';
+                } else {
+                    pList[i].style.marginTop = '10pt'; // Standar Word Spacing Before
+                }
+            }
+
+            saveSelection();
+            updateToolbarState();
+        }
+
+        // Add / Remove Space After Paragraph (Word-Style)
+        function toggleSpaceAfter() {
+            restoreSelection();
+            var pList = getSelectedParagraphs();
+            if (!pList || pList.length === 0) return;
+
+            var firstP = pList[0];
+            var currentBottom = parseFloat(window.getComputedStyle(firstP).marginBottom || '0');
+            var hasSpace = (currentBottom >= 11 || (firstP.style.marginBottom && parseFloat(firstP.style.marginBottom) >= 8));
+
+            for (var i = 0; i < pList.length; i++) {
+                if (hasSpace) {
+                    pList[i].style.marginBottom = '0px';
+                } else {
+                    pList[i].style.marginBottom = '10pt'; // Standar Word Spacing After
+                }
+            }
+
+            saveSelection();
+            updateToolbarState();
+        }
+
+        // Event Tombol Spasi Paragraf (Word)
+        $('#btnSpaceBefore').on('click', function() {
+            toggleSpaceBefore();
+        });
+
+        $('#btnSpaceAfter').on('click', function() {
+            toggleSpaceAfter();
+        });
+
+        // Spasi Baris (Line Spacing) - Diterapkan ke paragraf yang dipilih atau seluruh editor
         $('#selLineHeight').on('change', function() {
             var lh = $(this).val();
-            $('.page-editor').css('line-height', lh);
+            restoreSelection();
+            var pList = getSelectedParagraphs();
+            if (pList && pList.length > 0) {
+                for (var i = 0; i < pList.length; i++) {
+                    pList[i].style.lineHeight = lh;
+                }
+            } else {
+                $('.page-editor').css('line-height', lh);
+            }
+            saveSelection();
         });
 
         // Sisipkan Garis Horizontal
@@ -1390,11 +2230,15 @@ if ($qFN) {
 
         // Sisipkan Tabel Cepat di Kursor
         $('#btnQuickTable').on('click', function() {
-            var tHtml = '<table class="border-grid" style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12pt;"><tbody>' +
-                '<tr><th style="border: 1px solid #000; padding: 4px 8px; width: 45px; text-align: center;">No.</th><th style="border: 1px solid #000; padding: 4px 8px;">Uraian</th><th style="border: 1px solid #000; padding: 4px 8px;">Keterangan</th></tr>' +
-                '<tr><td style="border: 1px solid #000; padding: 4px 8px; text-align: center;">1.</td><td style="border: 1px solid #000; padding: 4px 8px;">&nbsp;</td><td style="border: 1px solid #000; padding: 4px 8px;">&nbsp;</td></tr>' +
-                '<tr><td style="border: 1px solid #000; padding: 4px 8px; text-align: center;">2.</td><td style="border: 1px solid #000; padding: 4px 8px;">&nbsp;</td><td style="border: 1px solid #000; padding: 4px 8px;">&nbsp;</td></tr>' +
-                '</tbody></table><p><br></p>';
+            var tHtml = generateTableHtml(3, 3);
+            insertCanvasContent(tHtml);
+        });
+
+        // Tombol Sidebar: Sisipkan Tabel Kustom (Bebas Kolom & Baris)
+        $('#btnSisipTabelCustom').on('click', function() {
+            var cols = parseInt($('#tblJmlKolom').val()) || 3;
+            var rows = parseInt($('#tblJmlBaris').val()) || 3;
+            var tHtml = generateTableHtml(rows, cols);
             insertCanvasContent(tHtml);
         });
 
@@ -1458,10 +2302,46 @@ if ($qFN) {
             }
         });
 
-        // Event Fokus & Perekaman Kursor pada Setiap Halaman
-        $(document).on('focus click keyup', '.page-editor', function() {
+        // Normalisasi Paste: Teks yang di-paste mengikuti font & ukuran yang sedang aktif pada kursor
+        $(document).on('paste', '.page-editor', function(e) {
+            e.preventDefault();
+            var clipboard = (e.originalEvent || e).clipboardData || window.clipboardData;
+            var text = clipboard ? clipboard.getData('text/plain') : '';
+            if (text) {
+                var curFmt = getActiveFormatting();
+                var f = curFmt.font || "'Times New Roman', Times, serif";
+                var s = curFmt.size || "12pt";
+
+                // Konversi newline menjadi paragraf atau line break bersih
+                var lines = text.split(/\r\n|\r|\n/);
+                var formattedHtml = '';
+                lines.forEach(function(line) {
+                    var safeLine = $('<div>').text(line).html();
+                    if (safeLine.trim() === '') {
+                        formattedHtml += '<p><br></p>';
+                    } else {
+                        formattedHtml += '<p style="font-family: ' + f + '; font-size: ' + s + '; margin: 0 0 0.35rem 0; line-height: 1.35;">' + safeLine + '</p>';
+                    }
+                });
+                insertCanvasContent(formattedHtml);
+            }
+        });
+
+        // Event Fokus & Perekaman Kursor & Sinkronisasi Toolbar pada Setiap Halaman
+        $(document).on('focus click keyup mouseup', '.page-editor', function() {
             currentActiveEditor = this;
             saveSelection();
+            updateToolbarState();
+            if (window.tinymce && tinymce.get(this.id)) {
+                activateEditorRibbon(tinymce.get(this.id));
+            }
+        });
+
+        // Event selectionchange global untuk sinkronisasi otomatis status toolbar (font, size, bold, dsb)
+        document.addEventListener('selectionchange', function() {
+            if ($('#canvasModal').hasClass('show')) {
+                updateToolbarState();
+            }
         });
 
         // Event Tombol Hapus Halaman (Hanya untuk Halaman 2 dst)
@@ -1473,20 +2353,74 @@ if ($qFN) {
             if (confirm('Hapus Halaman ' + pNum + ' beserta isinya?')) {
                 var ed = pageDiv.find('.page-editor')[0];
                 if (ed && window.tinymce && tinymce.get(ed.id)) {
-                    tinymce.get(ed.id).destroy();
+                    var edInst = tinymce.get(ed.id);
+                    var container = (typeof edInst.getContainer === 'function') ? edInst.getContainer() : null;
+                    if (container) {
+                        $(container).remove();
+                    }
+                    edInst.destroy();
                 }
                 pageDiv.remove();
                 updatePageCountBadge();
                 var prevEd = document.querySelector('.page-editor');
                 if (prevEd) {
                     currentActiveEditor = prevEd;
-                    prevEd.focus();
+                    if (window.tinymce && tinymce.get(prevEd.id)) {
+                        var prevInst = tinymce.get(prevEd.id);
+                        prevInst.focus();
+                        activateEditorRibbon(prevInst);
+                    } else {
+                        prevEd.focus();
+                    }
                 }
             }
         });
 
-        // Handler Enter & Navigasi Halaman Word: Ketika ketikan mencapai batas bawah kertas
+        // Tombol Toolbar Sisipkan Tabulasi
+        $('#btnInsertTab').on('click', function() {
+            var tabHtml = '<span class="siatek-tab" style="display: inline-block; width: 36pt;">&nbsp;</span>';
+            insertCanvasContent(tabHtml);
+        });
+
+        // Handler Enter, Tab & Navigasi Halaman Word: Ketika ketikan mencapai batas bawah kertas
         $(document).on('keydown', '.page-editor', function(e) {
+            // 0. Shortcut & Tombol Tabulasi Microsoft Word (Tab & Shift+Tab)
+            if (e.key === 'Tab') {
+                if ($(e.target).closest('td, th').length) {
+                    return; // Biarkan navigasi sel tabel yang berjalan
+                }
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                var sel = window.getSelection();
+                var inList = false;
+                if (sel && sel.rangeCount) {
+                    var node = sel.getRangeAt(0).startContainer;
+                    if (node.nodeType === 3) node = node.parentNode;
+                    if (node && $(node).closest('li').length) {
+                        inList = true;
+                    }
+                }
+
+                if (inList) {
+                    if (e.shiftKey) {
+                        try { document.execCommand('outdent', false, null); } catch(ex) {}
+                    } else {
+                        try { document.execCommand('indent', false, null); } catch(ex) {}
+                    }
+                    return;
+                }
+
+                if (e.shiftKey) {
+                    try { document.execCommand('outdent', false, null); } catch(ex) {}
+                } else {
+                    var tabHtml = '<span class="siatek-tab" style="display: inline-block; width: 36pt;">&nbsp;</span>';
+                    insertCanvasContent(tabHtml);
+                }
+                return;
+            }
+
             // 1. Shortcut Microsoft Word: Ctrl+Enter / Cmd+Enter untuk Menambah Lembar Baru
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
@@ -1642,9 +2576,16 @@ if ($qFN) {
                         alert(res.pesan || 'Gagal menyimpan surat');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
                     btn.prop('disabled', false).html('<i class="fas fa-save"></i> <span>Simpan</span>');
-                    alert('Terjadi kesalahan pada server saat menyimpan');
+                    var detailErr = '';
+                    try {
+                        var json = JSON.parse(xhr.responseText);
+                        if (json && json.pesan) detailErr = ': ' + json.pesan;
+                    } catch(e) {
+                        if (xhr.status) detailErr = ' (HTTP ' + xhr.status + ': ' + (xhr.statusText || error) + ')';
+                    }
+                    alert('Terjadi kesalahan pada server saat menyimpan' + detailErr);
                 }
             });
         }

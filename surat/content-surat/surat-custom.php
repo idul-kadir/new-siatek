@@ -67,19 +67,29 @@ function surat_custom($idSurat) {
         margin: 0 0 0.35rem 0;
         line-height: inherit;
     }
-    .word-canvas-body table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 8px 0;
+    /* Tabel Standar Kanvas Surat (Word-grade Table) */
+    .word-canvas-body table:not(.ttd-table):not(.ttd-wrap) {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 12px 0 !important;
+        font-family: inherit;
         font-size: inherit;
     }
-    .word-canvas-body table td, .word-canvas-body table th {
-        padding: 4px 6px;
+    .word-canvas-body table:not(.ttd-table):not(.ttd-wrap) td,
+    .word-canvas-body table:not(.ttd-table):not(.ttd-wrap) th {
+        border: 1px solid #000000 !important;
+        padding: 6px 10px !important;
+        min-height: 28px !important;
+        height: 28px;
         vertical-align: top;
+        font-family: inherit;
+        font-size: 12pt;
+        color: #000000;
+        box-sizing: border-box;
     }
-    .word-canvas-body table.border-grid td, .word-canvas-body table.border-grid th,
-    .word-canvas-body table.table-bordered td, .word-canvas-body table.table-bordered th {
-        border: 1px solid #000;
+    .word-canvas-body table:not(.ttd-table):not(.ttd-wrap) th {
+        background-color: #f8fafc;
+        font-weight: bold;
     }
     .word-canvas-body table.borderless td, .word-canvas-body table.borderless th,
     .word-canvas-body table.table-borderless td, .word-canvas-body table.table-borderless th {
@@ -108,6 +118,29 @@ function surat_custom($idSurat) {
         border: 0;
         border-top: 1px solid #000;
         margin: 10px 0;
+    }
+    .word-canvas-body table.ttd-table {
+        margin-top: 24px;
+        margin-bottom: 8px;
+        border-collapse: collapse;
+        width: 100%;
+        font-weight: normal !important;
+    }
+    .word-canvas-body table.ttd-table tr,
+    .word-canvas-body table.ttd-table td,
+    .word-canvas-body table.ttd-table td * {
+        padding: 0;
+        border: none !important;
+        font-family: inherit !important;
+        font-size: inherit;
+        font-weight: normal !important;
+        line-height: 1.25;
+        vertical-align: top;
+        color: #000000 !important;
+    }
+    .word-canvas-body table.ttd-table td u {
+        text-decoration: underline !important;
+        font-weight: normal !important;
     }
 </style>
 
@@ -230,20 +263,19 @@ function surat_custom($idSurat) {
     <!-- Blok Tanda Tangan -->
     <table class="ttd-wrap" style="width: 100%; margin-top: 22px; font-size: 12pt; border-collapse: collapse;">
         <tr>
-            <td style="width: 52%;"></td>
-            <td style="width: 48%;"><?= htmlspecialchars($surat['ttd_jabatan'], ENT_QUOTES, 'UTF-8') ?>,</td>
+            <td style="width: 47%;"></td>
+            <td style="width: 53%;"><?= htmlspecialchars(rtrim($surat['ttd_jabatan'], ','), ENT_QUOTES, 'UTF-8') ?></td>
         </tr>
-        <tr class="ttd-place" style="height: 60px;">
+        <tr class="ttd-place" style="height: 85px;">
             <td></td>
             <td></td>
-        </tr>
-        <tr>
-            <td></td>
-            <td><b><u><?= htmlspecialchars($surat['ttd_nama'], ENT_QUOTES, 'UTF-8') ?></u></b></td>
         </tr>
         <tr>
             <td></td>
-            <td>NIP. <?= htmlspecialchars($surat['ttd_nip'] ?: '-', ENT_QUOTES, 'UTF-8') ?></td>
+            <td style="line-height: 1.15; padding: 0;">
+                <b><u><?= htmlspecialchars($surat['ttd_nama'], ENT_QUOTES, 'UTF-8') ?></u></b><br>
+                <span>NIP. <?= htmlspecialchars($surat['ttd_nip'] ?: '-', ENT_QUOTES, 'UTF-8') ?></span>
+            </td>
         </tr>
     </table>
 

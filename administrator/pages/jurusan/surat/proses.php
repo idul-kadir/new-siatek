@@ -11,7 +11,7 @@ if (!$sudahLogin) {
     exit;
 }
 
-// Cek apakah tabel surat_custom sudah dibuat di database dan pastikan kolom ukuran_kertas ada
+// Cek apakah tabel surat_custom sudah dibuat di database dan pastikan seluruh kolom esensial ada
 function cek_tabel_surat_custom() {
     $q = query("SHOW TABLES LIKE 'surat_custom'");
     $ada = ($q && mysqli_num_rows($q) > 0);
@@ -19,6 +19,10 @@ function cek_tabel_surat_custom() {
         $qCol = query("SHOW COLUMNS FROM surat_custom LIKE 'ukuran_kertas'");
         if ($qCol && mysqli_num_rows($qCol) === 0) {
             @query("ALTER TABLE surat_custom ADD COLUMN ukuran_kertas VARCHAR(10) NOT NULL DEFAULT 'A4' AFTER pakai_kop");
+        }
+        $qColId = query("SHOW COLUMNS FROM surat_custom LIKE 'id_nomor_surat'");
+        if ($qColId && mysqli_num_rows($qColId) === 0) {
+            @query("ALTER TABLE surat_custom ADD COLUMN id_nomor_surat BIGINT(20) DEFAULT NULL AFTER nomor_surat");
         }
     }
     return $ada;
@@ -373,10 +377,11 @@ if (isset($_POST['ambil-data-pejabat'])) {
         $whereProdi = !empty($prodiKode) ? "WHERE p.kode = '$prodiKode'" : "LIMIT 1";
         $q = query("SELECT p.kode, p.nama AS nama_prodi, p.jenjang, p.kaprodi, d.nama AS nama_dosen, d.nip AS nip_dosen FROM prodi p LEFT JOIN dosen d ON (p.kaprodi = d.id OR p.kaprodi = d.nip) $whereProdi LIMIT 1");
         if ($q && ($r = mysqli_fetch_assoc($q))) {
+            $namaProdiBersih = preg_replace('/^(S1|D3|D4|S2|S3)\s+/i', '', trim($r['nama_prodi']));
             $res['dosen_id'] = $r['kaprodi'] ?? '';
             $res['nama']     = $r['nama_dosen'] ?? '';
             $res['nip']      = $r['nip_dosen'] ?? '';
-            $res['jabatan']  = 'Ketua Program Studi ' . $r['nama_prodi'];
+            $res['jabatan']  = 'Ketua Program Studi ' . $namaProdiBersih;
         }
     }
 
@@ -428,10 +433,12 @@ if (isset($_POST['tambah-data-surat-custom'])) {
     $idNomorSurat = 'NULL';
     if (function_exists('tambah_nomor')) {
         $idReg = tambah_nomor($nomorSurat, "Surat Custom: " . $perihal);
-        if ($idReg) {
-            $idNomorSurat = "'" . bersihkan($idReg) . "'";
+        if ($idReg && is_numeric($idReg)) {
+            $idNomorSurat = (int)$idReg;
         }
     }
+
+    $ttdDosenIdVal = (!empty($ttdDosenId) && is_numeric($ttdDosenId)) ? (int)$ttdDosenId : "NULL";
 
     $sql = "INSERT INTO surat_custom (
         nomor_surat, id_nomor_surat, kategori, perihal, tanggal_surat,
@@ -441,7 +448,7 @@ if (isset($_POST['tambah-data-surat-custom'])) {
     ) VALUES (
         '$nomorSurat', $idNomorSurat, '$kategori', '$perihal', '$tanggalSurat',
         '$tujuan', $pakaiKop, '$ukuranKertas', '$isiSurat', '$penutup', '$ttdJenis',
-        '$ttdProdi', '$ttdDosenId', '$ttdJabatan', '$ttdNama', '$ttdNip',
+        '$ttdProdi', $ttdDosenIdVal, '$ttdJabatan', '$ttdNama', '$ttdNip',
         '$tembusan', '$pembuat'
     )";
 
@@ -451,7 +458,8 @@ if (isset($_POST['tambah-data-surat-custom'])) {
         $insertId = mysqli_insert_id($koneksi);
         echo json_encode(['status' => true, 'pesan' => 'Surat custom berhasil disimpan', 'id' => $insertId]);
     } else {
-        echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan surat custom ke database']);
+        $dbError = mysqli_error($koneksi);
+        echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan surat custom ke database' . ($dbError ? ': ' . $dbError : '')]);
     }
     exit;
 }
@@ -513,6 +521,8 @@ if (isset($_POST['edit-data-surat-custom'])) {
         exit;
     }
 
+    $ttdDosenIdVal = (!empty($ttdDosenId) && is_numeric($ttdDosenId)) ? (int)$ttdDosenId : "NULL";
+
     $sql = "UPDATE surat_custom SET
         nomor_surat   = '$nomorSurat',
         kategori      = '$kategori',
@@ -525,7 +535,7 @@ if (isset($_POST['edit-data-surat-custom'])) {
         penutup       = '$penutup',
         ttd_jenis     = '$ttdJenis',
         ttd_prodi     = '$ttdProdi',
-        ttd_dosen_id  = '$ttdDosenId',
+        ttd_dosen_id  = $ttdDosenIdVal,
         ttd_jabatan   = '$ttdJabatan',
         ttd_nama      = '$ttdNama',
         ttd_nip       = '$ttdNip',
@@ -537,7 +547,8 @@ if (isset($_POST['edit-data-surat-custom'])) {
     if ($update) {
         echo json_encode(['status' => true, 'pesan' => 'Data surat custom berhasil diperbarui']);
     } else {
-        echo json_encode(['status' => false, 'pesan' => 'Gagal memperbarui surat']);
+        $dbError = mysqli_error($koneksi);
+        echo json_encode(['status' => false, 'pesan' => 'Gagal memperbarui surat' . ($dbError ? ': ' . $dbError : '')]);
     }
     exit;
 }

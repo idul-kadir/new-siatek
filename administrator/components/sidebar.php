@@ -50,7 +50,7 @@ $activePage = $activePage ?? '';
         $pengelolaanActive = in_array($activePage, $pengelolaanPages, true);
         ?>
         <div>
-            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pengelolaanActive ? 'open' : '' ?>" data-target="sub-pengelolaan">
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pengelolaanActive ? 'open has-active' : '' ?>" data-target="sub-pengelolaan">
                 <i class="fas fa-folder w-5 text-center text-base"></i>
                 <span class="flex-1 text-left">Pengelolaan</span>
                 <span id="sidebarPengelolaanBadge" class="hidden h-2 w-2 rounded-full bg-orange-500 ring-2 ring-orange-400/40" title="Ada berkas menunggu verifikasi"></span>
@@ -76,10 +76,12 @@ $activePage = $activePage ?? '';
 
                 }
                 $showMenuPenunjukkan = in_array($userLevel, [5, 6, 9], true) && !($userLevel === 5 && $userProdi === '');
+                $showSectionMahasiswa = ($userLevel !== 1);
                 if (false) {
 
                 }
                 ?>
+                <?php if ($showSectionMahasiswa): ?>
                 <div class="nav-section-header">Data Mahasiswa &amp; Alumni</div>
                 <?php if ($showMenuSkripsi): ?>
                 <a href="/redesain-siatek/administrator/mhs-skripsi" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-skripsi' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-book w-5 text-center text-sm opacity-70"></i><span>Skripsi</span></a>
@@ -104,8 +106,9 @@ $activePage = $activePage ?? '';
                 <?php endif; ?>
                 <a href="/redesain-siatek/administrator/mhs-alumni" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-alumni' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-graduation-cap w-5 text-center text-sm opacity-70"></i><span>Data Alumni</span></a>
                 <a href="/redesain-siatek/administrator/mhs-kegiatan" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'mhs-kegiatan' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-calendar w-5 text-center text-sm opacity-70"></i><span>Kegiatan</span></a>
+                <?php endif; ?>
 
-                <div class="nav-section-header border-t border-white/5 mt-2 pt-3">Master &amp; Pengaturan</div>
+                <div class="nav-section-header <?= $showSectionMahasiswa ? 'border-t border-white/5 mt-2 pt-3' : '' ?>">Master &amp; Pengaturan</div>
 
                 <!-- Bimbingan (nested) -->
                 <?php 
@@ -113,7 +116,7 @@ $activePage = $activePage ?? '';
                 if ($showMenuBimbingan):
                 $bimbPages = ['bimbingan-skripsi','bimbingan-kp','bimbingan-pa']; $bimbActive = in_array($activePage, $bimbPages, true); 
                 ?>
-                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $bimbActive ? 'open' : '' ?>" data-target="sub-bimbingan">
+                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $bimbActive ? 'open has-active' : '' ?>" data-target="sub-bimbingan">
                     <i class="fas fa-users w-5 text-center text-sm opacity-70"></i>
                     <span class="flex-1 text-left">Data Bimbingan</span>
                     <i class="fas fa-chevron-right sub-chevron text-xs opacity-50"></i>
@@ -127,7 +130,7 @@ $activePage = $activePage ?? '';
 
                 <!-- Pengguna (nested) -->
                 <?php $pengPages = ['pengguna-mahasiswa','pengguna-dosen']; $pengActive = in_array($activePage, $pengPages, true); ?>
-                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $pengActive ? 'open' : '' ?>" data-target="sub-pengguna">
+                <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $pengActive ? 'open has-active' : '' ?>" data-target="sub-pengguna">
                     <i class="fas fa-id-card w-5 text-center text-sm opacity-70"></i>
                     <span class="flex-1 text-left">Data Pengguna</span>
                     <i class="fas fa-chevron-right sub-chevron text-xs opacity-50"></i>
@@ -144,7 +147,7 @@ $activePage = $activePage ?? '';
         <!-- 3. Pangkalan Data -->
         <?php $pdPages = ['pd-pendidikan','pd-penelitian','pd-pengabdian','pd-penunjang','pd-arsip','pd-skp']; $pdActive = in_array($activePage, $pdPages, true); ?>
         <div>
-            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pdActive ? 'open' : '' ?>" data-target="sub-pangkalan">
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $pdActive ? 'open has-active' : '' ?>" data-target="sub-pangkalan">
                 <i class="fas fa-database w-5 text-center text-base"></i>
                 <span class="flex-1 text-left">Pangkalan Data</span>
                 <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>
@@ -188,7 +191,7 @@ $activePage = $activePage ?? '';
         $jurusanActive = in_array($activePage, $jurusanPages, true);
         ?>
         <div>
-            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $jurusanActive ? 'open' : '' ?>" data-target="sub-jurusan">
+            <button class="nav-item nav-parent w-full flex items-center space-x-3 px-4 py-2.5 rounded-r-lg text-sm font-normal transition <?= $jurusanActive ? 'open has-active' : '' ?>" data-target="sub-jurusan">
                 <i class="fas fa-building w-5 text-center text-base"></i>
                 <span class="flex-1 text-left">Jurusan</span>
                 <i class="fas fa-chevron-right nav-chevron text-xs opacity-50"></i>

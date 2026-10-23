@@ -391,9 +391,31 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!sub) return;
         toggleSubmenu(btn, sub);
     });
+
+    // Auto-ensure active parents for active menu items
+    var activeItem = document.querySelector('#sidebar .nav-active');
+    if (activeItem) {
+        var nestedSub = activeItem.closest('.nav-submenu--nested');
+        if (nestedSub) {
+            nestedSub.classList.add('open');
+            var subParent = document.querySelector('[data-target="' + nestedSub.id + '"]');
+            if (subParent) {
+                subParent.classList.add('open', 'has-active');
+            }
+        }
+        var rootSub = activeItem.closest('.nav-submenu');
+        if (rootSub) {
+            rootSub.classList.add('open');
+            var rootParent = document.querySelector('[data-target="' + rootSub.id + '"]'); if (rootParent) rootParent.classList.add('open', 'has-active'); } } }); /*
+            if (rootParent) {
+                rootParent.classList.add('open', 'has-active');
+            }
+        }
+    }
+    });
 });
 
-// ============= NOTIFIKASI VERIFIKASI BERKAS RINGAN (BADGE SIDEBAR + WEB AUDIO) =============
+*/ // ============= NOTIFIKASI VERIFIKASI BERKAS RINGAN (BADGE SIDEBAR + WEB AUDIO) =============
 (function () {
     'use strict';
 
