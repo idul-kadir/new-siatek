@@ -25,10 +25,16 @@ if ($qP) {
         $daftarProdi[] = $p;
     }
 }
-?>
 
-<!-- TinyMCE 6 Rich Text Editor (Full Word Suite: Table Tools, Colors, Font Formatting, etc.) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
+// Ambil daftar format nomor surat dari DB
+$daftarFormatNomor = [];
+$qFN = query("SELECT id, nama_surat, format_nomor FROM format_nomor_surat ORDER BY id ASC");
+if ($qFN) {
+    while ($fn = mysqli_fetch_assoc($qFN)) {
+        $daftarFormatNomor[] = $fn;
+    }
+}
+?>
 
 <style>
     .content-scroll { overflow-y: auto; min-height: 0; }
@@ -60,19 +66,33 @@ if ($qP) {
         background-size: 16px 16px;
         overflow-y: auto;
         overflow-x: auto;
-        padding: 30px 20px 140px; /* Jarak bawah 140px solid agar batas bawah kertas selalu terlihat utuh saat di-scroll */
+        padding: 24px 20px 140px; /* Jarak bawah solid agar batas bawah kertas selalu terlihat utuh saat di-scroll */
         display: block;
         flex: 1;
         width: 100%;
         text-align: center;
     }
-    .a4-paper-sheet {
+
+    /* Container yang menampung lembar-lembar halaman A4/F4 fisik */
+    #pagesContainer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 36px; /* Jarak meja kerja realistis antar lembar kertas */
+        margin: 0 auto;
+        width: fit-content;
+    }
+
+    /* Satu Lembar Kertas Fisik A4 / F4 — TINGGI TERKUNCI MUTLAK! TIDAK AKAN PERNAH MOLOR KELUAR UKURAN KERTAS */
+    .a4-page {
         background: #ffffff;
         width: 210mm;
+        height: 297mm;
         min-height: 297mm;
-        margin: 0 auto 50px auto;
-        padding: 25mm; /* Margin Mutlak SIATEK 2.5 cm sekeliling */
-        border: 1px solid #94a3b8; /* Garis batas fisik tepi kertas jelas */
+        max-height: 297mm;
+        margin: 0 auto;
+        padding: 20mm 25mm 15mm 25mm;
+        border: 1px solid #94a3b8;
         box-shadow: 0 15px 40px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3);
         font-family: 'Times New Roman', Georgia, serif;
         font-size: 12pt;
@@ -81,20 +101,26 @@ if ($qP) {
         box-sizing: border-box;
         position: relative;
         text-align: left;
-        transition: width .2s ease, min-height .2s ease;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Mutlak: Kertas fisik tidak boleh bertambah panjang saat ditekan enter */
+        transition: width .2s ease, height .2s ease;
     }
-    .a4-paper-sheet.is-f4 {
+    .a4-page.is-f4 {
         width: 215mm;
+        height: 330mm;
         min-height: 330mm;
+        max-height: 330mm;
+        padding: 20mm 25mm 15mm 25mm;
     }
     @media (max-width: 992px) {
         .a4-desk { padding: 15px 10px 100px; }
-        .a4-paper-sheet { width: 100% !important; min-height: auto; padding: 18mm 12mm; }
+        .a4-page { width: 100% !important; height: auto !important; min-height: auto !important; max-height: none !important; padding: 16mm 12mm; }
     }
 
-    /* Kanvas Dokumen Word A4 Bebas (Satu Kesatuan Area Ketik) */
-    .word-canvas {
-        min-height: 230mm;
+    /* Area Editor Ketik di Dalam Halaman (Word-like Rich Text) */
+    .page-editor {
+        flex: 1;
         outline: none;
         font-family: 'Times New Roman', Times, serif;
         font-size: 12pt;
@@ -103,52 +129,99 @@ if ($qP) {
         text-align: justify;
         word-break: break-word;
         cursor: text;
-        padding: 4px 2px;
+        padding: 0;
+        margin: 0;
+        overflow: hidden; /* Mencegah scrollbar internal merusak kertas */
     }
-    .word-canvas:focus {
-        box-shadow: 0 0 0 1px rgba(234, 88, 12, 0.2);
+    .page-editor:focus {
+        box-shadow: none;
     }
-    .word-canvas:empty:before {
+    .page-editor:empty:before {
         content: attr(data-placeholder);
         color: #94a3b8;
         font-style: italic;
         pointer-events: none;
         display: block;
     }
-    .word-canvas p {
+    .page-editor p {
         margin: 0 0 0.35rem 0;
         line-height: inherit;
     }
-    .word-canvas table {
+    .page-editor table {
         width: 100%;
         border-collapse: collapse;
         margin: 8px 0;
         font-size: inherit;
     }
-    .word-canvas table td, .word-canvas table th {
+    .page-editor table td, .page-editor table th {
         padding: 4px 6px;
         vertical-align: top;
     }
-    .word-canvas table.border-grid td, .word-canvas table.border-grid th,
-    .word-canvas table.table-bordered td, .word-canvas table.table-bordered th {
+    .page-editor table.border-grid td, .page-editor table.border-grid th,
+    .page-editor table.table-bordered td, .page-editor table.table-bordered th {
         border: 1px solid #000;
     }
-    .word-canvas table.borderless td, .word-canvas table.borderless th,
-    .word-canvas table.table-borderless td, .word-canvas table.table-borderless th {
+    .page-editor table.borderless td, .page-editor table.borderless th,
+    .page-editor table.table-borderless td, .page-editor table.table-borderless th {
         border: none !important;
     }
-    .word-canvas ol {
+    .page-editor ol {
         margin: 4px 0 6px 24px;
         padding-left: 0;
         list-style-type: decimal;
     }
-    .word-canvas ul {
+    .page-editor ul {
         margin: 4px 0 6px 20px;
         padding-left: 0;
         list-style-type: disc;
     }
-    .word-canvas li {
+    .page-editor li {
         margin-bottom: 2px;
+    }
+    .page-editor img {
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+        margin: 6px auto;
+        border-radius: 2px;
+    }
+    .page-editor hr {
+        border: 0;
+        border-top: 1px solid #000;
+        margin: 10px 0;
+    }
+
+    /* Footer Batas Bawah Halaman (Visual Guide Nomor Halaman) */
+    .page-footer-guide {
+        height: 22px;
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1.5px dashed #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #94a3b8;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        user-select: none;
+        pointer-events: auto;
+    }
+    .btn-hapus-halaman {
+        background: #fee2e2;
+        color: #ef4444;
+        border: 1px solid #fca5a5;
+        border-radius: 4px;
+        padding: 1px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+    .btn-hapus-halaman:hover {
+        background: #ef4444;
+        color: #ffffff;
+    }
     }
     .word-canvas img {
         max-width: 100%;
@@ -175,38 +248,8 @@ if ($qP) {
         gap: 6px;
         z-index: 30;
     }
-    .desk-top-ribbon .tox-tinymce-inline {
-        z-index: 30 !important;
-        border: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
-    }
-    .desk-top-ribbon .tox.tox-tinymce-inline .tox-editor-header {
-        background: #0f172a !important;
-        border: none !important;
-    }
-    .desk-top-ribbon .tox .tox-menubar,
-    .desk-top-ribbon .tox .tox-toolbar,
-    .desk-top-ribbon .tox .tox-toolbar__primary,
-    .desk-top-ribbon .tox .tox-toolbar__overflow {
-        background: #0f172a !important;
-        border: none !important;
-    }
-    .desk-top-ribbon .tox .tox-mbtn,
-    .desk-top-ribbon .tox .tox-tbtn {
-        color: #e2e8f0 !important;
-    }
-    .desk-top-ribbon .tox .tox-mbtn:hover,
-    .desk-top-ribbon .tox .tox-tbtn:hover {
-        background: #334155 !important;
-        color: #ffffff !important;
-    }
-    .desk-top-ribbon .tox .tox-tbtn--enabled {
-        background: #ea580c !important;
-        color: #ffffff !important;
-    }
 
-    /* Tombol & Input Tool di Sidebar */
+    /* Tombol & Input Tool di Ribbon & Sidebar */
     .sb-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: .375rem; color: #cbd5e1; background: #1e293b; border: 1px solid #334155; transition: all .12s ease; font-size: .8rem; }
     .sb-btn:hover { background: #334155; color: #fff; border-color: #475569; }
     .sb-btn.active { background: #ea580c; color: #fff; border-color: #ea580c; }
@@ -317,11 +360,11 @@ if ($qP) {
 <div class="canvas-overlay" id="canvasModal" role="dialog" aria-modal="true">
     <div class="flex flex-col w-full h-full bg-slate-900 overflow-hidden">
 
-        <!-- ===== BARIS 1: TOP APPLICATION BAR (DOKUMEN, KOP, NOMOR, TTD, SIMPAN, CETAK, TUTUP) ===== -->
+        <!-- ===== BARIS 1: TOP APPLICATION BAR (DOKUMEN TITLE & ACTIONS) ===== -->
         <header class="h-14 shrink-0 bg-slate-950 border-b border-slate-800 px-4 flex items-center justify-between gap-3 text-slate-200 z-40">
             <!-- Sisi Kiri: Ikon & Judul / Perihal Dokumen -->
-            <div class="flex items-center gap-3 flex-1 min-w-0 max-w-xl">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white text-sm font-bold shadow">
+            <div class="flex items-center gap-3 flex-1 min-w-0 max-w-2xl">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white text-base font-bold shadow">
                     <i class="fas fa-file-lines"></i>
                 </span>
                 <div class="flex-1 min-w-0">
@@ -332,81 +375,29 @@ if ($qP) {
                 </div>
             </div>
 
-            <!-- Sisi Tengah: Pengaturan Dokumen (Kop, Ukuran Kertas, No Surat, Tanggal, Sisip TTD) -->
-            <div class="flex items-center gap-2 text-xs">
-                <!-- Toggle Kop Resmi -->
-                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800 text-slate-300 select-none transition" title="Gunakan Kop Surat Resmi Jurusan UNG">
-                    <input type="checkbox" id="swPakaiKop" class="rounded text-orange-500 focus:ring-0" checked>
-                    <span class="font-medium text-[11px]">Kop Resmi</span>
-                </label>
-
-                <!-- Pilihan Ukuran Kertas (A4 / F4) -->
-                <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700 rounded-lg p-0.5" title="Pilih Ukuran Kertas Cetak">
-                    <span class="text-[10px] text-slate-400 font-bold px-1.5"><i class="fas fa-scroll text-orange-400 mr-1"></i>Kertas:</span>
-                    <select id="swUkuranKertas" class="bg-slate-900 border border-slate-700 text-white font-semibold text-[11px] rounded px-2 py-0.5 outline-none cursor-pointer">
-                        <option value="A4" selected>A4 (210×297 mm)</option>
-                        <option value="F4">F4 / Folio (215×330 mm)</option>
-                    </select>
-                </div>
-
-                <!-- Nomor Surat (Input + Auto No + Sisipkan) -->
-                <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1">
-                    <span class="text-[11px] text-slate-400 font-medium">No:</span>
-                    <input type="text" id="swNomorSurat" class="bg-transparent border-none text-[11px] text-white font-mono w-44 outline-none placeholder:text-slate-500" placeholder="Nomor surat...">
-                    <button type="button" id="btnTarikNomor" class="text-[10px] text-orange-400 hover:text-orange-300 font-semibold px-1 py-0.5 rounded hover:bg-slate-700" title="Tarik nomor surat otomatis berikutnya dari SIATEK">
-                        <i class="fas fa-sync-alt"></i> Auto
-                    </button>
-                    <button type="button" id="btnSisipNomor" class="text-[10px] text-slate-400 hover:text-white font-medium px-1 py-0.5 rounded hover:bg-slate-700" title="Sisipkan nomor surat ke posisi kursor pada lembar">
-                        +Sisip
-                    </button>
-                </div>
-
-                <!-- Tanggal Dokumen -->
-                <input type="date" id="swTanggalSurat" class="bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 text-[11px] px-2 py-1 outline-none focus:border-orange-500" value="<?= date('Y-m-d') ?>">
-
-                <!-- Kategori Dokumen -->
-                <select id="swKategori" class="bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 text-[11px] px-2 py-1 outline-none">
-                    <option value="Undangan">Undangan</option>
-                    <option value="Surat Keterangan">Surat Keterangan</option>
-                    <option value="Surat Pemberitahuan">Surat Pemberitahuan</option>
-                    <option value="Surat Tugas">Surat Tugas</option>
-                    <option value="Surat Pengantar">Surat Pengantar</option>
-                    <option value="Lainnya">Lainnya</option>
-                </select>
-
-                <!-- Sisip TTD Pejabat (Kajur, Sekjur, Kaprodi) -->
-                <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700 rounded-lg p-0.5">
-                    <select id="swTtdJenis" class="bg-transparent border-none text-slate-300 text-[11px] px-1 py-0.5 outline-none cursor-pointer">
-                        <option value="kajur" selected class="bg-slate-900 text-white">Kajur</option>
-                        <option value="sekjur" class="bg-slate-900 text-white">Sekjur</option>
-                        <option value="kaprodi" class="bg-slate-900 text-white">Kaprodi</option>
-                    </select>
-                    <select id="swTtdProdi" class="hidden bg-transparent border-none text-slate-300 text-[11px] px-1 py-0.5 outline-none cursor-pointer max-w-[120px]">
-                        <?php foreach ($daftarProdi as $pr): ?>
-                        <option value="<?= htmlspecialchars($pr['kode']) ?>" class="bg-slate-900 text-white"><?= htmlspecialchars(($pr['jenjang'] ? $pr['jenjang'] . ' ' : '') . $pr['nama']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="button" id="btnSisipTtd" class="px-2 py-1 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-semibold rounded transition flex items-center gap-1 shadow-sm" title="Sisipkan blok tanda tangan pejabat pada posisi kursor">
-                        <i class="fas fa-file-signature text-[10px]"></i> Sisip TTD
-                    </button>
-                </div>
+            <!-- Sisi Tengah: Quick Status Halaman -->
+            <div class="hidden sm:flex items-center gap-2">
+                <span id="pageCountDisplay" class="text-xs text-sky-400 font-bold bg-slate-900 px-3 py-1 rounded-full border border-slate-800 shadow-inner flex items-center gap-1.5">
+                    <i class="fas fa-layer-group text-[10px]"></i> 1 Halaman
+                </span>
             </div>
 
             <!-- Sisi Kanan: Tombol Aksi Simpan, Cetak, Tutup -->
-            <div class="flex items-center gap-2">
-                <button type="button" id="btnSimpanCanvas" class="py-1.5 px-3 text-xs font-bold rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow transition flex items-center gap-1.5">
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" id="btnSimpanCanvas" class="py-2 px-3.5 text-xs font-bold rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow transition flex items-center gap-1.5">
                     <i class="fas fa-save"></i> <span>Simpan</span>
                 </button>
-                <button type="button" id="btnCetakCanvas" class="py-1.5 px-3 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow transition flex items-center gap-1.5" title="Cetak Dokumen Resmi ke Printer / Simpan PDF">
+                <button type="button" id="btnCetakCanvas" class="py-2 px-3.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow transition flex items-center gap-1.5" title="Cetak Dokumen Resmi ke Printer / Simpan PDF">
                     <i class="fas fa-print"></i> <span id="labelTombolCetak">Cetak Surat</span>
                 </button>
-                <button type="button" data-canvas-close class="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition text-lg" title="Tutup Editor">
+                <div class="h-6 w-[1px] bg-slate-800 mx-1"></div>
+                <button type="button" data-canvas-close class="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition text-lg font-bold" title="Tutup Editor">
                     &times;
                 </button>
             </div>
         </header>
 
-        <!-- ===== BARIS 2: WORD RIBBON TOOLBAR (UNTUK TINYMCE / NATIVE RICH TEXT) ===== -->
+        <!-- ===== BARIS 2: WORD RIBBON TOOLBAR (FORMATTING ALIGNMENT, FONT, TABEL, DSB) ===== -->
         <header class="desk-top-ribbon shrink-0" id="deskTopRibbon">
             <div id="fallbackRibbon" class="flex flex-wrap items-center gap-1.5 w-full text-xs">
                 <!-- Font & Size -->
@@ -485,6 +476,13 @@ if ($qP) {
 
                 <div class="h-5 w-[1px] bg-slate-700 mx-0.5"></div>
 
+                <!-- Tambah Halaman Baru A4 / F4 (Word-like Multi-Page) -->
+                <button type="button" id="btnTambahHalaman" class="sb-btn !w-auto !px-2.5 text-[11px] gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-sm border-blue-500" title="Tambah Halaman Baru (Shortcut: Ctrl+Enter)">
+                    <i class="fas fa-file-circle-plus"></i><span>+ Halaman Baru</span>
+                </button>
+
+                <div class="h-5 w-[1px] bg-slate-700 mx-0.5"></div>
+
                 <!-- Undo & Redo -->
                 <button type="button" class="sb-btn" data-cmd="undo" title="Urungkan (Undo)"><i class="fas fa-rotate-left"></i></button>
                 <button type="button" class="sb-btn" data-cmd="redo" title="Ulangi (Redo)"><i class="fas fa-rotate-right"></i></button>
@@ -492,40 +490,178 @@ if ($qP) {
             </div>
         </header>
 
-        <!-- ===== BARIS 3: MEJA KERJA A4 (KERTAS 100% POLOS / KOSONG BEBAS DIKETIK) ===== -->
-        <main class="a4-desk flex-1 overflow-y-auto" id="deskScroll">
-            <div class="a4-paper-sheet" id="paperSheet">
+        <!-- ===== BARIS 3: AREA UTAMA (MEJA KERJA KERTAS + SIDEBAR PENGATURAN DI SAMPING KANAN) ===== -->
+        <div class="flex-1 flex overflow-hidden min-h-0 relative">
+            <!-- MEJA KERJA A4 (KERTAS 100% POLOS / KOSONG BEBAS DIKETIK, MULTI-HALAMAN WORD) -->
+            <main class="a4-desk flex-1 overflow-y-auto" id="deskScroll">
                 <input type="hidden" id="cvId" value="">
 
-                <!-- KOP SURAT RESMI (ON / OFF DARI HEADER) -->
-                <div id="cvKop" style="position: relative; min-height: 24mm; margin-bottom: 4px; user-select: none;">
-                    <img src="<?= base_url() ?>/surat/img/logo.png" alt="Logo UNG" style="position: absolute; top: 0; left: 0; width: 22mm;">
-                    <div style="text-align: center; margin: 0 22mm;">
-                        <p style="font-size: 12pt; margin: 0; line-height: 1.22;">KEMENTERIAN PENDIDIKAN,KEBUDAYAAN,<br>RISET DAN TEKNOLOGI<br>UNIVERSITAS NEGERI GORONTALO<br>FAKULTAS TEKNIK<br>JURUSAN TEKNIK ELEKTRO DAN KOMPUTER</p>
-                        <p style="font-size: 10pt; margin: 0; line-height: 1.22;">Jalan B.J.Habibie Desa Moutong Kecamatan Tilongkabila Kab.Bone Bolango<br>Telp. (0435) 821125, Fax. (0435) 821752 Gorontalo<br>Laman :http:// www.ft.ung.ac.id</p>
-                    </div>
-                    <hr style="border: 1.5px solid #000; margin: 4px 0 0;">
-                </div>
-                <div id="cvSpacerNoKop" style="height: 12mm; display: none;"></div>
+                <!-- CONTAINER LEMBAR-LEMBAR HALAMAN A4 / F4 -->
+                <div id="pagesContainer"></div>
+            </main>
 
-                <!-- AREA LEMBAR KERJA 100% POLOS / KOSONG BEBAS EDIT SEPERTI WORD -->
-                <div id="wordCanvas"
-                     contenteditable="true"
-                     spellcheck="false"
-                     class="word-canvas"
-                     data-placeholder="Ketik surat Anda di sini... Lembar ini 100% polos layaknya Microsoft Word. Tekan Enter untuk membuat baris kosong, hapus apa saja dengan Backspace, atur format teks, atau sisipkan tabel dan gambar tanpa batas.">
-                </div>
-
-                <!-- INDIKATOR BATAS BAWAH KERTAS (VISUAL GUIDE) -->
-                <div id="paperBottomGuide" class="paper-bottom-guide select-none" style="margin-top: 35px; padding-top: 12px; border-top: 1.5px dashed #cbd5e1; text-align: center; color: #94a3b8; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; pointer-events: none;">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-500 shadow-sm border border-slate-200">
-                        <i class="fas fa-arrows-down-to-line text-orange-500"></i>
-                        <span id="labelBatasBawah">Batas Bawah Kertas A4 (297 mm &bull; Margin Bawah 2.5 cm)</span>
+            <!-- SIDEBAR PENGATURAN DOKUMEN DI SAMPING KANAN (RAPI, TIDAK PADAT DI ATAS) -->
+            <aside class="w-80 shrink-0 bg-slate-950 border-l border-slate-800 flex flex-col h-full overflow-hidden z-20 shadow-xl" id="docSidebar">
+                <div class="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fas fa-sliders text-orange-400"></i> Pengaturan Surat
                     </span>
+                    <span class="text-[10px] text-slate-500 font-mono">SIATEK v2</span>
                 </div>
 
-            </div>
-        </main>
+                <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar text-xs">
+                    <!-- 1. KERTAS & KOP SURAT -->
+                    <div class="bg-slate-900/90 rounded-xl border border-slate-800 p-3 space-y-3">
+                        <div class="sb-section-title">
+                            <i class="fas fa-file-lines text-orange-400"></i> Kertas & Kop Surat
+                        </div>
+
+                        <!-- Ukuran Kertas -->
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Ukuran Kertas:</label>
+                            <select id="swUkuranKertas" class="sb-select font-medium">
+                                <option value="A4" selected>A4 (210 &times; 297 mm)</option>
+                                <option value="F4">F4 / Folio (215 &times; 330 mm)</option>
+                            </select>
+                        </div>
+
+                        <!-- Toggle Kop Resmi -->
+                        <div class="pt-1">
+                            <label class="flex items-center justify-between p-2 rounded-lg bg-slate-800/80 border border-slate-700/80 cursor-pointer hover:bg-slate-800 transition">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-heading text-sky-400"></i>
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-200">Kop Resmi UNG</div>
+                                        <div class="text-[10px] text-slate-400">Tampilkan kop jurusan di hal. 1</div>
+                                    </div>
+                                </div>
+                                <input type="checkbox" id="swPakaiKop" class="rounded text-orange-500 focus:ring-0 w-4 h-4 cursor-pointer" checked>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. IDENTITAS & NOMOR SURAT -->
+                    <div class="bg-slate-900/90 rounded-xl border border-slate-800 p-3 space-y-3">
+                        <div class="sb-section-title">
+                            <i class="fas fa-hashtag text-orange-400"></i> Nomor & Kategori
+                        </div>
+
+                        <!-- Kategori Dokumen -->
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Kategori Dokumen:</label>
+                            <select id="swKategori" class="sb-select font-medium">
+                                <option value="Undangan">Undangan</option>
+                                <option value="Surat Keterangan">Surat Keterangan</option>
+                                <option value="Surat Pemberitahuan">Surat Pemberitahuan</option>
+                                <option value="Surat Tugas">Surat Tugas</option>
+                                <option value="Surat Pengantar">Surat Pengantar</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+
+                        <!-- Format Nomor Surat (Dari tabel format_nomor_surat) -->
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">
+                                <i class="fas fa-list-ol text-orange-400 mr-1"></i>Pilih Format Nomor:
+                            </label>
+                            <select id="swPilihFormatNomor" class="sb-select font-medium text-[11px]">
+                                <option value="">-- Format Otomatis Sesuai Kategori --</option>
+                                <?php foreach ($daftarFormatNomor as $dfn): ?>
+                                <option value="<?= $dfn['id'] ?>" data-fmt="<?= htmlspecialchars($dfn['format_nomor']) ?>">
+                                    <?= htmlspecialchars(trim($dfn['nama_surat'])) ?> (<?= htmlspecialchars(trim($dfn['format_nomor'])) ?>)
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Nomor Surat -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[11px] text-slate-400 font-semibold">Nomor Surat:</label>
+                                <button type="button" id="btnTarikNomor" class="text-[10px] text-orange-400 hover:text-orange-300 font-bold flex items-center gap-1 transition" title="Tarik nomor urut berikutnya (+1 tahun ini) dari sistem">
+                                    <i class="fas fa-sync-alt"></i> Auto No (+1)
+                                </button>
+                            </div>
+                            <input type="text" id="swNomorSurat" class="sb-input font-mono text-xs" placeholder="Ketik / tarik nomor...">
+                            <div class="mt-1.5 flex justify-end">
+                                <button type="button" id="btnSisipNomor" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-[11px] font-medium border border-slate-700 transition flex items-center gap-1">
+                                    <i class="fas fa-plus text-[9px] text-orange-400"></i> Sisipkan Nomor ke Kursor
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tanggal Surat & Opsi Cetak di Surat -->
+                        <div class="pt-1 border-t border-slate-800/80">
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Tanggal Surat:</label>
+                            <input type="date" id="swTanggalSurat" class="sb-input" value="<?= date('Y-m-d') ?>">
+
+                            <!-- Checkbox Tanggal Digunakan di Dalam Surat -->
+                            <div class="mt-2.5 p-2 rounded-lg bg-slate-800/80 border border-slate-700/80 space-y-2">
+                                <label class="flex items-start gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" id="swPakaiTanggalHeader" class="rounded text-orange-500 focus:ring-0 w-4 h-4 mt-0.5 cursor-pointer" checked>
+                                    <div>
+                                        <div class="text-[11px] font-semibold text-slate-200">Gunakan Tanggal di Bawah Kop</div>
+                                        <div class="text-[10px] text-slate-400 leading-tight">Posisi di bawah kop sebelah kanan: <span id="previewTglKanan" class="text-sky-300 font-medium">Gorontalo, <?= function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d F Y') ?></span></div>
+                                    </div>
+                                </label>
+
+                                <button type="button" id="btnSisipTanggalKursor" class="w-full py-1 px-2 bg-slate-900 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-[10px] font-medium border border-slate-700 transition flex items-center justify-center gap-1" title="Sisipkan teks tanggal langsung ke posisi kursor saat ini">
+                                    <i class="fas fa-calendar-day text-orange-400"></i> Sisip Tanggal ke Posisi Kursor
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. PENANDATANGAN (TTD PEJABAT) -->
+                    <div class="bg-slate-900/90 rounded-xl border border-slate-800 p-3 space-y-3">
+                        <div class="sb-section-title">
+                            <i class="fas fa-file-signature text-orange-400"></i> Tanda Tangan Pejabat
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Pilih Jabatan:</label>
+                            <select id="swTtdJenis" class="sb-select font-medium">
+                                <option value="kajur" selected>Ketua Jurusan</option>
+                                <option value="sekjur">Sekretaris Jurusan</option>
+                                <option value="kaprodi">Ketua Program Studi</option>
+                            </select>
+                        </div>
+
+                        <div id="wrapTtdProdi" class="hidden">
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Pilih Program Studi:</label>
+                            <select id="swTtdProdi" class="sb-select font-medium">
+                                <?php foreach ($daftarProdi as $pr): ?>
+                                <option value="<?= htmlspecialchars($pr['kode']) ?>"><?= htmlspecialchars(($pr['jenjang'] ? $pr['jenjang'] . ' ' : '') . $pr['nama']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-[11px] space-y-1">
+                            <div class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Preview Pejabat:</div>
+                            <div id="previewTtdNama" class="text-white font-semibold truncate">Nama Pejabat</div>
+                            <div id="previewTtdNip" class="text-slate-400 font-mono text-[10px]">NIP. -</div>
+                        </div>
+
+                        <button type="button" id="btnSisipTtd" class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-sm text-xs">
+                            <i class="fas fa-file-signature"></i> Sisipkan TTD ke Posisi Kursor
+                        </button>
+                    </div>
+
+                    <!-- 4. KONTROL LEMBAR HALAMAN -->
+                    <div class="bg-slate-900/90 rounded-xl border border-slate-800 p-3 space-y-2">
+                        <div class="sb-section-title">
+                            <i class="fas fa-copy text-orange-400"></i> Kelola Halaman
+                        </div>
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            Ketik bebas seperti Microsoft Word. Saat baris mencapai batas bawah kertas, otomatis lanjut ke halaman berikutnya (atau tekan <b>Ctrl + Enter</b>).
+                        </p>
+                        <button type="button" onclick="$('#btnTambahHalaman').trigger('click')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5 text-xs">
+                            <i class="fas fa-plus text-sky-400"></i> + Tambah Lembar Baru
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
     </div>
 </div>
 
@@ -570,6 +706,21 @@ if ($qP) {
         }
     }
 
+    // Update Banner Tanggal di Bawah Kop Surat (Kanan)
+    function updateTanggalHeaderCanvas() {
+        var pakai = $('#swPakaiTanggalHeader').is(':checked');
+        var tglVal = $('#swTanggalSurat').val();
+        var tglTeks = 'Gorontalo, ' + formatTglIndo(tglVal);
+        $('#previewTglKanan').text(tglTeks);
+
+        if (pakai) {
+            $('#cvTanggalWrap').show();
+            $('#cvTanggalText').text(tglTeks);
+        } else {
+            $('#cvTanggalWrap').hide();
+        }
+    }
+
     // Load data pejabat dari DB
     function loadPejabat(jenis, prodi, callback) {
         $.ajax({
@@ -584,117 +735,27 @@ if ($qP) {
             success: function(res) {
                 if (res.status && res.data) {
                     currentPejabat = res.data;
+                    $('#previewTtdNama').text(res.data.nama || 'Nama Pejabat');
+                    $('#previewTtdNip').text('NIP. ' + (res.data.nip || '-'));
                     if (typeof callback === 'function') callback(res.data);
                 }
             }
         });
     }
 
-    // ================= RICH TEXT ENGINE (TINYMCE + NATIVE FALLBACK) =================
-    function initTinyMCE() {
-        if (!window.tinymce) return false;
-        if (tinymce.get('wordCanvas')) return true;
+    // ================= MULTI-PAGE A4 WORD SYSTEM & NATIVE RICH TEXT ENGINE =================
+    var currentActiveEditor = null;
+    var savedRange = null;
 
-        try {
-            tinymce.init({
-                selector: '#wordCanvas',
-                inline: true,
-                toolbar_persist: true,
-                fixed_toolbar_container: '#deskTopRibbon',
-                menubar: 'edit insert view format table tools',
-                menu: {
-                    edit: { title: 'Edit', items: 'undo redo | cut copy paste | selectall' },
-                    insert: { title: 'Sisipkan', items: 'image link table hr | charmap emoticons | insertdatetime' },
-                    view: { title: 'Tampilan', items: 'visualaid visualblocks' },
-                    format: { title: 'Format', items: 'bold italic underline strikethrough superscript subscript | styles blocks fontfamily fontsize align lineheight | forecolor backcolor | removeformat' },
-                    table: { title: 'Tabel', items: 'inserttable | cell row column | tableprops deletetable' },
-                    tools: { title: 'Alat', items: 'code wordcount' }
-                },
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'media', 'table', 'wordcount'
-                ],
-                toolbar: [
-                    'undo redo | fontfamily fontsize | bold italic underline strikethrough forecolor backcolor | alignleft aligncenter alignright alignjustify | lineheight',
-                    'bullist numlist outdent indent | table tableprops | image hr | removeformat code'
-                ],
-                font_family_formats: 'Times New Roman=times new roman,times,serif; Arial=arial,helvetica,sans-serif; Calibri=calibri,sans-serif; Georgia=georgia,serif',
-                font_size_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 24pt 36pt',
-                line_height_formats: '1 1.15 1.25 1.35 1.5 2',
-                table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | tablecellprops tablemergecells tablesplitcells',
-                table_appearance_options: true,
-                table_advtab: true,
-                table_cell_advtab: true,
-                table_row_advtab: true,
-                skin: 'oxide-dark',
-                content_css: 'default',
-                images_upload_handler: function (blobInfo, progress) {
-                    return new Promise(function (resolve, reject) {
-                        var xhr = new XMLHttpRequest();
-                        xhr.open('POST', PROSES_URL);
-                        xhr.onload = function () {
-                            if (xhr.status !== 200) {
-                                reject('HTTP Error: ' + xhr.status);
-                                return;
-                            }
-                            try {
-                                var json = JSON.parse(xhr.responseText);
-                                if (!json || !json.status || !json.url) {
-                                    reject(json.pesan || 'Gagal mengunggah gambar');
-                                    return;
-                                }
-                                resolve(json.url);
-                            } catch (e) {
-                                reject('Respon server tidak valid');
-                            }
-                        };
-                        xhr.onerror = function () {
-                            reject('Koneksi upload gambar gagal');
-                        };
-                        var formData = new FormData();
-                        formData.append('gambar_surat', blobInfo.blob(), blobInfo.filename());
-                        formData.append('upload-gambar-surat', '1');
-                        xhr.send(formData);
-                    });
-                },
-                setup: function (editor) {
-                    editor.on('init', function () {
-                        $('#fallbackRibbon').hide();
-                    });
-                }
-            });
-            return true;
-        } catch (e) {
-            console.warn('TinyMCE initialization error, using native fallback:', e);
-            return false;
+    function getActiveEditor() {
+        if (currentActiveEditor && document.body.contains(currentActiveEditor)) {
+            return currentActiveEditor;
         }
+        var firstEd = document.querySelector('.page-editor');
+        return firstEd;
     }
 
-    function setCanvasContent(html) {
-        if (window.tinymce && tinymce.get('wordCanvas')) {
-            tinymce.get('wordCanvas').setContent(html);
-        } else {
-            $('#wordCanvas').html(html);
-        }
-    }
-
-    function getCanvasContent() {
-        if (window.tinymce && tinymce.get('wordCanvas')) {
-            return tinymce.get('wordCanvas').getContent();
-        }
-        return $('#wordCanvas').html().trim();
-    }
-
-    function insertCanvasContent(html) {
-        if (window.tinymce && tinymce.get('wordCanvas')) {
-            tinymce.get('wordCanvas').insertContent(html);
-        } else {
-            insertHtmlAtCursor(html);
-        }
-    }
-
-    // Simpan & Pulihkan Seleksi Kursor (Untuk Fallback Native)
+    // Simpan & Pulihkan Seleksi Kursor (Untuk Format Toolbar)
     function saveSelection() {
         var sel = window.getSelection();
         if (sel && sel.rangeCount > 0) {
@@ -703,19 +764,23 @@ if ($qP) {
     }
 
     function restoreSelection() {
-        var canvas = document.getElementById('wordCanvas');
-        if (savedRange) {
-            var sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(savedRange);
-        } else {
-            canvas.focus();
+        var ed = getActiveEditor();
+        if (ed) {
+            if (savedRange && ed.contains(savedRange.commonAncestorContainer)) {
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            } else {
+                ed.focus();
+            }
         }
     }
 
     function insertHtmlAtCursor(html) {
+        var ed = getActiveEditor();
+        if (!ed) return;
         restoreSelection();
-        document.getElementById('wordCanvas').focus();
+        ed.focus();
         if (document.queryCommandSupported('insertHTML')) {
             document.execCommand('insertHTML', false, html);
         } else {
@@ -740,6 +805,173 @@ if ($qP) {
             }
         }
         saveSelection();
+    }
+
+    function insertCanvasContent(html) {
+        insertHtmlAtCursor(html);
+    }
+
+    function updatePageCountBadge() {
+        var total = $('#pagesContainer .a4-page').length;
+        $('#pageCountDisplay').text(total + ' Halaman');
+        var isF4 = ($('#swUkuranKertas').val() === 'F4');
+        var sizeText = isF4 ? 'F4 (330 mm)' : 'A4 (297 mm)';
+
+        $('#pagesContainer .a4-page').each(function(idx) {
+            var pNum = idx + 1;
+            $(this).attr('data-page', pNum);
+            $(this).find('.page-num-text').text(pNum);
+            $(this).find('.page-badge-num').text('Hal. ' + pNum);
+            $(this).find('.page-size-text').text(sizeText);
+
+            var btnDel = $(this).find('.btn-hapus-halaman');
+            if (pNum > 1) {
+                btnDel.show();
+            } else {
+                btnDel.hide();
+            }
+        });
+    }
+
+    function createPageHtml(pageIndex, contentHtml) {
+        var isF4 = ($('#swUkuranKertas').val() === 'F4');
+        var f4Class = isF4 ? ' is-f4' : '';
+        var sizeLabel = isF4 ? 'F4 (330 mm)' : 'A4 (297 mm)';
+        var edId = 'pageEditor_' + pageIndex + '_' + Math.random().toString(36).substr(2, 6);
+        var innerContent = (contentHtml !== undefined && contentHtml !== null && contentHtml.trim() !== '') ? contentHtml : '<p><br></p>';
+
+        var html = '<div class="a4-page' + f4Class + '" data-page="' + pageIndex + '">';
+
+        // Kop Surat HANYA untuk Halaman 1
+        if (pageIndex === 1) {
+            html += '<div id="cvKop" style="position: relative; min-height: 24mm; margin-bottom: 4px; user-select: none;">' +
+                '<img src="<?= base_url() ?>/surat/img/logo.png" alt="Logo UNG" style="position: absolute; top: 0; left: 0; width: 22mm;">' +
+                '<div style="text-align: center; margin: 0 22mm;">' +
+                    '<p style="font-size: 12pt; margin: 0; line-height: 1.22;">KEMENTERIAN PENDIDIKAN,KEBUDAYAAN,<br>RISET DAN TEKNOLOGI<br>UNIVERSITAS NEGERI GORONTALO<br>FAKULTAS TEKNIK<br>JURUSAN TEKNIK ELEKTRO DAN KOMPUTER</p>' +
+                    '<p style="font-size: 10pt; margin: 0; line-height: 1.22;">Jalan B.J.Habibie Desa Moutong Kecamatan Tilongkabila Kab.Bone Bolango<br>Telp. (0435) 821125, Fax. (0435) 821752 Gorontalo<br>Laman :http:// www.ft.ung.ac.id</p>' +
+                '</div>' +
+                '<hr style="border: 1.5px solid #000; margin: 4px 0 0;">' +
+            '</div>' +
+            '<div id="cvSpacerNoKop" style="height: 12mm; display: none;"></div>' +
+            '<!-- TANGGAL SURAT DI BAWAH KOP SEBELAH KANAN -->' +
+            '<div id="cvTanggalWrap" style="text-align: right; margin-top: 6px; margin-bottom: 10px; font-family: \'Times New Roman\', Times, serif; font-size: 12pt; user-select: none;">' +
+                '<span id="cvTanggalText">Gorontalo, <?= function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('d F Y') ?></span>' +
+            '</div>';
+        }
+
+        var placeholder = (pageIndex === 1)
+            ? "Ketik surat Anda di sini... Lembar ini 100% polos layaknya Microsoft Word. Tekan Enter untuk baris baru. Tekan Ctrl+Enter atau klik '+ Halaman Baru' untuk menambah lembar ke-2."
+            : "Ketik isi halaman " + pageIndex + " di sini...";
+
+        html += '<div id="' + edId + '" class="page-editor" contenteditable="true" spellcheck="false" data-placeholder="' + placeholder + '">' +
+            innerContent +
+        '</div>';
+
+        html += '<div class="page-footer-guide select-none">' +
+            '<span class="inline-flex items-center gap-1.5">' +
+                '<i class="fas fa-file-lines text-orange-500"></i>' +
+                '<span>Halaman <b class="page-num-text text-slate-700">' + pageIndex + '</b> &bull; Kertas <span class="page-size-text">' + sizeLabel + '</span></span>' +
+            '</span>' +
+            '<span class="page-badge-num px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-[10px]">Hal. ' + pageIndex + '</span>' +
+            '<button type="button" class="btn-hapus-halaman" style="' + (pageIndex > 1 ? '' : 'display:none;') + '" title="Hapus Halaman ' + pageIndex + '">&times; Hapus Halaman</button>' +
+        '</div>';
+
+        html += '</div>';
+        return html;
+    }
+
+    function renderPages(contentsArray) {
+        if (!contentsArray || contentsArray.length === 0) {
+            contentsArray = ['<p><br></p>'];
+        }
+
+        var container = $('#pagesContainer');
+        container.empty();
+
+        for (var i = 0; i < contentsArray.length; i++) {
+            var pageNum = i + 1;
+            var pageHtml = createPageHtml(pageNum, contentsArray[i]);
+            container.append(pageHtml);
+        }
+
+        var pakaiKop = $('#swPakaiKop').is(':checked');
+        updateKopCanvas(pakaiKop);
+        updateTanggalHeaderCanvas();
+
+        updatePageCountBadge();
+
+        setTimeout(function() {
+            var firstEd = document.querySelector('.page-editor');
+            if (firstEd) {
+                currentActiveEditor = firstEd;
+                firstEd.focus();
+            }
+        }, 50);
+    }
+
+    function tambahHalamanBaru(contentHtml) {
+        var nextNum = $('#pagesContainer .a4-page').length + 1;
+        var pageHtml = createPageHtml(nextNum, contentHtml || '<p><br></p>');
+        var newPage = $(pageHtml).appendTo('#pagesContainer');
+
+        updatePageCountBadge();
+
+        setTimeout(function() {
+            var ed = newPage.find('.page-editor')[0];
+            if (ed) {
+                currentActiveEditor = ed;
+                ed.focus();
+                newPage[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 50);
+
+        return newPage;
+    }
+
+    function setCanvasContent(rawHtml) {
+        if (!rawHtml || rawHtml === '<p><br></p>' || rawHtml === '<br>') {
+            renderPages(['<p><br></p>']);
+            return;
+        }
+
+        // Jika dokumen memuat tanggal header wrapper, kita sesuaikan state checkbox
+        if (rawHtml.indexOf('cv-tanggal-header') !== -1) {
+            $('#swPakaiTanggalHeader').prop('checked', true);
+            // Bersihkan div cv-tanggal-header dari editor agar tidak dobel dengan banner atas kanvas
+            rawHtml = rawHtml.replace(/<div class="cv-tanggal-header"[^>]*>.*?<\/div>/gi, '');
+        }
+
+        var delimiterRegex = /(?:<!--\s*SIATEK_PAGE_BREAK\s*-->|<div[^>]*class="[^"]*siatek-page-break[^"]*"[^>]*>.*?<\/div>|<!--\s*pagebreak\s*-->|<div[^>]*class="[^"]*pagebreak[^"]*"[^>]*>.*?<\/div>)/is;
+        var pages = rawHtml.split(delimiterRegex);
+        if (!pages || pages.length === 0) {
+            pages = [rawHtml];
+        }
+
+        renderPages(pages);
+    }
+
+    function getCanvasContent() {
+        var pages = [];
+        var pakaiTanggalHeader = $('#swPakaiTanggalHeader').is(':checked');
+        var tglVal = $('#swTanggalSurat').val();
+        var tglTeks = 'Gorontalo, ' + formatTglIndo(tglVal);
+
+        $('#pagesContainer .a4-page').each(function(idx) {
+            var editor = $(this).find('.page-editor')[0];
+            if (editor) {
+                var content = editor.innerHTML.trim();
+                // Jika halaman 1 dan opsi tanggal aktif, pastikan elemen tanggal masuk dalam konten dokumen yang tersimpan
+                if (idx === 0 && pakaiTanggalHeader) {
+                    // Cek apakah konten editor belum memiliki tanggal
+                    if (content.indexOf('Gorontalo,') === -1 && content.indexOf('cv-tanggal-header') === -1) {
+                        var headerTglHtml = '<div class="cv-tanggal-header" style="text-align: right; margin-top: 4px; margin-bottom: 12px; font-family: \'Times New Roman\', Times, serif; font-size: 12pt;">' + tglTeks + '</div>';
+                        content = headerTglHtml + content;
+                    }
+                }
+                pages.push(content);
+            }
+        });
+        return pages.join('\n<!-- SIATEK_PAGE_BREAK -->\n');
     }
 
     // Render & Filter Tabel Utama
@@ -851,15 +1083,9 @@ if ($qP) {
         muatTabel();
 
         var modal = document.getElementById('canvasModal');
-        var canvas = document.getElementById('wordCanvas');
-
-        // Rekam posisi kursor saat mengetik atau mengklik di kanvas
-        $('#wordCanvas').on('keyup mouseup focus', function() {
-            saveSelection();
-        });
 
         // Cegah tombol toolbar menghilangkan fokus/seleksi teks di kanvas
-        $(document).on('mousedown', '.sb-btn, #btnSisipTtd, #btnSisipNomor, #btnQuickTable, #btnInsertHr', function(e) {
+        $(document).on('mousedown', '.sb-btn, #btnSisipTtd, #btnSisipNomor, #btnQuickTable, #btnInsertHr, #btnTambahHalaman', function(e) {
             e.preventDefault();
         });
 
@@ -867,16 +1093,15 @@ if ($qP) {
         function setPaperSize(size) {
             var s = (size || 'A4').toUpperCase();
             if (s === 'F4') {
-                $('#paperSheet').addClass('is-f4');
-                $('#labelBatasBawah').html('Batas Bawah Kertas F4 / Folio (330 mm &bull; Margin Bawah 2.5 cm)');
+                $('.a4-page').addClass('is-f4');
                 $('#swUkuranKertas').val('F4');
                 $('#labelTombolCetak').text('Cetak F4');
             } else {
-                $('#paperSheet').removeClass('is-f4');
-                $('#labelBatasBawah').html('Batas Bawah Kertas A4 (297 mm &bull; Margin Bawah 2.5 cm)');
+                $('.a4-page').removeClass('is-f4');
                 $('#swUkuranKertas').val('A4');
                 $('#labelTombolCetak').text('Cetak A4');
             }
+            updatePageCountBadge();
         }
 
         $('#swUkuranKertas').on('change', function() {
@@ -899,10 +1124,10 @@ if ($qP) {
                 $('#swTtdJenis').val(d.ttd_jenis || 'kajur');
 
                 if (d.ttd_jenis === 'kaprodi') {
-                    $('#swTtdProdi').removeClass('hidden');
+                    $('#wrapTtdProdi').removeClass('hidden');
                     if (d.ttd_prodi) $('#swTtdProdi').val(d.ttd_prodi);
                 } else {
-                    $('#swTtdProdi').addClass('hidden');
+                    $('#wrapTtdProdi').addClass('hidden');
                 }
 
                 currentPejabat = {
@@ -911,6 +1136,13 @@ if ($qP) {
                     nip: d.ttd_nip || '-',
                     jabatan: d.ttd_jabatan || 'Ketua Jurusan'
                 };
+                $('#previewTtdNama').text(currentPejabat.nama);
+                $('#previewTtdNip').text('NIP. ' + (currentPejabat.nip || '-'));
+
+                // Cek apakah di dalam d.isi_surat sudah ada tanggal kanan tersimpan
+                var hasTanggalInDoc = (d.isi_surat && d.isi_surat.indexOf('Gorontalo,') !== -1);
+                $('#swPakaiTanggalHeader').prop('checked', !hasTanggalInDoc);
+                updateTanggalHeaderCanvas();
 
                 // Muat isi kanvas persis apa yang tersimpan
                 setCanvasContent(d.isi_surat || '<p><br></p>');
@@ -918,14 +1150,17 @@ if ($qP) {
                 $('#canvasTitle').text('Surat Baru (Lembar Polos)');
                 $('#cvId').val('');
                 $('#swTanggalSurat').val('<?= date('Y-m-d') ?>');
+                $('#swPakaiTanggalHeader').prop('checked', true);
                 $('#swPakaiKop').prop('checked', true);
                 updateKopCanvas(true);
+                updateTanggalHeaderCanvas();
                 setPaperSize('A4');
                 $('#swKategori').val('Undangan');
+                $('#swPilihFormatNomor').val('');
                 $('#swPerihal').val('');
                 $('#swNomorSurat').val('');
                 $('#swTtdJenis').val('kajur');
-                $('#swTtdProdi').addClass('hidden');
+                $('#wrapTtdProdi').addClass('hidden');
 
                 // 100% LEMBAR POLOS / KOSONG! Bebas diketik operator dari awal
                 setCanvasContent('<p><br></p>');
@@ -939,9 +1174,12 @@ if ($qP) {
             document.body.style.overflow = 'hidden';
 
             setTimeout(function() {
-                initTinyMCE();
-                canvas.focus();
-                saveSelection();
+                var firstEd = document.querySelector('.page-editor');
+                if (firstEd) {
+                    currentActiveEditor = firstEd;
+                    firstEd.focus();
+                    saveSelection();
+                }
             }, 120);
         }
 
@@ -996,13 +1234,18 @@ if ($qP) {
             updateKopCanvas($(this).is(':checked'));
         });
 
-        // Tarik Nomor Otomatis dari SIATEK
+        // Tarik Nomor Otomatis dari SIATEK (Urutan + 1 di tahun ini + format terpilih + tahun)
         function tarikNomorOtomatis(callback) {
+            var formatId = $('#swPilihFormatNomor').val();
             var kat = $('#swKategori').val() || 'surat custom';
             $.ajax({
                 url: PROSES_URL,
                 method: 'POST',
-                data: { 'ambil-nomor-otomatis': 1, 'kategori': kat },
+                data: {
+                    'ambil-nomor-otomatis': 1,
+                    'format_id': formatId,
+                    'kategori': kat
+                },
                 dataType: 'json',
                 success: function(res) {
                     if (res.status && res.nomor) {
@@ -1017,13 +1260,41 @@ if ($qP) {
             tarikNomorOtomatis();
         });
 
+        // Ketika operator mengubah format nomor surat di dropdown
+        $('#swPilihFormatNomor').on('change', function() {
+            tarikNomorOtomatis();
+        });
+
+        // Ketika operator mengubah kategori surat
+        $('#swKategori').on('change', function() {
+            if (!$('#swPilihFormatNomor').val()) {
+                tarikNomorOtomatis();
+            }
+        });
+
+        // Event Perubahan Tanggal Surat & Checkbox Gunakan Tanggal di Bawah Kop
+        $('#swTanggalSurat').on('change input', function() {
+            updateTanggalHeaderCanvas();
+        });
+
+        $('#swPakaiTanggalHeader').on('change', function() {
+            updateTanggalHeaderCanvas();
+        });
+
+        // Tombol Sisipkan Tanggal ke Posisi Kursor
+        $('#btnSisipTanggalKursor').on('click', function() {
+            var tglVal = $('#swTanggalSurat').val();
+            var tglTeks = 'Gorontalo, ' + formatTglIndo(tglVal);
+            insertCanvasContent(tglTeks);
+        });
+
         // Sisipkan Nomor Surat ke Posisi Kursor
         $('#btnSisipNomor').on('click', function() {
             var no = $('#swNomorSurat').val().trim();
             if (no) {
                 insertCanvasContent(no);
             } else {
-                alert('Nomor surat belum terisi. Klik "Auto No" terlebih dahulu.');
+                alert('Nomor surat belum terisi. Klik "Auto No (+1)" terlebih dahulu.');
             }
         });
 
@@ -1031,10 +1302,10 @@ if ($qP) {
         $('#swTtdJenis').on('change', function() {
             var val = $(this).val();
             if (val === 'kaprodi') {
-                $('#swTtdProdi').removeClass('hidden');
+                $('#wrapTtdProdi').removeClass('hidden');
                 loadPejabat('kaprodi', $('#swTtdProdi').val());
             } else {
-                $('#swTtdProdi').addClass('hidden');
+                $('#wrapTtdProdi').addClass('hidden');
                 loadPejabat(val, '');
             }
         });
@@ -1109,7 +1380,7 @@ if ($qP) {
         // Spasi Baris
         $('#selLineHeight').on('change', function() {
             var lh = $(this).val();
-            $('#wordCanvas').css('line-height', lh);
+            $('.page-editor').css('line-height', lh);
         });
 
         // Sisipkan Garis Horizontal
@@ -1158,6 +1429,141 @@ if ($qP) {
             this.value = '';
         });
 
+        // Tombol Tambah Halaman Baru
+        $('#btnTambahHalaman').on('click', function() {
+            tambahHalamanBaru();
+        });
+
+        // Shortcut Word: Tekan Tab di sel terakhir tabel untuk otomatis menambah baris baru
+        $(document).on('keydown', '.page-editor table td', function(e) {
+            if (e.key === 'Tab' && !e.shiftKey) {
+                var row = this.closest('tr');
+                var table = this.closest('table');
+                if (row && table && row === table.rows[table.rows.length - 1] && this === row.cells[row.cells.length - 1]) {
+                    e.preventDefault();
+                    var newRow = table.insertRow(-1);
+                    var cellCount = row.cells.length;
+                    for (var c = 0; c < cellCount; c++) {
+                        var newCell = newRow.insertCell(-1);
+                        newCell.style.cssText = row.cells[c].style.cssText;
+                        newCell.innerHTML = (c === 0) ? (table.rows.length - 1) + '.' : '&nbsp;';
+                        if (c === 0) newCell.style.textAlign = 'center';
+                    }
+                    if (newRow.cells[1]) {
+                        newRow.cells[1].focus();
+                    } else {
+                        newRow.cells[0].focus();
+                    }
+                }
+            }
+        });
+
+        // Event Fokus & Perekaman Kursor pada Setiap Halaman
+        $(document).on('focus click keyup', '.page-editor', function() {
+            currentActiveEditor = this;
+            saveSelection();
+        });
+
+        // Event Tombol Hapus Halaman (Hanya untuk Halaman 2 dst)
+        $(document).on('click', '.btn-hapus-halaman', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var pageDiv = $(this).closest('.a4-page');
+            var pNum = pageDiv.attr('data-page');
+            if (confirm('Hapus Halaman ' + pNum + ' beserta isinya?')) {
+                var ed = pageDiv.find('.page-editor')[0];
+                if (ed && window.tinymce && tinymce.get(ed.id)) {
+                    tinymce.get(ed.id).destroy();
+                }
+                pageDiv.remove();
+                updatePageCountBadge();
+                var prevEd = document.querySelector('.page-editor');
+                if (prevEd) {
+                    currentActiveEditor = prevEd;
+                    prevEd.focus();
+                }
+            }
+        });
+
+        // Handler Enter & Navigasi Halaman Word: Ketika ketikan mencapai batas bawah kertas
+        $(document).on('keydown', '.page-editor', function(e) {
+            // 1. Shortcut Microsoft Word: Ctrl+Enter / Cmd+Enter untuk Menambah Lembar Baru
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                tambahHalamanBaru();
+                return;
+            }
+
+            // 2. Proteksi Enter di Batas Bawah Kertas: Jangan biarkan konten terdorong keluar dan hilang!
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                var ed = this;
+                var pageCard = $(ed).closest('.a4-page');
+                var isPageFull = (ed.scrollHeight > (ed.clientHeight + 4));
+
+                // Cek juga posisi kursor apakah berada di bagian bawah/elemen terakhir
+                var sel = window.getSelection();
+                var atBottom = false;
+                if (sel && sel.rangeCount > 0) {
+                    var range = sel.getRangeAt(0);
+                    var node = range.endContainer;
+                    if (node.nodeType === 3) node = node.parentNode;
+                    var edRect = ed.getBoundingClientRect();
+                    var nodeRect = node.getBoundingClientRect ? node.getBoundingClientRect() : null;
+                    if (nodeRect && (nodeRect.bottom >= (edRect.bottom - 45))) {
+                        atBottom = true;
+                    }
+                }
+
+                // Jika halaman sudah penuh dan pengguna menekan Enter di bagian bawah:
+                if (isPageFull || atBottom) {
+                    // Cari halaman berikutnya jika sudah ada, atau buat lembar baru
+                    var nextPageDiv = pageCard.next('.a4-page');
+                    if (nextPageDiv.length === 0) {
+                        e.preventDefault();
+                        var newP = tambahHalamanBaru('<p><br></p>');
+                        var nextEd = newP.find('.page-editor')[0];
+                        if (nextEd) {
+                            currentActiveEditor = nextEd;
+                            nextEd.focus();
+                        }
+                    } else {
+                        // Jika halaman berikutnya sudah ada dan pengguna di ujung bawah halaman saat ini
+                        var nextEd = nextPageDiv.find('.page-editor')[0];
+                        if (nextEd && (isPageFull || atBottom)) {
+                            e.preventDefault();
+                            currentActiveEditor = nextEd;
+                            nextEd.focus();
+                            // Taruh kursor di awal paragraf halaman berikutnya
+                            var range = document.createRange();
+                            range.selectNodeContents(nextEd);
+                            range.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Deteksi input teks terus-menerus (paste atau ketik panjang yang meluber ke bawah)
+        $(document).on('input', '.page-editor', function() {
+            var ed = this;
+            if (ed.scrollHeight > (ed.clientHeight + 10)) {
+                // Tampilkan indikasi halus jika overflow terjadi
+                var pageDiv = $(ed).closest('.a4-page');
+                var footerGuide = pageDiv.find('.page-footer-guide');
+                if (!pageDiv.find('.overflow-warn-badge').length) {
+                    $('<span class="overflow-warn-badge text-amber-600 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-bold animate-pulse cursor-pointer" title="Konten mepet/melebihi batas kertas A4. Klik untuk pindah ke halaman berikutnya."><i class="fas fa-exclamation-triangle mr-1"></i>Halaman Penuh &rarr; Buat Hal. Baru</span>')
+                        .insertBefore(footerGuide.find('.page-badge-num'))
+                        .on('click', function() {
+                            tambahHalamanBaru();
+                        });
+                }
+            } else {
+                $(this).closest('.a4-page').find('.overflow-warn-badge').remove();
+            }
+        });
+
         // Fungsi Inti Simpan Dokumen (Bisa dipanggil oleh tombol Simpan atau Cetak)
         function simpanSurat(callback, tutupSetelahSimpan) {
             var isiHtml = getCanvasContent();
@@ -1166,7 +1572,8 @@ if ($qP) {
 
             if (!isiHtml || isiHtml === '<p><br></p>' || isiHtml === '<br>') {
                 alert('Isi surat pada lembar kerja tidak boleh kosong.');
-                document.getElementById('wordCanvas').focus();
+                var ed = getActiveEditor();
+                if (ed) ed.focus();
                 return;
             }
 

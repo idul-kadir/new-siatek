@@ -82,6 +82,12 @@ function build_where_pa($pembFilter, $prodiFilter, $angkatanFilter, $statusFilte
     }
 
     // 3. Filter Angkatan
+    // Ketentuan: Angkatan yang dihitung cuma sampai tahun - 7 (khusus filter dalam mode semua mahasiswa kecuali superadmin)
+    if ($pembFilter === 'semua' && $userLevel !== 9) {
+        $tahunBatas = (int)date('Y') - 7;
+        $where[] = "CAST(m.angkatan AS UNSIGNED) >= $tahunBatas";
+    }
+
     if (!empty($angkatanFilter)) {
         $ang = (int)$angkatanFilter;
         $where[] = "m.angkatan = '$ang'";
@@ -241,7 +247,7 @@ if (isset($_POST['ambil-tabel-bimbingan-pa'])) {
         $no = $offset + 1;
         while ($row = mysqli_fetch_assoc($qData)):
             $nimMhs        = tampil($row['nim']);
-            $namaMhs       = tampil($row['nama']);
+            $namaMhs       = tampil(ucwords(strtolower(trim($row['nama']))));
             $prodiMhs      = !empty($row['nama_prodi']) ? tampil($row['nama_prodi']) : (!empty($row['prodi']) ? tampil($row['prodi']) : '-');
             $angkatanMhs   = tampil($row['angkatan'] ?? '-');
             $namaPa        = !empty($row['nama_dosen_pa']) ? tampil($row['nama_dosen_pa']) : (!empty($row['dosen_pa']) ? tampil($row['dosen_pa']) : '<span class="text-rose-500 italic">Belum ditentukan</span>');
@@ -285,7 +291,7 @@ if (isset($_POST['ambil-tabel-bimbingan-pa'])) {
             $ipkVal = isset($row['ipk_terakhir']) && $row['ipk_terakhir'] !== null ? number_format((float)$row['ipk_terakhir'], 2) : '-';
             $ipsVal = isset($row['ips_terakhir']) && $row['ips_terakhir'] !== null ? number_format((float)$row['ips_terakhir'], 2) : '-';
             $sksVal = isset($row['sks_terakhir']) && $row['sks_terakhir'] !== null ? (int)$row['sks_terakhir'] . ' SKS' : '-';
-            $tglVal = !empty($row['tanggal_terakhir']) ? tanggal_indo($row['tanggal_terakhir']) : '-';
+            $tglVal = !empty($row['tanggal_terakhir']) ? tgl_indo($row['tanggal_terakhir']) : '-';
             ?>
             <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100">
                 <!-- 1. Nomor urut (Orange Badge) -->
@@ -350,9 +356,14 @@ if (isset($_POST['ambil-tabel-bimbingan-pa'])) {
                         </div>
                     </div>
                     <?php if (!empty($row['catatan_terakhir'])): ?>
-                        <p class="text-[11px] text-slate-500 italic mt-1 line-clamp-1" title="<?= tampil($row['catatan_terakhir']) ?>">
-                            <i class="far fa-comment-dots text-slate-400 mr-1"></i>"<?= tampil($row['catatan_terakhir']) ?>"
+                        <?php 
+                        $plainCatatan = trim(strip_tags($row['catatan_terakhir']));
+                        ?>
+                        <?php if ($plainCatatan !== ''): ?>
+                        <p class="text-[11px] text-slate-500 italic mt-1 line-clamp-1" title="<?= tampil($plainCatatan) ?>">
+                            <i class="far fa-comment-dots text-slate-400 mr-1"></i>"<?= tampil($plainCatatan) ?>"
                         </p>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </td>
 
@@ -369,7 +380,15 @@ if (isset($_POST['ambil-tabel-bimbingan-pa'])) {
                 <!-- 7. Aksi -->
                 <td class="px-4 py-3 text-center whitespace-nowrap">
                     <div class="inline-flex items-center gap-1.5">
-                        <!-- Tombol Isi Buku PA (Dosen PA, Kaprodi, Kajur, Superadmin) -->
+                        <?php 
+                        // Hak akses tombol isian bimbingan:
+                        // Level 9 (Superadmin) selalu berwenang.
+                        // Dalam mode 'semua' (untuk Kajur, Sekjur, atau Kaprodi), tidak boleh ada tombol isian bimbingan.
+                        // Hanya dosen PA bersangkutan (mode 'saya' && $isBimbinganSaya) yang berwenang mengisi.
+                        $canIsiBimbingan = ($userLevel === 9) || ($pembFilter !== 'semua' && $isBimbinganSaya);
+                        ?>
+                        <?php if ($canIsiBimbingan): ?>
+                        <!-- Tombol Isi Buku PA (Hanya Dosen PA atau Level 9) -->
                         <button type="button" 
                                 class="btn-circle bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition hover:scale-105"
                                 onclick="bukaModalIsianPA('<?= $nimMhs ?>', '<?= addslashes($namaMhs) ?>', '<?= addslashes($prodiMhs) ?>')"
@@ -377,6 +396,7 @@ if (isset($_POST['ambil-tabel-bimbingan-pa'])) {
                             <i class="fas fa-edit text-xs"></i>
                             <span class="tip">Isi Buku PA</span>
                         </button>
+                        <?php endif; ?>
 
                         <!-- Tombol Riwayat Pengisian PA (Drawer) -->
                         <button type="button" 
@@ -424,6 +444,18 @@ if (isset($_POST['ambil-riwayat-pa'])) {
 
     $mhs = mysqli_fetch_assoc($qMhs);
 
+    // Cek kewenangan pengisian / manipulasi data bimbingan mahasiswa ini
+    $isDosenPaMhs = false;
+    if (!empty($identitasDosen)) {
+        if (!empty($mhs['dosen_pa']) && in_array((string)$mhs['dosen_pa'], $identitasDosen, true)) {
+            $isDosenPaMhs = true;
+        } elseif (!empty($mhs['nip_pa']) && in_array((string)$mhs['nip_pa'], $identitasDosen, true)) {
+            $isDosenPaMhs = true;
+        }
+    }
+    $pembFilterReq = bersihkan($_POST['pembimbing'] ?? ($userLevel === 9 ? '' : 'saya'));
+    $canEditBimbingan = ($userLevel === 9) || ($pembFilterReq !== 'semua' && $isDosenPaMhs);
+
     // Ambil seluruh riwayat isian_pa
     $qRiwayat = query("
         SELECT * FROM isian_pa 
@@ -441,17 +473,18 @@ if (isset($_POST['ambil-riwayat-pa'])) {
             'sks'         => (int)$r['sks'],
             'status'      => $r['status'],
             'catatan'     => $r['catatan'],
-            'tanggal'     => !empty($r['tanggal']) ? tanggal_indo($r['tanggal']) : '-',
+            'tanggal'     => !empty($r['tanggal']) ? tgl_indo($r['tanggal']) : '-',
             'tanggal_raw' => $r['tanggal'],
-            'rekaman'     => !empty($r['rekaman']) ? tanggal_indo($r['rekaman']) : '-'
+            'rekaman'     => !empty($r['rekaman']) ? tgl_indo($r['rekaman']) : '-'
         ];
     }
 
     echo json_encode([
         'status'    => true,
+        'can_edit'  => $canEditBimbingan,
         'mahasiswa' => [
             'nim'      => $mhs['nim'],
-            'nama'     => $mhs['nama'],
+            'nama'     => tampil(ucwords(strtolower(trim($mhs['nama'])))),
             'prodi'    => !empty($mhs['nama_prodi']) ? $mhs['nama_prodi'] : ($mhs['prodi'] ?? '-'),
             'angkatan' => $mhs['angkatan'],
             'pa'       => !empty($mhs['nama_pa']) ? $mhs['nama_pa'] : ($mhs['dosen_pa'] ?? '-')
@@ -487,14 +520,21 @@ if (isset($_POST['simpan-isian-pa'])) {
     $ips      = (float)str_replace(',', '.', $_POST['ips'] ?? 0);
     $ipk      = (float)str_replace(',', '.', $_POST['ipk'] ?? 0);
     $sks      = (int)($_POST['sks'] ?? 0);
-    $status   = bersihkan($_POST['status'] ?? '');
-    $catatan  = bersihkan($_POST['catatan'] ?? '');
-    $tanggal  = bersihkan($_POST['tanggal'] ?? date('Y-m-d'));
-    $rekaman  = date('Y-m-d');
+    $status      = bersihkan($_POST['status'] ?? '');
+    $catatanRaw  = $_POST['catatan'] ?? '';
+    // Izinkan tag rich text yang aman: formatting, list, paragraph, break
+    $catatanSafe = strip_tags($catatanRaw, '<b><strong><i><em><u><ul><ol><li><p><br><span><div>');
+    $catatan     = mysqli_real_escape_string($koneksi, trim($catatanSafe));
+    $tanggal     = bersihkan($_POST['tanggal'] ?? date('Y-m-d'));
+    $rekaman     = date('Y-m-d');
 
     // Validasi
     if (empty($nim)) {
         echo json_encode(['status' => false, 'pesan' => 'Mahasiswa wajib dipilih']);
+        exit;
+    }
+    if (empty(trim(strip_tags($catatanSafe)))) {
+        echo json_encode(['status' => false, 'pesan' => 'Catatan & Evaluasi Dosen PA wajib diisi']);
         exit;
     }
     if ($semester < 1 || $semester > 14) {
@@ -515,6 +555,16 @@ if (isset($_POST['simpan-isian-pa'])) {
     if (!$qCekMhs || mysqli_num_rows($qCekMhs) === 0) {
         echo json_encode(['status' => false, 'pesan' => 'Data mahasiswa tidak ditemukan di sistem']);
         exit;
+    }
+    $rCekMhs = mysqli_fetch_assoc($qCekMhs);
+
+    // Validasi kewenangan pengisian: Hanya Dosen PA yang bersangkutan atau Superadmin (Level 9)
+    if ($userLevel !== 9) {
+        $dosenPaMhs = (string)($rCekMhs['dosen_pa'] ?? '');
+        if (empty($identitasDosen) || !in_array($dosenPaMhs, $identitasDosen, true)) {
+            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: Hanya Dosen Penasihat Akademik (PA) mahasiswa bersangkutan yang berwenang mengisi atau mengubah evaluasi Buku PA.']);
+            exit;
+        }
     }
 
     if ($idIsian > 0) {
@@ -565,6 +615,20 @@ if (isset($_POST['hapus-isian-pa'])) {
     if ($idIsian <= 0) {
         echo json_encode(['status' => false, 'pesan' => 'ID data tidak valid']);
         exit;
+    }
+
+    // Validasi kewenangan hapus: Hanya Dosen PA yang bersangkutan atau Superadmin (Level 9)
+    if ($userLevel !== 9) {
+        $qCekHapus = query("SELECT i.id, m.dosen_pa FROM isian_pa i JOIN mahasiswa m ON i.nim = m.nim WHERE i.id = '$idIsian' LIMIT 1");
+        if (!$qCekHapus || ($rHapus = mysqli_fetch_assoc($qCekHapus)) === null) {
+            echo json_encode(['status' => false, 'pesan' => 'Data evaluasi tidak ditemukan']);
+            exit;
+        }
+        $dosenPaMhs = (string)($rHapus['dosen_pa'] ?? '');
+        if (empty($identitasDosen) || !in_array($dosenPaMhs, $identitasDosen, true)) {
+            echo json_encode(['status' => false, 'pesan' => 'Akses ditolak: Hanya Dosen Penasihat Akademik (PA) mahasiswa bersangkutan yang berwenang menghapus data evaluasi Buku PA.']);
+            exit;
+        }
     }
 
     $qDel = query("DELETE FROM isian_pa WHERE id = '$idIsian'");

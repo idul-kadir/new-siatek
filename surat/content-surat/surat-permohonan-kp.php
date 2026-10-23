@@ -79,7 +79,7 @@ function surat_permohonan_kp($nim){
         $qKelompok = query("SELECT m.nama, m.nim 
                             FROM kp k 
                             JOIN mahasiswa m ON TRIM(k.nim) = TRIM(m.nim) 
-                            WHERE (k.nama_instansi = '$lokasiEsc' OR k.instansi = '$lokasiEsc' OR k.tempat = '$lokasiEsc' OR k.tempat_kp = '$lokasiEsc') 
+                            WHERE (k.nama_instansi = '$lokasiEsc') 
                             ORDER BY m.nim ASC");
         if ($qKelompok && mysqli_num_rows($qKelompok) > 0) {
             while ($rm = mysqli_fetch_assoc($qKelompok)) {

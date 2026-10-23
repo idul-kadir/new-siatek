@@ -149,6 +149,119 @@ if ($qAng) {
     overflow-y: auto;
     min-height: 0;
   }
+  /* Rich Text Editor & Catatan Content Styling */
+  .rich-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    color: #475569;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .rich-btn:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+  }
+  .rich-btn:active {
+    background-color: #cbd5e1;
+  }
+  .rich-editor:focus {
+    outline: none;
+  }
+  .rich-editor:empty:before {
+    content: attr(placeholder);
+    color: #94a3b8;
+    pointer-events: none;
+    display: block;
+  }
+  .rich-editor ul, .catatan-content ul {
+    list-style-type: disc !important;
+    margin-left: 1.25rem !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+  .rich-editor ol, .catatan-content ol {
+    list-style-type: decimal !important;
+    margin-left: 1.25rem !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+  .rich-editor li, .catatan-content li {
+    display: list-item !important;
+    margin-bottom: 0.2rem !important;
+  }
+  .rich-editor b, .rich-editor strong, .catatan-content b, .catatan-content strong {
+    font-weight: 700 !important;
+  }
+  .rich-editor i, .rich-editor em, .catatan-content i, .catatan-content em {
+    font-style: italic !important;
+  }
+  .rich-editor u, .catatan-content u {
+    text-decoration: underline !important;
+  }
+  .rich-editor p, .catatan-content p {
+    margin-bottom: 0.35rem !important;
+  }
+  .rich-editor p:last-child, .catatan-content p:last-child {
+    margin-bottom: 0 !important;
+  }
+  /* Toast Notification */
+  #toastContainer {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+  .toast-item {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+    max-width: 380px;
+  }
+  .toast-item.show {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  .toast-item.hide {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  .toast-success { background: linear-gradient(135deg, #059669, #10b981); }
+  .toast-error   { background: linear-gradient(135deg, #dc2626, #ef4444); }
+  .toast-info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+  .toast-warning { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .toast-icon { font-size: 1rem; flex-shrink: 0; }
+  .toast-close {
+    margin-left: auto;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1rem;
+    padding: 0;
+  }
+  .toast-close:hover { opacity: 1; }
 </style>
 
 <main class="content-area content-scroll p-4 sm:p-6 space-y-6">
@@ -290,7 +403,7 @@ if ($qAng) {
         <select id="fAngkatan" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition">
           <option value="">-- Semua Angkatan --</option>
           <?php foreach ($daftarAngkatan as $ang): ?>
-            <option value="<?= htmlspecialchars($ang) ?>">Angkatan <?= htmlspecialchars($ang) ?></option>
+            <option value="<?= htmlspecialchars($ang) ?>" data-angkatan="<?= (int)$ang ?>">Angkatan <?= htmlspecialchars($ang) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -387,42 +500,44 @@ if ($qAng) {
     </div>
 
     <!-- Modal Body -->
-    <div class="p-6 overflow-y-auto space-y-4">
-      <form id="formIsianPA" onsubmit="simpanFormIsianPA(event)">
-        <input type="hidden" id="formIdIsian" name="id" value="0">
-        <input type="hidden" id="formNim" name="nim" value="">
+    <div class="p-6 overflow-y-auto">
+      <form id="formIsianPA" onsubmit="simpanFormIsianPA(event)" class="space-y-5">
+        <div class="hidden">
+          <input type="hidden" id="formIdIsian" name="id" value="0">
+          <input type="hidden" id="formNim" name="nim" value="">
+        </div>
 
         <!-- Ringkasan Mahasiswa -->
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
           <div>
-            <div class="text-xs text-slate-400 uppercase font-semibold">Mahasiswa</div>
+            <div class="text-[11px] text-slate-400 uppercase font-semibold">Mahasiswa</div>
             <div class="text-sm font-bold text-slate-800" id="formNamaMhs">-</div>
-            <div class="text-xs text-slate-500 font-mono" id="formNimMhs">-</div>
+            <div class="text-xs text-slate-500 font-mono mt-0.5" id="formNimMhs">-</div>
           </div>
           <div class="text-right">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800" id="formProdiMhs">-</span>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800" id="formProdiMhs">-</span>
           </div>
         </div>
 
         <!-- Baris: Semester, IPS, IPK, SKS -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Semester <span class="text-rose-500">*</span></label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Semester <span class="text-rose-500">*</span></label>
             <input type="number" id="formSemester" name="semester" min="1" max="14" required
                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="1-14">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">IPS</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">IPS</label>
             <input type="text" id="formIps" name="ips" step="0.01"
                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="e.g. 3.50">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">IPK</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">IPK</label>
             <input type="text" id="formIpk" name="ipk" step="0.01"
                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="e.g. 3.45">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">SKS <span class="text-rose-500">*</span></label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">SKS <span class="text-rose-500">*</span></label>
             <input type="number" id="formSks" name="sks" min="0" max="160" required
                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="Total/Sem">
           </div>
@@ -430,14 +545,14 @@ if ($qAng) {
 
         <!-- Tanggal Konsultasi -->
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Konsultasi Bimbingan <span class="text-rose-500">*</span></label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tanggal Konsultasi Bimbingan <span class="text-rose-500">*</span></label>
           <input type="date" id="formTanggal" name="tanggal" required
                  class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none">
         </div>
 
         <!-- 4 Opsi Status dengan Penjelasan Lengkap -->
         <div>
-          <label class="block text-xs font-bold text-slate-800 mb-1.5">
+          <label class="block text-xs font-bold text-slate-800 mb-2">
             Status Mahasiswa <span class="text-rose-500">*</span>
             <span class="text-[11px] font-normal text-slate-400 block sm:inline sm:ml-2">Pilih kondisi akademik mahasiswa saat ini:</span>
           </label>
@@ -491,20 +606,50 @@ if ($qAng) {
           </div>
         </div>
 
-        <!-- Catatan Evaluasi Dosen PA -->
+        <!-- Catatan Evaluasi Dosen PA (Rich Text) -->
         <div>
-          <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center justify-between mb-1.5">
             <label class="block text-xs font-semibold text-slate-700">Catatan &amp; Evaluasi Dosen PA <span class="text-rose-500">*</span></label>
-            <span class="text-[11px] text-slate-400"><span id="charCount">0</span>/250 karakter</span>
+            <span class="text-[11px] text-slate-400">Mendukung format poin, penomoran, &amp; tebal &bull; <span id="charCount">0</span> karakter</span>
           </div>
-          <textarea id="formCatatan" name="catatan" rows="3" maxlength="250" required
-                    onkeyup="updateCharCount()"
-                    placeholder="Tuliskan evaluasi perkembangan, saran pengambilan mata kuliah, kendala studi, atau arahan untuk mahasiswa..."
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"></textarea>
+
+          <div class="border border-slate-200 rounded-lg overflow-hidden focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 transition bg-white shadow-2xs">
+            <!-- Toolbar Editor -->
+            <div class="flex items-center flex-wrap gap-1 p-1.5 bg-slate-50 border-b border-slate-200 text-slate-600 select-none">
+              <button type="button" class="rich-btn" onclick="formatCatatan('bold')" title="Tebal (Bold / Ctrl+B)">
+                <i class="fas fa-bold"></i>
+              </button>
+              <button type="button" class="rich-btn" onclick="formatCatatan('italic')" title="Miring (Italic / Ctrl+I)">
+                <i class="fas fa-italic"></i>
+              </button>
+              <button type="button" class="rich-btn" onclick="formatCatatan('underline')" title="Garis Bawah (Underline / Ctrl+U)">
+                <i class="fas fa-underline"></i>
+              </button>
+              <span class="h-4 w-[1px] bg-slate-300 mx-0.5"></span>
+              <button type="button" class="rich-btn" onclick="formatCatatan('insertUnorderedList')" title="Daftar Poin (Bullet List)">
+                <i class="fas fa-list-ul"></i>
+              </button>
+              <button type="button" class="rich-btn" onclick="formatCatatan('insertOrderedList')" title="Daftar Nomor (Numbered List)">
+                <i class="fas fa-list-ol"></i>
+              </button>
+              <span class="h-4 w-[1px] bg-slate-300 mx-0.5"></span>
+              <button type="button" class="rich-btn text-slate-400 hover:text-rose-600" onclick="formatCatatan('removeFormat')" title="Hapus Format">
+                <i class="fas fa-eraser"></i>
+              </button>
+            </div>
+
+            <!-- Contenteditable Editor -->
+            <div id="editorCatatan" contenteditable="true"
+                 class="p-3 text-xs text-slate-700 min-h-[90px] max-h-[220px] overflow-y-auto outline-none rich-editor leading-relaxed"
+                 placeholder="Tuliskan evaluasi perkembangan, saran pengambilan mata kuliah, kendala studi, atau arahan untuk mahasiswa..."></div>
+          </div>
+
+          <!-- Hidden Textarea untuk sinkronisasi form submit -->
+          <textarea id="formCatatan" name="catatan" class="hidden"></textarea>
         </div>
 
         <!-- Modal Footer -->
-        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
           <button type="button" onclick="tutupModalIsianPA()" class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">
             Batal
           </button>
@@ -517,6 +662,28 @@ if ($qAng) {
     </div>
   </div>
 </div>
+
+<!-- Modal Konfirmasi Hapus Isian PA -->
+<div id="modalKonfirmasiHapusPA" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 hidden">
+  <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 text-center transform transition-all">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 mb-4">
+      <i class="fas fa-trash-alt text-lg"></i>
+    </div>
+    <h3 class="text-base font-bold text-slate-800 mb-1">Hapus Catatan Buku PA</h3>
+    <p class="text-xs text-slate-500 mb-6 leading-relaxed">Apakah Anda yakin ingin menghapus data catatan Buku PA semester ini? Tindakan ini tidak dapat dibatalkan.</p>
+    <div class="flex items-center justify-center gap-2">
+      <button type="button" onclick="tutupModalHapusPA()" class="px-4 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">
+        Batal
+      </button>
+      <button type="button" id="btnEksekusiHapusPA" onclick="eksekusiHapusPA()" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm transition">
+        <i class="fas fa-trash-alt text-[11px]"></i> Ya, Hapus Data
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
 
 <!-- ===== DRAWER OFFCANVAS RIWAYAT BUKU PA ===== -->
 <div id="drawerRiwayatBackdrop" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs" onclick="tutupDrawerRiwayatPA()">
@@ -569,6 +736,7 @@ if ($qAng) {
   var curPage = 1;
 
   document.addEventListener('DOMContentLoaded', function() {
+    updateOpsiAngkatan(userRoleMode);
     muatStatistikPA();
     muatDataPA(1);
 
@@ -634,8 +802,33 @@ if ($qAng) {
       }
     }
 
+    updateOpsiAngkatan(mode);
     muatStatistikPA();
     muatDataPA(1);
+  }
+
+  // Khusus mode Semua Mahasiswa (kecuali Superadmin), filter opsi angkatan hanya sampai tahun - 7
+  function updateOpsiAngkatan(mode) {
+    var fAng = document.getElementById('fAngkatan');
+    if (!fAng) return;
+    var isModeSemuaNonAdmin = (mode === 'semua' && <?= ($userLevel === 9 ? 'false' : 'true') ?>);
+    var tahunBatas = <?= (int)date('Y') - 7 ?>;
+
+    var opts = fAng.querySelectorAll('option[data-angkatan]');
+    opts.forEach(function(opt) {
+      var ang = parseInt(opt.getAttribute('data-angkatan')) || 0;
+      if (isModeSemuaNonAdmin && ang < tahunBatas) {
+        opt.hidden = true;
+        opt.disabled = true;
+      } else {
+        opt.hidden = false;
+        opt.disabled = false;
+      }
+    });
+
+    if (fAng.selectedOptions.length > 0 && fAng.selectedOptions[0].disabled) {
+      fAng.value = '';
+    }
   }
 
   // Muat Angka Metrik KPI
@@ -783,13 +976,69 @@ if ($qAng) {
     });
   }
 
-  function updateCharCount() {
-    var txt = document.getElementById('formCatatan').value;
-    document.getElementById('charCount').textContent = txt.length;
+  // Rich Text Editor Commands & Sync
+  function formatCatatan(cmd, val) {
+    var editor = document.getElementById('editorCatatan');
+    if (!editor) return;
+    editor.focus();
+    document.execCommand(cmd, false, val || null);
+    syncCatatanEditor();
+  }
+
+  function syncCatatanEditor() {
+    var editor = document.getElementById('editorCatatan');
+    var txt = document.getElementById('formCatatan');
+    var charCount = document.getElementById('charCount');
+    if (!editor || !txt) return;
+
+    var html = editor.innerHTML;
+    var plain = editor.innerText.trim();
+    if (!plain && (html === '<br>' || html === '<p><br></p>' || html === '<div><br></div>' || html === '')) {
+      txt.value = '';
+      if (charCount) charCount.textContent = '0';
+    } else {
+      txt.value = html;
+      if (charCount) charCount.textContent = plain.length;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var editor = document.getElementById('editorCatatan');
+    if (editor) {
+      editor.addEventListener('input', syncCatatanEditor);
+      editor.addEventListener('keyup', syncCatatanEditor);
+      editor.addEventListener('blur', syncCatatanEditor);
+      editor.addEventListener('paste', function() {
+        setTimeout(syncCatatanEditor, 20);
+      });
+    }
+  });
+
+  // Toast Notification
+  function toast(pesan, tipe) {
+    tipe = tipe || 'info';
+    var container = document.getElementById('toastContainer');
+    if (!container) return;
+    var item = document.createElement('div');
+    item.className = 'toast-item toast-' + tipe;
+    var ikon = 'fa-info-circle';
+    if (tipe === 'success') ikon = 'fa-check-circle';
+    else if (tipe === 'error') ikon = 'fa-circle-xmark';
+    else if (tipe === 'warning') ikon = 'fa-triangle-exclamation';
+
+    item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span>' + pesan + '</span><button class="toast-close" onclick="this.parentElement.classList.add(\'hide\');setTimeout(function(){item.remove()},350)">&times;</button>';
+    container.appendChild(item);
+    requestAnimationFrame(function(){ item.classList.add('show'); });
+    setTimeout(function(){ item.classList.add('hide'); setTimeout(function(){ item.remove(); }, 350); }, 4000);
   }
 
   // Modal Buka & Tutup
   function bukaModalIsianPA(nim, nama, prodi, idIsian) {
+    if (userRoleMode === 'semua' && <?= ($userLevel === 9 ? 'false' : 'true') ?>) {
+      toast('Pengisian evaluasi Buku PA hanya dapat dilakukan oleh Dosen PA mahasiswa bersangkutan pada tab "Bimbingan Saya".', 'error');
+      return;
+    }
+
     document.getElementById('formIdIsian').value = idIsian || 0;
     document.getElementById('formNim').value = nim;
     document.getElementById('formNamaMhs').textContent = nama;
@@ -802,7 +1051,9 @@ if ($qAng) {
     document.getElementById('formIpk').value = '';
     document.getElementById('formSks').value = '';
     document.getElementById('formCatatan').value = '';
-    updateCharCount();
+    var editorEl = document.getElementById('editorCatatan');
+    if (editorEl) editorEl.innerHTML = '';
+    syncCatatanEditor();
     pilihStatusForm('Terdaftar - Aktif');
 
     if (idIsian && idIsian > 0) {
@@ -822,10 +1073,17 @@ if ($qAng) {
             document.getElementById('formIps').value = resp.data.ips || '';
             document.getElementById('formIpk').value = resp.data.ipk || '';
             document.getElementById('formSks').value = resp.data.sks || '';
-            document.getElementById('formCatatan').value = resp.data.catatan || '';
+            
+            var cVal = resp.data.catatan || '';
+            document.getElementById('formCatatan').value = cVal;
+            if (cVal && !/<[a-z][\s\S]*>/i.test(cVal)) {
+              cVal = cVal.replace(/\n/g, '<br>');
+            }
+            if (editorEl) editorEl.innerHTML = cVal;
+            syncCatatanEditor();
+
             document.getElementById('formTanggal').value = resp.data.tanggal || '';
             pilihStatusForm(resp.data.status || 'Terdaftar - Aktif');
-            updateCharCount();
           }
         });
     } else {
@@ -843,6 +1101,16 @@ if ($qAng) {
   // Simpan Form Modal
   function simpanFormIsianPA(e) {
     e.preventDefault();
+    syncCatatanEditor();
+
+    var editor = document.getElementById('editorCatatan');
+    var plain = editor ? editor.innerText.trim() : '';
+    if (!plain) {
+      toast('Catatan & Evaluasi Dosen PA wajib diisi.', 'warning');
+      if (editor) editor.focus();
+      return;
+    }
+
     var btn = document.getElementById('btnSubmitForm');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
@@ -857,7 +1125,7 @@ if ($qAng) {
         btn.innerHTML = '<i class="fas fa-save mr-1"></i> Simpan Buku PA';
 
         if (resp.status) {
-          alert(resp.pesan);
+          toast(resp.pesan, 'success');
           tutupModalIsianPA();
           muatStatistikPA();
           muatDataPA(curPage);
@@ -868,13 +1136,13 @@ if ($qAng) {
             bukaDrawerRiwayatPA(nimDrawer);
           }
         } else {
-          alert('Peringatan: ' + resp.pesan);
+          toast(resp.pesan, 'error');
         }
       })
       .catch(function(err) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save mr-1"></i> Simpan Buku PA';
-        alert('Terjadi kesalahan koneksi server saat menyimpan data.');
+        toast('Terjadi kesalahan koneksi server saat menyimpan data.', 'error');
       });
   }
 
@@ -891,6 +1159,7 @@ if ($qAng) {
     var fd = new FormData();
     fd.append('ambil-riwayat-pa', '1');
     fd.append('nim', nim);
+    fd.append('pembimbing', userRoleMode);
 
     fetch(PROSES_URL, { method: 'POST', body: fd })
       .then(function(res) { return res.json(); })
@@ -901,10 +1170,18 @@ if ($qAng) {
           document.getElementById('drawerNimMhs').textContent = m.nim;
           document.getElementById('drawerProdiMhs').textContent = m.prodi + ' (Angk. ' + m.angkatan + ')';
 
-          // Pasang handler tombol tambah cepat dari drawer
-          document.getElementById('btnTambahDariDrawer').onclick = function() {
-            bukaModalIsianPA(m.nim, m.nama, m.prodi, 0);
-          };
+          // Tampilkan atau sembunyikan tombol tambah cepat berdasarkan kewenangan
+          var btnTambah = document.getElementById('btnTambahDariDrawer');
+          if (btnTambah) {
+            if (resp.can_edit) {
+              btnTambah.classList.remove('hidden');
+              btnTambah.onclick = function() {
+                bukaModalIsianPA(m.nim, m.nama, m.prodi, 0);
+              };
+            } else {
+              btnTambah.classList.add('hidden');
+            }
+          }
 
           if (resp.riwayat.length === 0) {
             body.innerHTML = '\
@@ -923,6 +1200,19 @@ if ($qAng) {
             else if (r.status === 'Terdaftar - Tidak Aktif') stBadge = 'bg-amber-50 text-amber-700 border-amber-200';
             else if (r.status === 'Cuti') stBadge = 'bg-sky-50 text-sky-700 border-sky-200';
             else if (r.status === 'Tidak Aktif') stBadge = 'bg-rose-50 text-rose-700 border-rose-200';
+
+            var actionBtnHtml = '';
+            if (resp.can_edit) {
+              actionBtnHtml = '\
+                <div class="flex items-center gap-1.5">\
+                  <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition shadow-2xs" onclick="bukaModalIsianPA(\'' + m.nim + '\', \'' + m.nama.replace(/'/g, "\\'") + '\', \'' + m.prodi.replace(/'/g, "\\'") + '\', ' + r.id + ')">\
+                    <i class="fas fa-pen text-[10px]"></i>Edit\
+                  </button>\
+                  <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-2xs" onclick="konfirmasiHapusIsianPA(' + r.id + ', \'' + m.nim + '\')">\
+                    <i class="fas fa-trash-alt text-[10px]"></i>Hapus\
+                  </button>\
+                </div>';
+            }
 
             html += '\
               <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition">\
@@ -945,21 +1235,14 @@ if ($qAng) {
                   <div><span class="text-slate-400 block text-[10px]">Beban SKS</span><strong class="text-slate-800">' + r.sks + ' SKS</strong></div>\
                 </div>\
                 <div>\
-                  <span class="text-[11px] font-semibold text-slate-500 block mb-0.5">Catatan Dosen PA:</span>\
-                  <p class="text-xs text-slate-700 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 italic leading-relaxed">\
-                    "' + (r.catatan || 'Tidak ada catatan') + '"\
-                  </p>\
+                  <span class="text-[11px] font-semibold text-slate-500 block mb-1">Catatan &amp; Evaluasi Dosen PA:</span>\
+                  <div class="text-xs text-slate-700 bg-slate-50/70 p-3 rounded-lg border border-slate-200/80 leading-relaxed catatan-content">\
+                    ' + (r.catatan ? (/<[a-z][\s\S]*>/i.test(r.catatan) ? r.catatan : r.catatan.replace(/\n/g, '<br>')) : '<span class="italic text-slate-400">Tidak ada catatan</span>') + '\
+                  </div>\
                 </div>\
                 <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">\
                   <span>Dicatat: ' + r.rekaman + '</span>\
-                  <div class="flex items-center gap-1.5">\
-                    <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition shadow-2xs" onclick="bukaModalIsianPA(\'' + m.nim + '\', \'' + m.nama.replace(/'/g, "\\'") + '\', \'' + m.prodi.replace(/'/g, "\\'") + '\', ' + r.id + ')">\
-                      <i class="fas fa-pen text-[10px]"></i>Edit\
-                    </button>\
-                    <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition shadow-2xs" onclick="hapusIsianPA(' + r.id + ', \'' + m.nim + '\')">\
-                      <i class="fas fa-trash-alt text-[10px]"></i>Hapus\
-                    </button>\
-                  </div>\
+                  ' + actionBtnHtml + '\
                 </div>\
               </div>';
           });
@@ -981,29 +1264,59 @@ if ($qAng) {
     panel.classList.remove('active');
   }
 
-  function hapusIsianPA(id, nim) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data catatan Buku PA semester ini?')) {
-      return;
+  // Konfirmasi & Eksekusi Hapus Isian PA (Tanpa native confirm/alert)
+  var targetHapusId = null;
+  var targetHapusNim = null;
+
+  function konfirmasiHapusIsianPA(id, nim) {
+    targetHapusId = id;
+    targetHapusNim = nim;
+    var modal = document.getElementById('modalKonfirmasiHapusPA');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function tutupModalHapusPA() {
+    targetHapusId = null;
+    targetHapusNim = null;
+    var modal = document.getElementById('modalKonfirmasiHapusPA');
+    if (modal) modal.classList.add('hidden');
+    var btn = document.getElementById('btnEksekusiHapusPA');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-trash-alt text-[11px]"></i> Ya, Hapus Data';
+    }
+  }
+
+  function eksekusiHapusPA() {
+    if (!targetHapusId || !targetHapusNim) return;
+    var btn = document.getElementById('btnEksekusiHapusPA');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menghapus...';
     }
 
     var fd = new FormData();
     fd.append('hapus-isian-pa', '1');
-    fd.append('id', id);
+    fd.append('id', targetHapusId);
+
+    var curNim = targetHapusNim;
 
     fetch(PROSES_URL, { method: 'POST', body: fd })
       .then(function(res) { return res.json(); })
       .then(function(resp) {
+        tutupModalHapusPA();
         if (resp.status) {
-          alert(resp.pesan);
-          bukaDrawerRiwayatPA(nim);
+          toast(resp.pesan, 'success');
+          bukaDrawerRiwayatPA(curNim);
           muatStatistikPA();
           muatDataPA(curPage);
         } else {
-          alert('Peringatan: ' + resp.pesan);
+          toast(resp.pesan, 'error');
         }
       })
       .catch(function(err) {
-        alert('Terjadi kesalahan koneksi saat menghapus data.');
+        tutupModalHapusPA();
+        toast('Terjadi kesalahan koneksi saat menghapus data.', 'error');
       });
   }
 </script>

@@ -14,14 +14,16 @@ function surat_custom($idSurat) {
     $q = query("SELECT * FROM surat_custom WHERE id = '$idClean' OR nomor_surat = '$idClean' LIMIT 1");
 
     if (!$q || mysqli_num_rows($q) === 0) {
-        echo '<div style="text-align: center; padding: 40px 20px; font-family: sans-serif; color: #64748b;">';
+        echo '<section class="sheet"><div style="text-align: center; padding: 40px 20px; font-family: sans-serif; color: #64748b;">';
         echo '<h3 style="font-size: 18px; color: #334155;">Surat Tidak Ditemukan</h3>';
         echo '<p style="font-size: 14px; margin-top: 8px;">Dokumen surat kustom dengan ID <b>' . htmlspecialchars($idSurat, ENT_QUOTES, 'UTF-8') . '</b> tidak tercatat di database.</p>';
-        echo '</div>';
+        echo '</div></section>';
         return;
     }
 
     $surat = mysqli_fetch_assoc($q);
+    $ukuranKertas = strtoupper($surat['ukuran_kertas'] ?? 'A4');
+    if ($ukuranKertas !== 'F4') $ukuranKertas = 'A4';
 
     // Ambil data dosen penandatangan (cek jika punya file ttd/qr)
     $ttdDosen = null;
@@ -34,15 +36,6 @@ function surat_custom($idSurat) {
 
     $tglTeks = function_exists('tgl_indo') ? tgl_indo($surat['tanggal_surat']) : date('d F Y', strtotime($surat['tanggal_surat']));
     $qrUrl = base_url() . '/dokumen/surat-custom/' . $surat['id'];
-
-    // 1. KOP SURAT (jika dipilih pakai kop)
-    if (!empty($surat['pakai_kop']) && (int)$surat['pakai_kop'] === 1) {
-        include __DIR__ . '/kop-surat.php';
-    } else {
-        // Beri sedikit ruang atas jika tanpa kop agar simetris di lembar A4
-        echo '<div style="height: 12mm;"></div>';
-    }
-
     $rawBody = trim((string)($surat['isi_surat'] ?? ''));
 
     // Cek apakah isi surat merupakan dokumen utuh Word-like canvas baru (memuat seluruh susunan surat)
@@ -54,6 +47,7 @@ function surat_custom($idSurat) {
         strpos($rawBody, 'border-grid') !== false ||
         strpos($rawBody, 'table-bordered') !== false ||
         strpos($rawBody, 'ttd-wrap') !== false ||
+        strpos($rawBody, 'ttd-table') !== false ||
         strpos($rawBody, 'word-doc') !== false ||
         strpos($rawBody, 'SURAT KETERANGAN') !== false ||
         strpos($rawBody, 'Nomor') !== false
@@ -118,31 +112,67 @@ function surat_custom($idSurat) {
 </style>
 
 <?php if ($isUnifiedWordDoc): ?>
-    <!-- Mode Dokumen Bebas Word (1:1 apa yang diketik operator di canvas) -->
-    <div class="word-canvas-body">
-        <?= $rawBody ?>
-    </div>
+    <?php
+    // Pisahkan konten menjadi multi-halaman jika ditemukan penanda Halaman Baru (SIATEK_PAGE_BREAK)
+    $delimiterRegex = '/(?:<!--\s*SIATEK_PAGE_BREAK\s*-->|<div[^>]*class="[^"]*siatek-page-break[^"]*"[^>]*>.*?<\/div>|<!--\s*pagebreak\s*-->|<div[^>]*class="[^"]*pagebreak[^"]*"[^>]*>.*?<\/div>|<div[^>]*style="[^"]*page-break-(?:after|before):\s*always[^"]*"[^>]*>.*?<\/div>)/is';
+    $sheets = preg_split($delimiterRegex, $rawBody);
+    if (!$sheets || count($sheets) <= 1) {
+        $sheets = [$rawBody];
+    }
+    $totalSheets = count($sheets);
+    foreach ($sheets as $idx => $sheetContent):
+        $sheetContent = trim($sheetContent);
+        if ($sheetContent === '' && $idx > 0) continue;
+        $sheetNum = $idx + 1;
+    ?>
+    <!-- LEMBAR <?= $sheetNum ?> DOKUMEN (<?= $ukuranKertas ?>) -->
+    <section class="sheet is-custom <?= strtolower($ukuranKertas) ?>" id="sheet-<?= $sheetNum ?>">
+        <?php if ($sheetNum === 1): ?>
+            <!-- KOP SURAT (HANYA DI LEMBAR 1 JIKA DIAKTIFKAN) -->
+            <?php if (!empty($surat['pakai_kop']) && (int)$surat['pakai_kop'] === 1): ?>
+                <?php include __DIR__ . '/kop-surat.php'; ?>
+            <?php else: ?>
+                <div style="height: 12mm;"></div>
+            <?php endif; ?>
+        <?php else: ?>
+            <!-- LEMBAR 2 DST: RUANG ATAS BERSIH (4mm) -->
+            <div style="height: 4mm;"></div>
+        <?php endif; ?>
+
+        <div class="word-canvas-body">
+            <?= $sheetContent ?>
+        </div>
+    </section>
+    <?php endforeach; ?>
+
 <?php else: ?>
     <!-- Mode Fallback Dokumen Lama (Legacy Support) -->
-    <!-- Header Meta: Nomor, Hal, Tanggal -->
-    <table style="width: 100%; margin-top: <?= !empty($surat['pakai_kop']) ? '8px' : '0' ?>; border-collapse: collapse; font-size: 12pt;">
-        <tr>
-            <td style="width: 85px; vertical-align: top;">Nomor</td>
-            <td style="width: 15px; vertical-align: top;">:</td>
-            <td style="vertical-align: top;"><?= htmlspecialchars($surat['nomor_surat'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td style="text-align: right; vertical-align: top; width: 230px;">Gorontalo, <?= htmlspecialchars($tglTeks, ENT_QUOTES, 'UTF-8') ?></td>
-        </tr>
-        <tr>
-            <td style="vertical-align: top;">Lampiran</td>
-            <td style="vertical-align: top;">:</td>
-            <td colspan="2" style="vertical-align: top;">-</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: top;">Hal</td>
-            <td style="vertical-align: top;">:</td>
-            <td colspan="2" style="vertical-align: top;"><b><?= htmlspecialchars($surat['perihal'], ENT_QUOTES, 'UTF-8') ?></b></td>
-        </tr>
-    </table>
+    <section class="sheet is-custom <?= strtolower($ukuranKertas) ?>">
+        <?php if (!empty($surat['pakai_kop']) && (int)$surat['pakai_kop'] === 1): ?>
+            <?php include __DIR__ . '/kop-surat.php'; ?>
+        <?php else: ?>
+            <div style="height: 12mm;"></div>
+        <?php endif; ?>
+
+        <!-- Header Meta: Nomor, Hal, Tanggal -->
+        <table style="width: 100%; margin-top: <?= !empty($surat['pakai_kop']) ? '8px' : '0' ?>; border-collapse: collapse; font-size: 12pt;">
+            <tr>
+                <td style="width: 85px; vertical-align: top;">Nomor</td>
+                <td style="width: 15px; vertical-align: top;">:</td>
+                <td style="vertical-align: top;"><?= htmlspecialchars($surat['nomor_surat'], ENT_QUOTES, 'UTF-8') ?></td>
+                <td style="text-align: right; vertical-align: top; width: 230px;">Gorontalo, <?= htmlspecialchars($tglTeks, ENT_QUOTES, 'UTF-8') ?></td>
+            </tr>
+            <tr>
+                <td style="vertical-align: top;">Lampiran</td>
+                <td style="vertical-align: top;">:</td>
+                <td colspan="2" style="vertical-align: top;">-</td>
+            </tr>
+            <tr>
+                <td style="vertical-align: top;">Hal</td>
+                <td style="vertical-align: top;">:</td>
+                <td colspan="2" style="vertical-align: top;"><b><?= htmlspecialchars($surat['perihal'], ENT_QUOTES, 'UTF-8') ?></b></td>
+            </tr>
+        </table>
 
     <!-- Tujuan Surat / Penerima (jika diisi) -->
     <?php if (!empty($surat['tujuan'])): ?>
@@ -238,6 +268,7 @@ function surat_custom($idSurat) {
         endif;
     endif;
     ?>
+    </section>
 <?php endif; ?>
 
 <?php

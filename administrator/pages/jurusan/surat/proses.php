@@ -207,15 +207,88 @@ if (isset($_POST['ambil-statistik-surat-custom'])) {
     exit;
 }
 
+// ================= AMBIL FORMAT NOMOR SURAT & GENERATE NOMOR =================
+if (isset($_POST['ambil-format-nomor-surat'])) {
+    $q = query("SELECT id, nama_surat, format_nomor FROM format_nomor_surat ORDER BY id ASC");
+    $list = [];
+    $tahun = date('Y');
+
+    // Ambil nomor urutan tertinggi di tahun ini dari tabel nomor_surat
+    $urutanBerikutnya = 1;
+    $cek_nomor = query("SELECT urutan FROM `nomor_surat` WHERE YEAR(tanggal) = '$tahun' ORDER BY CAST(urutan AS UNSIGNED) DESC, id DESC LIMIT 1");
+    if ($cek_nomor && mysqli_num_rows($cek_nomor) > 0) {
+        $data_nomor = mysqli_fetch_assoc($cek_nomor);
+        $urutanBerikutnya = ((int)$data_nomor['urutan'] + 1);
+    }
+    $urutanStr = sprintf('%03d', $urutanBerikutnya);
+
+    if ($q) {
+        while ($r = mysqli_fetch_assoc($q)) {
+            $fmtClean = trim((string)$r['format_nomor']);
+            // Pastikan diawali slash jika belum ada
+            if ($fmtClean !== '' && substr($fmtClean, 0, 1) !== '/') {
+                $fmtClean = '/' . $fmtClean;
+            }
+            // Pastikan diakhiri slash jika belum ada
+            if ($fmtClean !== '' && substr($fmtClean, -1) !== '/') {
+                $fmtClean .= '/';
+            }
+            $nomorPreview = $urutanStr . $fmtClean . $tahun;
+            $list[] = [
+                'id' => $r['id'],
+                'nama_surat' => trim($r['nama_surat']),
+                'format_nomor' => $r['format_nomor'],
+                'nomor_preview' => $nomorPreview
+            ];
+        }
+    }
+
+    echo json_encode([
+        'status' => true,
+        'data' => $list,
+        'urutan' => $urutanStr,
+        'tahun' => $tahun
+    ]);
+    exit;
+}
+
 // ================= AMBIL NOMOR SURAT OTOMATIS =================
 if (isset($_POST['ambil-nomor-otomatis'])) {
-    $kategori = bersihkan($_POST['kategori'] ?? 'surat custom');
-    $nomor = function_exists('get_nomor_surat') ? get_nomor_surat($kategori) : '';
+    $formatId = isset($_POST['format_id']) ? (int)$_POST['format_id'] : 0;
+    $tahun = date('Y');
+
+    // Ambil nomor urutan tertinggi di tahun ini dari tabel nomor_surat
+    $urutanBerikutnya = 1;
+    $cek_nomor = query("SELECT urutan FROM `nomor_surat` WHERE YEAR(tanggal) = '$tahun' ORDER BY CAST(urutan AS UNSIGNED) DESC, id DESC LIMIT 1");
+    if ($cek_nomor && mysqli_num_rows($cek_nomor) > 0) {
+        $data_nomor = mysqli_fetch_assoc($cek_nomor);
+        $urutanBerikutnya = ((int)$data_nomor['urutan'] + 1);
+    }
+    $urutanStr = sprintf('%03d', $urutanBerikutnya);
+
+    $nomor = '';
+    if ($formatId > 0) {
+        $qF = query("SELECT * FROM format_nomor_surat WHERE id = '$formatId' LIMIT 1");
+        if ($qF && ($rF = mysqli_fetch_assoc($qF))) {
+            $fmtClean = trim((string)$rF['format_nomor']);
+            if ($fmtClean !== '' && substr($fmtClean, 0, 1) !== '/') {
+                $fmtClean = '/' . $fmtClean;
+            }
+            if ($fmtClean !== '' && substr($fmtClean, -1) !== '/') {
+                $fmtClean .= '/';
+            }
+            $nomor = $urutanStr . $fmtClean . $tahun;
+        }
+    }
+
+    if (empty($nomor)) {
+        $kategori = bersihkan($_POST['kategori'] ?? 'surat custom');
+        $nomor = function_exists('get_nomor_surat') ? get_nomor_surat($kategori) : '';
+    }
     
     // Fallback bila helper belum ada
     if (empty($nomor) || $nomor === 'Tidak Ditemukan') {
-        $tahun = date('Y');
-        $nomor = '001/UN47.B5.5/TD.06/' . $tahun;
+        $nomor = $urutanStr . '/UN47.B5.5/TD.06/' . $tahun;
     }
 
     echo json_encode(['status' => true, 'nomor' => $nomor]);

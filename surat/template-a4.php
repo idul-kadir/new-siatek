@@ -57,7 +57,7 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
         padding-bottom: 80px;
     }
 
-    /* ---- Kertas Dokumen (A4 / F4 Margin Mutlak: 2.5cm sekeliling) ---- */
+    /* ---- Kertas Dokumen (A4 / F4 Margin Mutlak: 2.5cm sekeliling, Custom Surat: Mepet Bawah) ---- */
     .sheet {
         background: #fff;
         width: <?= $pageWidth ?>;
@@ -68,6 +68,18 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
         border: 1px solid #94a3b8;
         box-sizing: border-box;
         position: relative;
+    }
+    .sheet.is-custom {
+        height: <?= $pageHeight ?>;
+        max-height: <?= $pageHeight ?>;
+        overflow: hidden;
+        padding: 20mm 25mm 12mm 25mm; /* Mepet ke bawah sesuai permintaan operator */
+    }
+    .sheet.is-custom.f4 {
+        width: 215mm;
+        height: 330mm;
+        min-height: 330mm;
+        max-height: 330mm;
     }
 
     /* ---- Kop surat ---- */
@@ -121,8 +133,19 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
             width: <?= $pageWidth ?>;
             min-height: <?= $pageHeight ?>;
             padding: 25mm; /* 2.5 cm mutlak */
-            page-break-after: avoid;
+            page-break-after: always;
+            break-after: page;
             page-break-inside: auto;
+        }
+        .sheet.is-custom {
+            height: <?= $pageHeight ?>;
+            max-height: <?= $pageHeight ?>;
+            overflow: hidden;
+            padding: 20mm 25mm 12mm 25mm; /* Mepet ke bawah */
+        }
+        .sheet:last-of-type, .sheet:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
         }
         .kop .brand .org { font-size: 12pt; line-height: 1.22; }
         .kop .brand .addr { font-size: 10pt; line-height: 1.22; }
@@ -142,7 +165,7 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
 <div class="print-action-bar no-print" style="position: fixed; top: 0; left: 0; right: 0; height: 50px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: system-ui, -apple-system, sans-serif; color: #fff;">
     <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-weight: 700; font-size: 13px; color: #f97316;">SIATEK Dokumen</span>
-        <span style="font-size: 11px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Ukuran: <?= $ukuranKertas ?> (<?= $pageWidth ?> × <?= $pageHeight ?>)</span>
+        <span style="font-size: 11px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Ukuran: <?= $ukuranKertas ?> (<?= $pageWidth ?> × <?= $pageHeight ?>)<span id="sheetCountBadge" style="display: none; color: #38bdf8; font-weight: 700;"></span></span>
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 11px; color: #94a3b8;">Ganti Ukuran:</span>
@@ -162,6 +185,12 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
     </div>
 </div>
 
+<?php if ($kategori === 'surat-custom'): ?>
+    <?php
+    require_once __DIR__ . '/content-surat/surat-custom.php';
+    surat_custom($nim);
+    ?>
+<?php else: ?>
 <section class="sheet">
 
     <?php
@@ -216,11 +245,6 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
                 surat_permohonan_izin_kp($nim);
                 break;
 
-            case 'surat-custom':
-                require_once __DIR__ . '/content-surat/surat-custom.php';
-                surat_custom($nim);
-                break;
-
             default:
                 echo 'Dokumen yang Anda minta tidak ada.';
         }
@@ -230,6 +254,18 @@ $pageSizeCss = ($ukuranKertas === 'F4') ? '215mm 330mm' : 'A4 portrait';
     ?>
 
 </section>
+<?php endif; ?>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    var sheets = document.querySelectorAll('.sheet');
+    var badge = document.getElementById('sheetCountBadge');
+    if (badge && sheets.length > 1) {
+        badge.textContent = ' • ' + sheets.length + ' Lembar (Lampiran)';
+        badge.style.display = 'inline';
+    }
+});
+</script>
 
 </body>
 </html>

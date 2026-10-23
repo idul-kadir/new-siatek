@@ -185,10 +185,7 @@ if (isset($_POST['ambil-tabel-bimbingan-kp'])) {
             k.nim LIKE '%$cari%' 
             OR m.nama LIKE '%$cari%' 
             OR k.judul LIKE '%$cari%' 
-            OR k.tempat LIKE '%$cari%' 
             OR k.nama_instansi LIKE '%$cari%' 
-            OR k.instansi LIKE '%$cari%' 
-            OR k.tempat_kp LIKE '%$cari%' 
             OR d.nama LIKE '%$cari%'
         )";
     }

@@ -366,6 +366,12 @@ function tgl_indo($tanggal) {
     return (int)$pecahkan[2] . ' ' . ($bulan[(int)$pecahkan[1]] ?? '') . ' ' . $pecahkan[0];
 }
 
+if (!function_exists('tanggal_indo')) {
+    function tanggal_indo($tanggal) {
+        return tgl_indo($tanggal);
+    }
+}
+
 // ================= FUNCTION KONFIGURASI STEP PENUNJUKKAN =================
 // Menentukan nomor step SOP untuk penunjukkan pembimbing dan penguji.
 // Skripsi: step 3 (Pembimbing), step 9 (Penguji Hasil), step 17 (Penguji Tutup).
@@ -462,11 +468,11 @@ function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua',
         }
         if ($cari !== '') {
             $cariBersih = bersihkan($cari);
-            $whereKp[] = "(k.nim LIKE '%$cariBersih%' OR m.nama LIKE '%$cariBersih%' OR k.judul LIKE '%$cariBersih%' OR k.tempat LIKE '%$cariBersih%')";
+            $whereKp[] = "(k.nim LIKE '%$cariBersih%' OR m.nama LIKE '%$cariBersih%' OR k.judul LIKE '%$cariBersih%' OR k.nama_instansi LIKE '%$cariBersih%')";
         }
         $whereSqlKp = implode(" AND ", $whereKp);
 
-        $sqlKp = "SELECT k.nim, k.judul, k.tempat, k.status, k.surat_penunjukkan_penguji, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
+        $sqlKp = "SELECT k.nim, k.judul, k.nama_instansi, k.status, k.surat_penunjukkan_penguji, m.nama AS nama_mhs, m.prodi, p.nama AS nama_prodi,
                          (SELECT pk.proses FROM progres_kp pk WHERE pk.mahasiswa = k.nim ORDER BY pk.waktu DESC, pk.proses DESC LIMIT 1) AS latest_step,
                          (SELECT COUNT(*) FROM surat_penunjukkan sp 
                           WHERE ((k.surat_penunjukkan_penguji IS NOT NULL AND k.surat_penunjukkan_penguji != '' AND k.surat_penunjukkan_penguji != '0' AND sp.id = k.surat_penunjukkan_penguji)
@@ -509,7 +515,7 @@ function ambil_antrian_penunjukkan($filterProdi = '', $kategoriFilter = 'semua',
                     $tahapanLabel = 'Seminar KP';
                 }
 
-                $judulDisplay = $r['judul'] ?: ($r['tempat'] ? 'Lokasi KP: ' . $r['tempat'] : '-');
+                $judulDisplay = $r['judul'] ?: (!empty($r['nama_instansi']) ? 'Lokasi KP: ' . $r['nama_instansi'] : '-');
                 $hasil[] = [
                     'sumber'          => 'kp',
                     'nim'             => $nim,
