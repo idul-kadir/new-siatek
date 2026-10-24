@@ -26,13 +26,32 @@ if ($qP) {
     }
 }
 
-// Ambil daftar format nomor surat dari DB
+// Ambil daftar format nomor surat dari DB secara dinamis dikelompokkan berdasarkan format_nomor
 $daftarFormatNomor = [];
-$qFN = query("SELECT id, nama_surat, format_nomor FROM format_nomor_surat ORDER BY id ASC");
-if ($qFN) {
-    while ($fn = mysqli_fetch_assoc($qFN)) {
-        $daftarFormatNomor[] = $fn;
+try {
+    // Pada MySQL 8.0+, pengurutan harus menggunakan ORDER BY, bukan GROUP BY ... ASC
+    $qFN = query("SELECT MIN(id) AS id, format_nomor, MIN(nama_surat) AS nama_surat FROM `format_nomor_surat` GROUP BY format_nomor ORDER BY format_nomor ASC");
+} catch (Throwable $e) {
+    try {
+        $qFN = query("SELECT * FROM `format_nomor_surat` GROUP BY format_nomor ORDER BY format_nomor ASC");
+    } catch (Throwable $e2) {
+        $qFN = query("SELECT DISTINCT format_nomor, id, nama_surat FROM `format_nomor_surat` ORDER BY format_nomor ASC");
     }
+}
+if (!empty($qFN)) {
+    while ($fn = mysqli_fetch_assoc($qFN)) {
+        if (!empty(trim((string)$fn['format_nomor']))) {
+            $daftarFormatNomor[] = $fn;
+        }
+    }
+}
+
+// Ambil nomor surat terakhir di tahun ini dari tabel nomor_surat
+$tahunIni = date('Y');
+$infoNomorTerakhir = null;
+$qLast = query("SELECT urutan, nomor, tanggal, keterangan FROM `nomor_surat` WHERE YEAR(tanggal) = '$tahunIni' ORDER BY CAST(urutan AS UNSIGNED) DESC, id DESC LIMIT 1");
+if ($qLast && ($rL = mysqli_fetch_assoc($qLast))) {
+    $infoNomorTerakhir = $rL;
 }
 ?>
 
@@ -57,6 +76,108 @@ if ($qFN) {
     .pg-btn:hover { border-color: #fdba74; color: #c2410c; }
     .pg-btn:disabled { opacity: .45; cursor: not-allowed; }
     .pg-btn.on { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+
+    /* Modal Overlay Standar SIATEK */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1070;
+        background: rgba(15,23,42,.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        backdrop-filter: blur(2px);
+    }
+    .modal-overlay.show {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Form Input & Select Standar SIATEK */
+    .form-input, .form-select {
+        width: 100% !important;
+        border-radius: 0.5rem !important;
+        border: 1px solid #cbd5e1 !important;
+        background-color: #f8fafc !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.75rem !important;
+        color: #1e293b !important;
+        outline: none !important;
+        transition: all 0.15s ease !important;
+        display: block !important;
+        box-sizing: border-box !important;
+    }
+    .form-input:focus, .form-select:focus {
+        border-color: #fb923c !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.2) !important;
+    }
+    .form-label {
+        display: block !important;
+        margin-bottom: 0.25rem !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        color: #334155 !important;
+    }
+
+    /* Toast Notification Standar SIATEK */
+    #toastContainer {
+        position: fixed;
+        top: 1.5rem;
+        right: 1.5rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        pointer-events: none;
+    }
+    .toast-item {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1.25rem;
+        border-radius: 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #fff;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+        transform: translateX(120%);
+        opacity: 0;
+        transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+        max-width: 380px;
+    }
+    .toast-item.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    .toast-item.hide {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    .toast-success { background: linear-gradient(135deg, #059669, #10b981); }
+    .toast-error   { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .toast-info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+    .toast-icon { font-size: 1rem; flex-shrink: 0; }
+    .toast-close {
+        margin-left: auto;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    .toast-close:hover { opacity: 1; }
+
+    /* Mencegah toolbar/popover floating TinyMCE terbuka otomatis saat kursor di dalam tabel */
+    .tox-pop, .tox-pop--top, .tox-pop--bottom {
+        display: none !important;
+    }
 
     /* Modal Canvas Editor Fullscreen */
     .canvas-overlay { display: none; position: fixed; inset: 0; z-index: 1060; background: rgba(15,23,42,.85); backdrop-filter: blur(4px); align-items: stretch; justify-content: center; }
@@ -88,7 +209,7 @@ if ($qFN) {
         cursor: default;
     }
 
-    /* Satu Lembar Kertas Fisik A4 / F4 — TINGGI TERKUNCI MUTLAK! TIDAK AKAN PERNAH MOLOR KELUAR UKURAN KERTAS */
+    /* Satu Lembar Kertas Fisik A4 / F4 ΓÇö TINGGI TERKUNCI MUTLAK! TIDAK AKAN PERNAH MOLOR KELUAR UKURAN KERTAS */
     .a4-page {
         background: #ffffff;
         width: 210mm;
@@ -384,6 +505,8 @@ if ($qFN) {
 </style>
 
 <main class="content-area content-scroll">
+    <!-- Toast Notification Container Standar SIATEK -->
+    <div id="toastContainer"></div>
 
     <!-- ===== Page Header ===== -->
     <section class="mb-5">
@@ -397,9 +520,55 @@ if ($qFN) {
                     <p class="text-xs text-slate-500">Editor custom langsung di lembar A4 dengan toolbar samping yang fleksibel, nomor otomatis, dan cetak resmi.</p>
                 </div>
             </div>
-            <div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="btnCatatEksternal" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
+                    <i class="fas fa-file-arrow-up text-orange-500"></i>Catat Surat Eksternal
+                </button>
                 <button type="button" id="btnBuatSurat" class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600">
-                    <i class="fas fa-plus"></i>Buat Surat
+                    <i class="fas fa-plus"></i>Buat Surat (Editor)
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Banner Informasi Nomor Surat Terakhir ===== -->
+    <section class="mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-white p-3 shadow-sm text-xs" id="boxNomorTerakhir">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm text-sm font-bold">
+                    <i class="fas fa-hashtag"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-bold text-slate-800 text-sm font-mono tracking-tight" id="lblNomorTerakhir">
+                            <?= !empty($infoNomorTerakhir['nomor']) ? htmlspecialchars($infoNomorTerakhir['nomor']) : 'Belum Ada Surat Tahun Ini' ?>
+                        </span>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            Terakhir Dipakai
+                        </span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                        <span><i class="fas fa-calendar-day mr-1 text-slate-400"></i><span id="lblTglTerakhir"><?= !empty($infoNomorTerakhir['tanggal']) ? (function_exists('tgl_indo') ? tgl_indo($infoNomorTerakhir['tanggal']) : $infoNomorTerakhir['tanggal']) : '-' ?></span></span>
+                        <span class="line-clamp-1"><i class="fas fa-file-signature mr-1 text-slate-400"></i><span id="lblKetTerakhir" class="italic"><?= !empty($infoNomorTerakhir['keterangan']) ? htmlspecialchars($infoNomorTerakhir['keterangan']) : 'Belum ada catatan' ?></span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5 shrink-0 ml-auto">
+                <div class="text-right">
+                    <span class="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Urutan Terakhir:</span>
+                    <span class="font-mono font-bold text-slate-700 text-xs" id="lblUrutanTerakhir">
+                        <?= !empty($infoNomorTerakhir['urutan']) ? sprintf('%03d', (int)$infoNomorTerakhir['urutan']) : '000' ?>
+                    </span>
+                </div>
+                <div class="h-6 w-[1px] bg-amber-200 mx-0.5"></div>
+                <div class="text-left bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    <span class="block text-[9px] text-emerald-600 font-semibold uppercase tracking-wider">Tersedia Berikutnya:</span>
+                    <span class="font-mono font-bold text-emerald-700 text-xs" id="lblUrutanBerikutnya">
+                        <?= sprintf('%03d', (!empty($infoNomorTerakhir['urutan']) ? ((int)$infoNomorTerakhir['urutan'] + 1) : 1)) ?>
+                    </span>
+                </div>
+                <button type="button" id="btnRefreshNomorTerakhir" class="h-7 w-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition ml-1" title="Perbarui Data Nomor Terakhir">
+                    <i class="fas fa-sync-alt text-xs"></i>
                 </button>
             </div>
         </div>
@@ -507,6 +676,9 @@ if ($qFN) {
 
             <!-- Sisi Kanan: Tombol Aksi Simpan, Cetak, Tutup -->
             <div class="flex items-center gap-2 shrink-0">
+                <button type="button" id="btnSalinTemplateCanvas" class="hidden py-2 px-3 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow transition flex items-center gap-1.5" title="Jadikan dokumen ini sebagai Surat Baru (Nomor urut & tanggal baru otomatis)">
+                    <i class="fas fa-copy"></i> <span>Duplikat Template</span>
+                </button>
                 <button type="button" id="btnSimpanCanvas" class="py-2 px-3.5 text-xs font-bold rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow transition flex items-center gap-1.5">
                     <i class="fas fa-save"></i> <span>Simpan</span>
                 </button>
@@ -724,9 +896,10 @@ if ($qFN) {
                                 </button>
                             </div>
                             <input type="text" id="swNomorSurat" class="sb-input font-mono text-xs" placeholder="Ketik / tarik nomor...">
-                            <div class="mt-1.5 flex justify-end">
-                                <button type="button" id="btnSisipNomor" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-[11px] font-medium border border-slate-700 transition flex items-center gap-1">
-                                    <i class="fas fa-plus text-[9px] text-orange-400"></i> Sisipkan Nomor ke Kursor
+                            <div class="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                                <span id="hintNomorTerakhir">No. Terakhir: <strong class="text-slate-300 font-mono"><?= !empty($infoNomorTerakhir['nomor']) ? htmlspecialchars($infoNomorTerakhir['nomor']) : '-' ?></strong></span>
+                                <button type="button" id="btnSisipNomor" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-[10px] font-medium border border-slate-700 transition flex items-center gap-1">
+                                    <i class="fas fa-plus text-[8px] text-orange-400"></i> Sisip ke Kursor
                                 </button>
                             </div>
                         </div>
@@ -832,6 +1005,105 @@ if ($qFN) {
     </div>
 </div>
 
+<!-- ===== MODAL CATAT / UNGGAH SURAT EKSTERNAL ===== -->
+<div class="modal-overlay" id="modalCatatEksternal" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+        <!-- Header Modal -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/50">
+            <h6 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i class="fas fa-file-arrow-up text-orange-500"></i>
+                <span id="titleModalEksternal">Catat Surat Eksternal</span>
+            </h6>
+            <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none closeModalEksternal" data-modal-close>&times;</button>
+        </div>
+
+        <form id="formSuratEksternal" enctype="multipart/form-data">
+            <input type="hidden" id="extId" name="id" value="">
+            
+            <div class="p-5 space-y-3.5 max-h-[72vh] overflow-y-auto">
+                <!-- Nomor Surat -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="extNomorSurat" class="mb-1 block text-xs font-bold text-slate-700">Nomor Surat <span class="text-rose-500">*</span></label>
+                        <button type="button" id="btnTarikNomorEksternal" class="text-[11px] text-orange-600 hover:text-orange-700 font-bold flex items-center gap-1 transition">
+                            <i class="fas fa-sync-alt"></i> Tarik No (+1)
+                        </button>
+                    </div>
+                    <input type="text" id="extNomorSurat" name="nomor_surat" required placeholder="Contoh: 026/UN47.B5.5/TD.06/2026"
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono outline-none focus:border-orange-400 focus:bg-white transition">
+                </div>
+
+                <!-- Perihal -->
+                <div>
+                    <label for="extPerihal" class="mb-1 block text-xs font-bold text-slate-700">Perihal / Hal Surat <span class="text-rose-500">*</span></label>
+                    <input type="text" id="extPerihal" name="perihal" required placeholder="Tuliskan perihal surat..."
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white transition">
+                </div>
+
+                <!-- Kategori & Tanggal -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="extKategori" class="mb-1 block text-xs font-bold text-slate-700">Kategori Surat</label>
+                        <select id="extKategori" name="kategori"
+                                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white transition">
+                            <option value="Kerja Sama / MoU">Kerja Sama / MoU</option>
+                            <option value="Surat Tugas">Surat Tugas</option>
+                            <option value="Surat Keterangan">Surat Keterangan</option>
+                            <option value="Surat Pengantar">Surat Pengantar</option>
+                            <option value="Undangan">Undangan</option>
+                            <option value="Surat Keputusan (SK)">Surat Keputusan (SK)</option>
+                            <option value="Lainnya" selected>Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="extTanggalSurat" class="mb-1 block text-xs font-bold text-slate-700">Tanggal Surat <span class="text-rose-500">*</span></label>
+                        <input type="date" id="extTanggalSurat" name="tanggal_surat" value="<?= date('Y-m-d') ?>" required
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <!-- Tujuan / Instansi Penerima -->
+                <div>
+                    <label for="extTujuan" class="mb-1 block text-xs font-bold text-slate-700">Tujuan / Instansi Penerima</label>
+                    <input type="text" id="extTujuan" name="tujuan" placeholder="Nama instansi atau pihak penerima (opsional)"
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white transition">
+                </div>
+
+                <!-- Unggah Dokumen -->
+                <div>
+                    <label for="extFileDokumen" class="mb-1 block text-xs font-bold text-slate-700">
+                        <i class="fas fa-paperclip mr-1 text-orange-500"></i>Berkas Dokumen
+                    </label>
+                    <input type="file" id="extFileDokumen" name="file_dokumen" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                           class="w-full text-xs text-slate-500 border border-slate-200 rounded-lg p-2 bg-slate-50 focus:bg-white focus:outline-none transition">
+                    <p class="mt-1 text-[11px] text-slate-400">Format berkas: PDF, DOCX, DOC, JPG, PNG (Maks. 10 MB)</p>
+                    <div id="extFileCurrentWrap" class="hidden mt-2 p-2.5 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-between text-xs">
+                        <span class="text-slate-700 flex items-center gap-1.5"><i class="fas fa-file-lines text-orange-600"></i><span id="extNamaFileCurrent" class="font-medium truncate max-w-[220px]"></span></span>
+                        <a href="#" id="extFileCurrentLink" target="_blank" class="font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"><i class="fas fa-eye"></i>Lihat Berkas</a>
+                    </div>
+                </div>
+
+                <!-- Keterangan / Catatan Tambahan -->
+                <div>
+                    <label for="extKeterangan" class="mb-1 block text-xs font-bold text-slate-700">Keterangan / Catatan</label>
+                    <textarea id="extKeterangan" name="keterangan" rows="2" placeholder="Tuliskan catatan tambahan bila ada..."
+                              class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white transition"></textarea>
+                </div>
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" class="closeModalEksternal rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition" data-modal-close>
+                    Batal
+                </button>
+                <button type="submit" id="btnSimpanEksternal" class="rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-orange-600 transition flex items-center gap-1.5">
+                    <i class="fas fa-save"></i> <span>Simpan Surat Eksternal</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <?php
 // Single Source of Truth: Render Kop Surat langsung dari komponen kop-surat.php
 $kopFilePath = dirname(__DIR__, 4) . '/surat/content-surat/kop-surat.php';
@@ -856,6 +1128,39 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
     var activeTableTarget = null;
     var currentPejabat = { dosen_id: '', nama: 'Nama Pejabat', nip: '-', jabatan: 'Ketua Jurusan' };
     var savedRange = null;
+
+    // ================= TOAST NOTIFIKASI STANDAR SIATEK =================
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        var container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            document.body.appendChild(container);
+        }
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe;
+        var ikon = tipe === 'success' ? 'fa-circle-check' : (tipe === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+        item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span class="leading-tight">' + pesan + '</span><button type="button" class="toast-close">&times;</button>';
+        container.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.add('show'); });
+
+        var dismiss = setTimeout(function(){
+            item.classList.add('hide');
+            setTimeout(function(){ item.remove(); }, 350);
+        }, 4000);
+
+        $(item).find('.toast-close').on('click', function() {
+            clearTimeout(dismiss);
+            item.classList.add('hide');
+            setTimeout(function(){ item.remove(); }, 350);
+        });
+    }
+
+    // Hindari native browser alert agar taat aturan UI aplikasi SIATEK
+    window.alert = function(msg) {
+        toast(msg, 'info');
+    };
 
     // Format Tanggal Indonesia
     var NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -927,6 +1232,39 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
     // ================= MULTI-PAGE A4 WORD SYSTEM & NATIVE RICH TEXT ENGINE =================
     var currentActiveEditor = null;
     var savedRange = null;
+
+    // ================= TOAST NOTIFIKASI STANDAR SIATEK =================
+    function toast(pesan, tipe) {
+        tipe = tipe || 'info';
+        var container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            document.body.appendChild(container);
+        }
+        var item = document.createElement('div');
+        item.className = 'toast-item toast-' + tipe;
+        var ikon = tipe === 'success' ? 'fa-circle-check' : (tipe === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+        item.innerHTML = '<i class="fas ' + ikon + ' toast-icon"></i><span class="leading-tight">' + pesan + '</span><button type="button" class="toast-close">&times;</button>';
+        container.appendChild(item);
+        requestAnimationFrame(function(){ item.classList.add('show'); });
+
+        var dismiss = setTimeout(function(){
+            item.classList.add('hide');
+            setTimeout(function(){ item.remove(); }, 350);
+        }, 4000);
+
+        $(item).find('.toast-close').on('click', function() {
+            clearTimeout(dismiss);
+            item.classList.add('hide');
+            setTimeout(function(){ item.remove(); }, 350);
+        });
+    }
+
+    // Hindari native browser alert agar taat aturan UI aplikasi SIATEK
+    window.alert = function(msg) {
+        toast(msg, 'info');
+    };
 
     function getActiveEditor() {
         if (currentActiveEditor && document.body.contains(currentActiveEditor)) {
@@ -1003,7 +1341,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             font_family_formats: 'Times New Roman=times new roman,times,serif; Arial=arial,helvetica,sans-serif; Calibri=calibri,sans-serif; Georgia=georgia,serif; Courier New=courier new,courier,monospace; Verdana=verdana,sans-serif',
             font_size_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 24pt 36pt',
             line_height_formats: '1.0 1.15 1.25 1.35 1.5 2.0',
-            table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | tablecellprops tablemergecells tablesplitcells',
+            table_toolbar: '',
             table_appearance_options: true,
             table_advtab: true,
             table_cell_advtab: true,
@@ -1235,6 +1573,9 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
     var toolbarSyncTimeout = null;
     function updateToolbarState() {
         if (window.tinymce && tinymce.activeEditor && !tinymce.activeEditor.isHidden()) return;
+        if (document.activeElement && (document.activeElement.id === 'selFontFamily' || document.activeElement.id === 'selFontSize')) {
+            return;
+        }
         if (toolbarSyncTimeout) clearTimeout(toolbarSyncTimeout);
         toolbarSyncTimeout = setTimeout(function() {
             var ed = getActiveEditor();
@@ -1245,8 +1586,12 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             if (!ed.contains(range.commonAncestorContainer)) return;
 
             var fmt = getActiveFormatting();
-            $('#selFontFamily').val(fmt.font);
-            $('#selFontSize').val(fmt.size);
+            if (!document.activeElement || document.activeElement.id !== 'selFontFamily') {
+                $('#selFontFamily').val(fmt.font);
+            }
+            if (!document.activeElement || document.activeElement.id !== 'selFontSize') {
+                $('#selFontSize').val(fmt.size);
+            }
 
             try {
                 $('.sb-btn[data-cmd="bold"]').toggleClass('active bg-slate-700 text-sky-400', document.queryCommandState('bold'));
@@ -1733,6 +2078,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             if (edit && d) {
                 $('#canvasTitle').text('Edit Surat — ' + (d.nomor_surat || 'Dokumen'));
                 $('#cvId').val(d.id);
+                $('#btnSalinTemplateCanvas').removeClass('hidden'); // Tampilkan tombol duplikat untuk surat yang sudah tersimpan
                 $('#swTanggalSurat').val(d.tanggal_surat);
                 $('#swPakaiKop').prop('checked', parseInt(d.pakai_kop, 10) === 1);
                 updateKopCanvas(parseInt(d.pakai_kop, 10) === 1);
@@ -1768,6 +2114,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             } else {
                 $('#canvasTitle').text('Surat Baru (Lembar Polos)');
                 $('#cvId').val('');
+                $('#btnSalinTemplateCanvas').addClass('hidden'); // Sembunyikan untuk surat baru
                 $('#swTanggalSurat').val('<?= date('Y-m-d') ?>');
                 $('#swPakaiTanggalHeader').prop('checked', false);
                 $('#swPakaiKop').prop('checked', true);
@@ -1822,6 +2169,60 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             }, 120);
         }
 
+        // Buka Canvas dengan Template Surat yang Sudah Ada (Duplikasi sebagai Surat Baru)
+        function openCanvasTemplate(d) {
+            isEditMode = false; // Status SURAT BARU, BUKAN edit!
+            var judulTemplate = d.perihal || 'Template';
+            $('#canvasTitle').text('Surat Baru (Template: ' + judulTemplate + ')');
+            $('#cvId').val(''); // Wajib KOSONG agar tersimpan sebagai record baru!
+            $('#btnSalinTemplateCanvas').addClass('hidden'); // Sembunyikan karena dokumen template ini belum disimpan
+            $('#swTanggalSurat').val('<?= date('Y-m-d') ?>'); // Otomatis tanggal hari ini
+            $('#swPakaiKop').prop('checked', parseInt(d.pakai_kop, 10) === 1);
+            updateKopCanvas(parseInt(d.pakai_kop, 10) === 1);
+            setPaperSize(d.ukuran_kertas || 'A4');
+            $('#swKategori').val(d.kategori || 'Undangan');
+            $('#swPerihal').val(d.perihal || '');
+            $('#swNomorSurat').val(''); // Dikosongkan lalu otomatis ditarik nomor baru
+            $('#swTtdJenis').val(d.ttd_jenis || 'kajur');
+
+            if (d.ttd_jenis === 'kaprodi') {
+                $('#wrapTtdProdi').removeClass('hidden');
+                if (d.ttd_prodi) $('#swTtdProdi').val(d.ttd_prodi);
+            } else {
+                $('#wrapTtdProdi').addClass('hidden');
+            }
+
+            currentPejabat = {
+                dosen_id: d.ttd_dosen_id || '',
+                nama: d.ttd_nama || 'Nama Pejabat',
+                nip: d.ttd_nip || '-',
+                jabatan: d.ttd_jabatan || 'Ketua Jurusan'
+            };
+            $('#previewTtdNama').text(currentPejabat.nama);
+            $('#previewTtdNip').text('NIP. ' + (currentPejabat.nip || '-'));
+
+            var hasTanggalInDoc = (d.isi_surat && (d.isi_surat.indexOf('cv-tanggal-header') !== -1));
+            $('#swPakaiTanggalHeader').prop('checked', hasTanggalInDoc);
+            updateTanggalHeaderCanvas();
+
+            // Muat isi template surat
+            setCanvasContent(d.isi_surat || '<p><br></p>');
+
+            // Tarik otomatis nomor surat urut baru berikutnya dari sistem
+            tarikNomorOtomatis();
+
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(function() {
+                var firstEd = document.querySelector('.page-editor');
+                if (firstEd) {
+                    currentActiveEditor = firstEd;
+                    firstEd.focus();
+                }
+            }, 120);
+        }
+
         function closeCanvas(force) {
             if (!force) {
                 var rawIsi = getCanvasContent();
@@ -1851,7 +2252,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                 if (isF5 || isCtrlR) {
                     e.preventDefault();
                     e.stopPropagation();
-                    alert('Mode editor surat sedang aktif! Halaman tidak dapat di-refresh sebelum surat disimpan atau klik tombol "Tutup" terlebih dahulu.');
+                    toast('Mode editor surat sedang aktif! Simpan surat atau klik tombol Tutup terlebih dahulu.', 'info');
                     return false;
                 }
             }
@@ -1939,7 +2340,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             if (no) {
                 insertCanvasContent(no);
             } else {
-                alert('Nomor surat belum terisi. Klik "Auto No (+1)" terlebih dahulu.');
+                toast('Nomor surat belum terisi. Klik "Auto No (+1)" terlebih dahulu.', 'info');
             }
         });
 
@@ -2263,11 +2664,11 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                         var imgHtml = '<div style="text-align: center; margin: 10px 0;"><img src="' + res.url + '" alt="Gambar Lampiran" style="max-width: 80%; height: auto; display: inline-block;"></div><p><br></p>';
                         insertCanvasContent(imgHtml);
                     } else {
-                        alert(res.pesan || 'Gagal menyisipkan gambar');
+                        toast(res.pesan || 'Gagal menyisipkan gambar', 'error');
                     }
                 },
                 error: function() {
-                    alert('Terjadi kesalahan saat mengunggah gambar');
+                    toast('Terjadi kesalahan saat mengunggah gambar', 'error');
                 }
             });
             this.value = '';
@@ -2505,7 +2906,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
             var nomor = $('#swNomorSurat').val().trim();
 
             if (!isiHtml || isiHtml === '<p><br></p>' || isiHtml === '<br>') {
-                alert('Isi surat pada lembar kerja tidak boleh kosong.');
+                toast('Isi surat pada lembar kerja tidak boleh kosong.', 'error');
                 var ed = getActiveEditor();
                 if (ed) ed.focus();
                 return;
@@ -2524,9 +2925,11 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
 
             var pj = currentPejabat;
             var ukKertas = $('#swUkuranKertas').val() || 'A4';
+            var cvId = ($('#cvId').val() || '').trim();
+            var isEdit = Boolean(isEditMode && cvId !== '');
 
             var data = {
-                id: $('#cvId').val(),
+                id: cvId,
                 pakai_kop: $('#swPakaiKop').is(':checked') ? 1 : 0,
                 ukuran_kertas: ukKertas,
                 nomor_surat: nomor,
@@ -2545,7 +2948,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                 tembusan: ''
             };
 
-            data[isEditMode ? 'edit-data-surat-custom' : 'tambah-data-surat-custom'] = 1;
+            data[isEdit ? 'edit-data-surat-custom' : 'tambah-data-surat-custom'] = 1;
 
             var btn = $('#btnSimpanCanvas');
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> <span>Menyimpan...</span>');
@@ -2561,19 +2964,21 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                         if (res.id) {
                             $('#cvId').val(res.id);
                             isEditMode = true;
+                            $('#btnSalinTemplateCanvas').removeClass('hidden');
                         }
                         var currentId = $('#cvId').val();
                         if (typeof callback === 'function') {
                             callback(currentId);
                         } else {
-                            alert(res.pesan);
+                            toast(res.pesan, 'success');
                         }
                         if (tutupSetelahSimpan) {
                             closeCanvas(true);
                         }
                         muatTabel();
+                        refreshNomorTerakhir();
                     } else {
-                        alert(res.pesan || 'Gagal menyimpan surat');
+                        toast(res.pesan || 'Gagal menyimpan surat', 'error');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -2585,7 +2990,7 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                     } catch(e) {
                         if (xhr.status) detailErr = ' (HTTP ' + xhr.status + ': ' + (xhr.statusText || error) + ')';
                     }
-                    alert('Terjadi kesalahan pada server saat menyimpan' + detailErr);
+                    toast('Terjadi kesalahan pada server saat menyimpan' + detailErr, 'error');
                 }
             });
         }
@@ -2617,8 +3022,232 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                     if (res.status && res.data) {
                         openCanvas(true, res.data);
                     } else {
-                        alert(res.pesan || 'Gagal memuat data surat');
+                        toast(res.pesan || 'Gagal memuat data surat', 'error');
                     }
+                }
+            });
+        });
+
+        // Buka Canvas untuk Duplikat Template Surat (Surat Baru dari Template)
+        $(document).on('click', '.btnDuplikatSurat', function() {
+            var id = $(this).data('id');
+            var btn = $(this);
+            btn.addClass('opacity-50 pointer-events-none');
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: { 'ambil-detail-surat': 1, 'id': id },
+                dataType: 'json',
+                success: function(res) {
+                    btn.removeClass('opacity-50 pointer-events-none');
+                    if (res.status && res.data) {
+                        openCanvasTemplate(res.data);
+                    } else {
+                        toast(res.pesan || 'Gagal memuat template surat', 'error');
+                    }
+                },
+                error: function() {
+                    btn.removeClass('opacity-50 pointer-events-none');
+                    toast('Terjadi kesalahan saat memuat template surat', 'error');
+                }
+            });
+        });
+
+        // Tombol di Top Bar Canvas: Jadikan Dokumen yang Sedang Dibuka Sebagai Surat Baru / Template
+        $('#btnSalinTemplateCanvas').on('click', function() {
+            if ($('#cvId').val() === '') {
+                toast('Dokumen ini sudah berstatus Surat Baru!', 'info');
+                return;
+            }
+            if (confirm('Jadikan dokumen ini sebagai Surat Baru (Template)?\nSurat lama tidak akan tertimpa saat Anda mengklik tombol Simpan.')) {
+                isEditMode = false; // Pastikan mode edit non-aktif
+                $('#cvId').val(''); // Kosongkan ID agar tersimpan sebagai record baru
+                $('#btnSalinTemplateCanvas').addClass('hidden'); // Sembunyikan karena dokumen sudah beralih jadi Surat Baru (belum disimpan)
+                var perihal = $('#swPerihal').val() || 'Salinan';
+                $('#canvasTitle').text('Surat Baru (Template: ' + perihal + ')');
+                $('#swTanggalSurat').val('<?= date('Y-m-d') ?>');
+                updateTanggalHeaderCanvas();
+                tarikNomorOtomatis(function(newNo) {
+                    toast('Mode Template Aktif! Dialihkan ke Surat Baru No: ' + newNo, 'success');
+                });
+            }
+        });
+
+        // ================= FITUR SURAT EKSTERNAL & REFRESH NOMOR TERAKHIR =================
+        function refreshNomorTerakhir(callback) {
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: { 'ambil-info-nomor-terakhir': 1 },
+                dataType: 'json',
+                success: function(res) {
+                    if (res && res.nomor) {
+                        $('#lblNomorTerakhir').text(res.nomor);
+                        $('#lblUrutanTerakhir').text(res.urutan);
+                        $('#lblUrutanBerikutnya').text(res.berikutnya);
+                        $('#lblTglTerakhir').text(res.tanggal_fmt || res.tanggal);
+                        $('#lblKetTerakhir').text(res.keterangan || 'Belum ada catatan');
+                        $('#hintNomorTerakhir').html('No. Terakhir: <strong class="text-slate-300 font-mono">' + res.nomor + '</strong>');
+                        if (typeof callback === 'function') callback(res);
+                    }
+                }
+            });
+        }
+
+        $('#btnRefreshNomorTerakhir').on('click', function() {
+            var icon = $(this).find('i');
+            icon.addClass('fa-spin');
+            refreshNomorTerakhir(function() {
+                icon.removeClass('fa-spin');
+            });
+        });
+
+        // Buka Modal Catat Surat Eksternal
+        function bukaModalEksternal(data) {
+            $('#formSuratEksternal')[0].reset();
+            $('#extFileCurrentWrap').addClass('hidden');
+            $('#extFileCurrentLink').attr('href', '#');
+            $('#extNamaFileCurrent').text('');
+
+            if (data && data.id) {
+                // Mode Edit
+                $('#titleModalEksternal').text('Edit Surat Eksternal');
+                $('#btnSimpanEksternal span').text('Perbarui Surat Eksternal');
+                $('#extId').val(data.id);
+                $('#extNomorSurat').val(data.nomor_surat || '');
+                $('#extPerihal').val(data.perihal || '');
+                $('#extKategori').val(data.kategori || 'Lainnya');
+                $('#extTanggalSurat').val(data.tanggal_surat || '<?= date('Y-m-d') ?>');
+                $('#extTujuan').val(data.tujuan || '');
+                $('#extKeterangan').val(data.isi_surat || '');
+
+                if (data.url_file) {
+                    $('#extFileCurrentWrap').removeClass('hidden');
+                    $('#extFileCurrentLink').attr('href', data.url_file);
+                    $('#extNamaFileCurrent').text(data.nama_file_asli || 'Dokumen Tersimpan');
+                }
+            } else {
+                // Mode Baru
+                $('#titleModalEksternal').text('Catat Surat Eksternal');
+                $('#btnSimpanEksternal span').text('Simpan Surat Eksternal');
+                $('#extId').val('');
+                $('#extTanggalSurat').val('<?= date('Y-m-d') ?>');
+                $('#extKategori').val('Kerja Sama / MoU');
+
+                // Tarik nomor urut berikutnya otomatis
+                tarikNomorOtomatis(function(newNo) {
+                    $('#extNomorSurat').val(newNo);
+                });
+            }
+
+            $('#modalCatatEksternal').addClass('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function tutupModalEksternal() {
+            $('#modalCatatEksternal').removeClass('show');
+            document.body.style.overflow = '';
+        }
+
+        $('#modalCatatEksternal').on('click', function(e) {
+            if (e.target === this) tutupModalEksternal();
+        });
+
+        $('#btnCatatEksternal').on('click', function() {
+            bukaModalEksternal(null);
+        });
+
+        $(document).on('click', '.btnEditEksternal', function() {
+            var id = $(this).data('id');
+            var btn = $(this);
+            btn.addClass('opacity-50 pointer-events-none');
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: { 'ambil-detail-surat': 1, 'id': id },
+                dataType: 'json',
+                success: function(res) {
+                    btn.removeClass('opacity-50 pointer-events-none');
+                    if (res.status && res.data) {
+                        bukaModalEksternal(res.data);
+                    } else {
+                        toast(res.pesan || 'Gagal memuat data surat eksternal', 'error');
+                    }
+                },
+                error: function() {
+                    btn.removeClass('opacity-50 pointer-events-none');
+                    toast('Terjadi kesalahan saat memuat data', 'error');
+                }
+            });
+        });
+
+        $('[data-modal-close], .closeModalEksternal').on('click', function() {
+            tutupModalEksternal();
+        });
+
+        $('#btnTarikNomorEksternal').on('click', function() {
+            var btn = $(this);
+            btn.prop('disabled', true);
+            tarikNomorOtomatis(function(newNo) {
+                btn.prop('disabled', false);
+                $('#extNomorSurat').val(newNo);
+            });
+        });
+
+        // Tangani submit form langsung (misal saat tekan Enter di input)
+        $('#formSuratEksternal').on('submit', function(e) {
+            e.preventDefault();
+            $('#btnSimpanEksternal').trigger('click');
+        });
+
+        // Submit Form Surat Eksternal (Upload File via AJAX FormData)
+        $('#btnSimpanEksternal').on('click', function(e) {
+            e.preventDefault();
+            var noSurat = $('#extNomorSurat').val().trim();
+            var perihal = $('#extPerihal').val().trim();
+
+            if (!noSurat) {
+                toast('Nomor surat wajib diisi!', 'error');
+                $('#extNomorSurat').focus();
+                return;
+            }
+            if (!perihal) {
+                toast('Perihal / Hal surat wajib diisi!', 'error');
+                $('#extPerihal').focus();
+                return;
+            }
+
+            var formData = new FormData($('#formSuratEksternal')[0]);
+            formData.append('simpan-surat-eksternal', 1);
+
+            var btn = $('#btnSimpanEksternal');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> <span>Menyimpan...</span>');
+
+            $.ajax({
+                url: PROSES_URL,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function(res) {
+                    btn.prop('disabled', false).html('<i class="fas fa-save"></i> <span>' + ($('#extId').val() ? 'Perbarui Surat Eksternal' : 'Simpan Surat Eksternal') + '</span>');
+                    if (res.status) {
+                        toast(res.pesan, 'success');
+                        tutupModalEksternal();
+                        muatTabel();
+                        refreshNomorTerakhir();
+                    } else {
+                        toast(res.pesan || 'Gagal menyimpan surat eksternal', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    btn.prop('disabled', false).html('<i class="fas fa-save"></i> <span>Simpan Surat Eksternal</span>');
+                    var pesanErr = 'Terjadi kesalahan pada server saat mengunggah surat';
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.pesan) {
+                        pesanErr = xhr.responseJSON.pesan;
+                    }
+                    toast(pesanErr, 'error');
                 }
             });
         });
@@ -2634,13 +3263,16 @@ var GLOBAL_KOP_HTML = <?= json_encode($kopHtmlContent) ?>;
                 data: { 'hapus-data-surat-custom': 1, 'id': id },
                 dataType: 'json',
                 success: function(res) {
-                    alert(res.pesan);
                     if (res.status) {
+                        toast(res.pesan, 'success');
                         muatTabel();
+                        refreshNomorTerakhir();
+                    } else {
+                        toast(res.pesan || 'Gagal menghapus surat', 'error');
                     }
                 },
                 error: function() {
-                    alert('Terjadi kesalahan pada server');
+                    toast('Terjadi kesalahan pada server saat menghapus surat', 'error');
                 }
             });
         });

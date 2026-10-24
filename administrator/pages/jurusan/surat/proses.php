@@ -11,21 +11,13 @@ if (!$sudahLogin) {
     exit;
 }
 
-// Cek apakah tabel surat_custom sudah dibuat di database dan pastikan seluruh kolom esensial ada
+// Cek apakah tabel surat_custom sudah dibuat di database (di-cache untuk efisiensi memori)
 function cek_tabel_surat_custom() {
+    static $sudahDicek = null;
+    if ($sudahDicek !== null) return $sudahDicek;
     $q = query("SHOW TABLES LIKE 'surat_custom'");
-    $ada = ($q && mysqli_num_rows($q) > 0);
-    if ($ada) {
-        $qCol = query("SHOW COLUMNS FROM surat_custom LIKE 'ukuran_kertas'");
-        if ($qCol && mysqli_num_rows($qCol) === 0) {
-            @query("ALTER TABLE surat_custom ADD COLUMN ukuran_kertas VARCHAR(10) NOT NULL DEFAULT 'A4' AFTER pakai_kop");
-        }
-        $qColId = query("SHOW COLUMNS FROM surat_custom LIKE 'id_nomor_surat'");
-        if ($qColId && mysqli_num_rows($qColId) === 0) {
-            @query("ALTER TABLE surat_custom ADD COLUMN id_nomor_surat BIGINT(20) DEFAULT NULL AFTER nomor_surat");
-        }
-    }
-    return $ada;
+    $sudahDicek = ($q && mysqli_num_rows($q) > 0);
+    return $sudahDicek;
 }
 
 // Sanitasi konten HTML surat kaya (menjaga format tag p, table, img, style tanpa XSS berbahaya)
@@ -107,9 +99,16 @@ if (isset($_POST['ambil-tabel-surat-custom'])) {
                 </td>
                 
                 <td class="max-w-[260px]">
-                    <p class="font-medium text-slate-800 line-clamp-1" title="<?= htmlspecialchars($row['perihal'], ENT_QUOTES, 'UTF-8') ?>">
-                        <?= htmlspecialchars($row['perihal'], ENT_QUOTES, 'UTF-8') ?>
-                    </p>
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <p class="font-medium text-slate-800 line-clamp-1" title="<?= htmlspecialchars($row['perihal'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars($row['perihal'], ENT_QUOTES, 'UTF-8') ?>
+                        </p>
+                        <?php if (($row['jenis_surat'] ?? 'internal') === 'eksternal'): ?>
+                            <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                <i class="fas fa-file-arrow-up text-[8px]"></i>Eksternal
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <span class="text-[10px] text-slate-400 font-medium">
                         <?= htmlspecialchars($row['kategori'] ?? 'Surat', ENT_QUOTES, 'UTF-8') ?>
                     </span>
@@ -129,18 +128,40 @@ if (isset($_POST['ambil-tabel-surat-custom'])) {
                 </td>
                 
                 <td class="text-center whitespace-nowrap">
-                    <div class="flex flex-col items-center gap-1">
-                        <?php if ($pakaiKop === 1): ?>
-                            <span class="pt-badge bg-emerald-50 text-emerald-700">Kop: Ya</span>
-                        <?php else: ?>
-                            <span class="pt-badge bg-slate-100 text-slate-500">Tanpa Kop</span>
-                        <?php endif; ?>
-                        <span class="pt-badge text-[10px] font-bold <?= ($ukuranKertas === 'F4') ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-sky-100 text-sky-700 border border-sky-200' ?>"><?= $ukuranKertas ?></span>
-                    </div>
+                    <?php if (($row['jenis_surat'] ?? 'internal') === 'eksternal'): ?>
+                        <span class="pt-badge bg-slate-100 text-slate-600 border border-slate-200 font-semibold text-[10px]">
+                            <i class="fas fa-paperclip mr-1"></i>Berkas Fisik
+                        </span>
+                    <?php else: ?>
+                        <div class="flex flex-col items-center gap-1">
+                            <?php if ($pakaiKop === 1): ?>
+                                <span class="pt-badge bg-emerald-50 text-emerald-700">Kop: Ya</span>
+                            <?php else: ?>
+                                <span class="pt-badge bg-slate-100 text-slate-500">Tanpa Kop</span>
+                            <?php endif; ?>
+                            <span class="pt-badge text-[10px] font-bold <?= ($ukuranKertas === 'F4') ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-sky-100 text-sky-700 border border-sky-200' ?>"><?= $ukuranKertas ?></span>
+                        </div>
+                    <?php endif; ?>
                 </td>
                 
                 <td class="text-right whitespace-nowrap">
                     <div class="inline-flex items-center justify-end gap-1.5">
+                    <?php if (($row['jenis_surat'] ?? 'internal') === 'eksternal'): ?>
+                        <?php
+                        $fileUrl = !empty($row['id_file']) && function_exists('url_file') ? url_file($row['id_file']) : '';
+                        if (!empty($fileUrl)):
+                        ?>
+                        <a href="<?= htmlspecialchars($fileUrl) ?>" target="_blank" rel="noopener" class="btn-circle bg-emerald-600 text-white shadow-sm hover:bg-emerald-700" title="Buka / Unduh Berkas Dokumen">
+                            <i class="fas fa-download text-xs"></i><span class="tip">Unduh Berkas</span>
+                        </a>
+                        <?php endif; ?>
+                        <button type="button" class="btnEditEksternal btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600" data-id="<?= $row['id'] ?>" title="Edit Data Surat Eksternal">
+                            <i class="fas fa-pen text-xs"></i><span class="tip">Edit</span>
+                        </button>
+                        <button type="button" class="btnHapusSurat btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="<?= $row['id'] ?>" title="Hapus Surat">
+                            <i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span>
+                        </button>
+                    <?php else: ?>
                         <button type="button" class="btnLihatSurat btn-circle bg-slate-900 text-white shadow-sm hover:bg-slate-700" data-id="<?= $row['id'] ?>" title="Pratinjau Lembar <?= $ukuranKertas ?>">
                             <i class="fas fa-eye text-xs"></i><span class="tip">Lihat <?= $ukuranKertas ?></span>
                         </button>
@@ -150,9 +171,13 @@ if (isset($_POST['ambil-tabel-surat-custom'])) {
                         <button type="button" class="btnEditSurat btn-circle bg-sky-500 text-white shadow-sm hover:bg-sky-600" data-id="<?= $row['id'] ?>" title="Edit Surat">
                             <i class="fas fa-pen text-xs"></i><span class="tip">Edit</span>
                         </button>
+                        <button type="button" class="btnDuplikatSurat btn-circle bg-indigo-600 text-white shadow-sm hover:bg-indigo-700" data-id="<?= $row['id'] ?>" title="Gunakan Sebagai Template / Duplikat Surat">
+                            <i class="fas fa-copy text-xs"></i><span class="tip">Duplikat</span>
+                        </button>
                         <button type="button" class="btnHapusSurat btn-circle bg-rose-500 text-white shadow-sm hover:bg-rose-600" data-id="<?= $row['id'] ?>" title="Hapus Surat">
                             <i class="fas fa-trash text-xs"></i><span class="tip">Hapus</span>
                         </button>
+                    <?php endif; ?>
                     </div>
                 </td>
             </tr>
@@ -227,8 +252,27 @@ if (isset($_POST['ambil-format-nomor-surat'])) {
     $urutanStr = sprintf('%03d', $urutanBerikutnya);
 
     if ($q) {
+        $hasPenunjukkanMerged = false;
+        $seenKeys = [];
         while ($r = mysqli_fetch_assoc($q)) {
+            $namaLower = strtolower(trim((string)$r['nama_surat']));
             $fmtClean = trim((string)$r['format_nomor']);
+
+            // Gabungkan Pembimbing dan Penguji menjadi satu entri "Surat Penunjukkan Pembimbing dan Penguji"
+            if ((strpos($namaLower, 'penunjukkan') !== false || strpos($namaLower, 'penunjukan') !== false) &&
+                (strpos($namaLower, 'pembimbing') !== false || strpos($namaLower, 'penguji') !== false)) {
+                if (!$hasPenunjukkanMerged) {
+                    $r['nama_surat'] = 'Surat Penunjukkan Pembimbing dan Penguji';
+                    $hasPenunjukkanMerged = true;
+                } else {
+                    continue;
+                }
+            } else {
+                $key = $namaLower . '|' . $fmtClean;
+                if (isset($seenKeys[$key])) continue;
+                $seenKeys[$key] = true;
+            }
+
             // Pastikan diawali slash jika belum ada
             if ($fmtClean !== '' && substr($fmtClean, 0, 1) !== '/') {
                 $fmtClean = '/' . $fmtClean;
@@ -259,6 +303,7 @@ if (isset($_POST['ambil-format-nomor-surat'])) {
 // ================= AMBIL NOMOR SURAT OTOMATIS =================
 if (isset($_POST['ambil-nomor-otomatis'])) {
     $formatId = isset($_POST['format_id']) ? (int)$_POST['format_id'] : 0;
+    $formatNomorCustom = trim((string)($_POST['format_nomor'] ?? ''));
     $tahun = date('Y');
 
     // Ambil nomor urutan tertinggi di tahun ini dari tabel nomor_surat
@@ -271,18 +316,24 @@ if (isset($_POST['ambil-nomor-otomatis'])) {
     $urutanStr = sprintf('%03d', $urutanBerikutnya);
 
     $nomor = '';
+    $fmtClean = '';
     if ($formatId > 0) {
         $qF = query("SELECT * FROM format_nomor_surat WHERE id = '$formatId' LIMIT 1");
         if ($qF && ($rF = mysqli_fetch_assoc($qF))) {
             $fmtClean = trim((string)$rF['format_nomor']);
-            if ($fmtClean !== '' && substr($fmtClean, 0, 1) !== '/') {
-                $fmtClean = '/' . $fmtClean;
-            }
-            if ($fmtClean !== '' && substr($fmtClean, -1) !== '/') {
-                $fmtClean .= '/';
-            }
-            $nomor = $urutanStr . $fmtClean . $tahun;
         }
+    }
+    if ($fmtClean === '' && $formatNomorCustom !== '') {
+        $fmtClean = $formatNomorCustom;
+    }
+    if ($fmtClean !== '') {
+        if (substr($fmtClean, 0, 1) !== '/') {
+            $fmtClean = '/' . $fmtClean;
+        }
+        if (substr($fmtClean, -1) !== '/') {
+            $fmtClean .= '/';
+        }
+        $nomor = $urutanStr . $fmtClean . $tahun;
     }
 
     if (empty($nomor)) {
@@ -296,6 +347,36 @@ if (isset($_POST['ambil-nomor-otomatis'])) {
     }
 
     echo json_encode(['status' => true, 'nomor' => $nomor]);
+    exit;
+}
+
+// ================= AMBIL INFO NOMOR TERAKHIR (TAHUN BERJALAN) =================
+if (isset($_POST['ambil-info-nomor-terakhir'])) {
+    $tahun = date('Y');
+    $qLast = query("SELECT urutan, nomor, tanggal, keterangan FROM `nomor_surat` WHERE YEAR(tanggal) = '$tahun' ORDER BY CAST(urutan AS UNSIGNED) DESC, id DESC LIMIT 1");
+    if ($qLast && ($rL = mysqli_fetch_assoc($qLast))) {
+        $urutan = (int)$rL['urutan'];
+        $tglStr = function_exists('tgl_indo') ? tgl_indo($rL['tanggal']) : $rL['tanggal'];
+        echo json_encode([
+            'status' => true,
+            'nomor' => $rL['nomor'],
+            'urutan' => sprintf('%03d', $urutan),
+            'berikutnya' => sprintf('%03d', $urutan + 1),
+            'tanggal' => $rL['tanggal'],
+            'tanggal_fmt' => $tglStr,
+            'keterangan' => $rL['keterangan'] ?? ''
+        ]);
+    } else {
+        echo json_encode([
+            'status' => false,
+            'nomor' => 'Belum Ada Surat Tahun Ini',
+            'urutan' => '000',
+            'berikutnya' => '001',
+            'tanggal' => date('Y-m-d'),
+            'tanggal_fmt' => function_exists('tgl_indo') ? tgl_indo(date('Y-m-d')) : date('Y-m-d'),
+            'keterangan' => 'Belum ada catatan'
+        ]);
+    }
     exit;
 }
 
@@ -392,7 +473,7 @@ if (isset($_POST['ambil-data-pejabat'])) {
 // ================= TAMBAH DATA SURAT CUSTOM =================
 if (isset($_POST['tambah-data-surat-custom'])) {
     if (!cek_tabel_surat_custom()) {
-        echo json_encode(['status' => false, 'pesan' => 'Tabel surat_custom belum dibuat di database. Harap jalankan script SQL terlebih dahulu.']);
+        echo json_encode(['status' => false, 'pesan' => 'Layanan surat jurusan belum siap']);
         exit;
     }
 
@@ -475,6 +556,17 @@ if (isset($_POST['ambil-detail-surat'])) {
     $q = query("SELECT * FROM surat_custom WHERE id = '$id' LIMIT 1");
 
     if ($q && ($row = mysqli_fetch_assoc($q))) {
+        $row['url_file'] = '';
+        $row['nama_file_asli'] = '';
+        if (!empty($row['id_file'])) {
+            if (function_exists('url_file')) {
+                $row['url_file'] = url_file($row['id_file']);
+            }
+            $qF = query("SELECT nama_file, format_file FROM files WHERE id = '" . bersihkan($row['id_file']) . "' LIMIT 1");
+            if ($qF && ($rF = mysqli_fetch_assoc($qF))) {
+                $row['nama_file_asli'] = $rF['nama_file'];
+            }
+        }
         echo json_encode(['status' => true, 'data' => $row]);
     } else {
         echo json_encode(['status' => false, 'pesan' => 'Data surat tidak ditemukan']);
@@ -509,7 +601,39 @@ if (isset($_POST['edit-data-surat-custom'])) {
     $tembusan     = bersihkan($_POST['tembusan'] ?? '');
 
     if (empty($id)) {
-        echo json_encode(['status' => false, 'pesan' => 'ID surat tidak valid']);
+        // Fallback jika ID kosong (misal duplikasi template terkirim ke handler edit)
+        // Otomatis disimpan sebagai surat baru secara aman
+        $pembuat = $_SESSION['username'] ?? ($_SESSION['user_id'] ?? 'operator');
+        if (empty($nomorSurat)) {
+            $nomorSurat = function_exists('get_nomor_surat') ? get_nomor_surat('surat custom') : ('001/UN47.B5.5/TD.06/' . date('Y'));
+        }
+        $idNomorSurat = 'NULL';
+        if (function_exists('tambah_nomor')) {
+            $idReg = tambah_nomor($nomorSurat, "Surat Custom: " . $perihal);
+            if ($idReg && is_numeric($idReg)) {
+                $idNomorSurat = (int)$idReg;
+            }
+        }
+        $ttdDosenIdVal = (!empty($ttdDosenId) && is_numeric($ttdDosenId)) ? (int)$ttdDosenId : "NULL";
+        $sql = "INSERT INTO surat_custom (
+            nomor_surat, id_nomor_surat, kategori, perihal, tanggal_surat,
+            tujuan, pakai_kop, ukuran_kertas, isi_surat, penutup, ttd_jenis,
+            ttd_prodi, ttd_dosen_id, ttd_jabatan, ttd_nama, ttd_nip,
+            tembusan, pembuat
+        ) VALUES (
+            '$nomorSurat', $idNomorSurat, '$kategori', '$perihal', '$tanggalSurat',
+            '$tujuan', $pakaiKop, '$ukuranKertas', '$isiSurat', '$penutup', '$ttdJenis',
+            '$ttdProdi', $ttdDosenIdVal, '$ttdJabatan', '$ttdNama', '$ttdNip',
+            '$tembusan', '$pembuat'
+        )";
+        $simpan = query($sql);
+        if ($simpan) {
+            $insertId = mysqli_insert_id($koneksi);
+            echo json_encode(['status' => true, 'pesan' => 'Surat berhasil disimpan sebagai dokumen baru', 'id' => $insertId]);
+        } else {
+            $dbError = mysqli_error($koneksi);
+            echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan surat baru' . ($dbError ? ': ' . $dbError : '')]);
+        }
         exit;
     }
     if (empty($perihal)) {
@@ -549,6 +673,128 @@ if (isset($_POST['edit-data-surat-custom'])) {
     } else {
         $dbError = mysqli_error($koneksi);
         echo json_encode(['status' => false, 'pesan' => 'Gagal memperbarui surat' . ($dbError ? ': ' . $dbError : '')]);
+    }
+    exit;
+}
+
+// ================= SIMPAN / UPDATE SURAT EKSTERNAL (UPLOAD FILE) =================
+if (isset($_POST['simpan-surat-eksternal'])) {
+    try {
+        if (!cek_tabel_surat_custom()) {
+            echo json_encode(['status' => false, 'pesan' => 'Tabel belum ada']);
+            exit;
+        }
+
+        $id           = bersihkan($_POST['id'] ?? '');
+        $nomorSurat   = bersihkan($_POST['nomor_surat'] ?? '');
+        $perihal      = bersihkan($_POST['perihal'] ?? '');
+        $kategori     = bersihkan($_POST['kategori'] ?? 'Lainnya');
+        $tanggalSurat = bersihkan($_POST['tanggal_surat'] ?? date('Y-m-d'));
+        $tujuan       = bersihkan($_POST['tujuan'] ?? '');
+        $keterangan   = bersihkan($_POST['keterangan'] ?? '');
+        $pembuat      = $_SESSION['username'] ?? ($_SESSION['user_id'] ?? 'operator');
+
+        if (empty($nomorSurat)) {
+            echo json_encode(['status' => false, 'pesan' => 'Nomor surat wajib diisi']);
+            exit;
+        }
+        if (empty($perihal)) {
+            echo json_encode(['status' => false, 'pesan' => 'Perihal / Hal surat wajib diisi']);
+            exit;
+        }
+
+        $idFile = '';
+        $idNomorSurat = null;
+        if (!empty($id)) {
+            $qOld = query("SELECT id_file, id_nomor_surat FROM surat_custom WHERE id = '$id' LIMIT 1");
+            if ($qOld && ($rO = mysqli_fetch_assoc($qOld))) {
+                $idFile = trim((string)($rO['id_file'] ?? ''));
+                $idNomorSurat = $rO['id_nomor_surat'] ?? null;
+            }
+        }
+
+        // Upload file via fungsi resmi SIATEK upload_file()
+        if (isset($_FILES['file_dokumen']) && !empty($_FILES['file_dokumen']['name'])) {
+            if ($_FILES['file_dokumen']['error'] !== UPLOAD_ERR_OK) {
+                $errCode = $_FILES['file_dokumen']['error'];
+                $msg = 'Gagal mengunggah berkas dokumen (Error code: ' . $errCode . ')';
+                if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+                    $msg = 'Ukuran berkas melebihi batas maksimal server';
+                }
+                echo json_encode(['status' => false, 'pesan' => $msg]);
+                exit;
+            }
+
+            if (function_exists('upload_file')) {
+                try {
+                    $uploadedId = upload_file($_FILES['file_dokumen'], 'surat_custom', $idFile);
+                    if ($uploadedId) {
+                        $idFile = $uploadedId;
+                    } else {
+                        echo json_encode(['status' => false, 'pesan' => 'Gagal memproses unggahan dokumen']);
+                        exit;
+                    }
+                } catch (Throwable $eUp) {
+                    echo json_encode(['status' => false, 'pesan' => 'Gagal mengunggah dokumen: ' . $eUp->getMessage()]);
+                    exit;
+                }
+            }
+        }
+
+        // Catat nomor surat ke master nomor_surat
+        if (function_exists('tambah_nomor')) {
+            try {
+                $idReg = tambah_nomor($nomorSurat, "Surat Eksternal: " . $perihal);
+                if ($idReg && is_numeric($idReg)) {
+                    $idNomorSurat = (int)$idReg;
+                }
+            } catch (Throwable $eNo) {
+                // Abaikan jika nomor_surat sudah tercatat atau query khusus
+            }
+        }
+        $idNomorSuratVal = (!empty($idNomorSurat) && is_numeric($idNomorSurat)) ? (int)$idNomorSurat : "NULL";
+        $idFileVal = (!empty($idFile)) ? "'" . bersihkan($idFile) . "'" : "NULL";
+
+        if (!empty($id)) {
+            // Mode Update
+            $sql = "UPDATE surat_custom SET
+                nomor_surat   = '$nomorSurat',
+                id_nomor_surat= $idNomorSuratVal,
+                kategori      = '$kategori',
+                jenis_surat   = 'eksternal',
+                perihal       = '$perihal',
+                tanggal_surat = '$tanggalSurat',
+                tujuan        = '$tujuan',
+                isi_surat     = '$keterangan',
+                id_file       = $idFileVal
+                WHERE id      = '$id'";
+            $save = query($sql);
+            $pesan = 'Data surat eksternal berhasil diperbarui';
+        } else {
+            // Mode Insert Baru
+            $sql = "INSERT INTO surat_custom (
+                nomor_surat, id_nomor_surat, kategori, jenis_surat, perihal,
+                tanggal_surat, tujuan, pakai_kop, ukuran_kertas, isi_surat,
+                id_file, penutup, ttd_jenis, ttd_prodi, ttd_dosen_id,
+                ttd_jabatan, ttd_nama, ttd_nip, tembusan, pembuat
+            ) VALUES (
+                '$nomorSurat', $idNomorSuratVal, '$kategori', 'eksternal', '$perihal',
+                '$tanggalSurat', '$tujuan', 0, 'A4', '$keterangan',
+                $idFileVal, '', 'kajur', '', NULL,
+                '', '', '', '', '$pembuat'
+            )";
+            $save = query($sql);
+            $pesan = 'Surat eksternal berhasil dicatat dan dokumen tersimpan';
+        }
+
+        if ($save) {
+            echo json_encode(['status' => true, 'pesan' => $pesan]);
+        } else {
+            $dbError = mysqli_error($koneksi);
+            echo json_encode(['status' => false, 'pesan' => 'Gagal menyimpan surat eksternal' . ($dbError ? ': ' . $dbError : '')]);
+        }
+    } catch (Throwable $eGlobal) {
+        echo json_encode(['status' => false, 'pesan' => 'Terjadi kesalahan sistem: ' . $eGlobal->getMessage()]);
     }
     exit;
 }

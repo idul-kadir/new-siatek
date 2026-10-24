@@ -20,8 +20,12 @@ $namaProdiUser = '';
 
 // Ambil statistik awal untuk panel ringkasan
 $whereProdiAwal = '';
-if ($isFilterProdi && $userProdi !== '') {
-    $whereProdiAwal = "WHERE (prodi = '$userProdi' OR prodi IN (SELECT nama FROM prodi WHERE kode = '$userProdi'))";
+if ($isFilterProdi) {
+    if ($userProdi !== '') {
+        $whereProdiAwal = "WHERE (prodi = '$userProdi' OR prodi IN (SELECT nama FROM prodi WHERE kode = '$userProdi'))";
+    } else {
+        $whereProdiAwal = "WHERE 1=0";
+    }
 }
 
 // 1. Total Mahasiswa
@@ -271,6 +275,11 @@ function get_status_style($statusName) {
         <span>Segarkan</span>
       </button>
 
+      <button type="button" id="btnBukaImport" class="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-2 text-xs font-bold shadow-2xs transition" title="Import Massal Mahasiswa dari Excel / CSV">
+        <i class="fas fa-file-excel text-emerald-600 text-sm"></i>
+        <span>Import Excel / CSV</span>
+      </button>
+
       <button type="button" id="btnTambah" class="inline-flex items-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-orange-500/20 transition">
         <i class="fas fa-user-plus text-xs"></i>
         <span>Tambah Mahasiswa</span>
@@ -278,7 +287,15 @@ function get_status_style($statusName) {
     </div>
   </section>
 
-  <!-- ===== 2. Panel Ringkasan Terpadu (Menyesuaikan Filter Aktif Secara Dinamis) ===== -->
+  <?php if ($isFilterProdi && $userProdi === ''): ?>
+    <div class="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+      <i class="fas fa-exclamation-triangle text-xl text-amber-500 shrink-0"></i>
+      <div>
+        <p class="font-semibold">Program Studi Belum Tercatat</p>
+        <p class="text-xs text-amber-700">Akun Anda belum memiliki data program studi yang tercatat di sistem. Tidak ada data mahasiswa yang dapat ditampilkan.</p>
+      </div>
+    </div>
+  <?php endif; ?>
   <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       
@@ -343,13 +360,17 @@ function get_status_style($statusName) {
 
       <!-- Filter Program Studi -->
       <div class="lg:col-span-3">
-        <select id="fProdi" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition <?= ($isFilterProdi && !empty($userProdi)) ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>" <?= ($isFilterProdi && !empty($userProdi)) ? 'disabled' : '' ?>>
-          <option value="">-- Semua Program Studi --</option>
-          <?php foreach ($daftarProdi as $p): ?>
-            <option value="<?= htmlspecialchars($p['kode']) ?>" <?= ($isFilterProdi && ($userProdi === $p['kode'] || $userProdi === $p['nama'])) ? 'selected' : '' ?>>
-              <?= htmlspecialchars($p['nama']) ?>
-            </option>
-          <?php endforeach; ?>
+        <select id="fProdi" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition <?= $isFilterProdi ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>" <?= $isFilterProdi ? 'disabled' : '' ?>>
+          <?php if (!$isFilterProdi): ?>
+            <option value="">-- Semua Program Studi --</option>
+            <?php foreach ($daftarProdi as $p): ?>
+              <option value="<?= htmlspecialchars($p['kode']) ?>">
+                <?= htmlspecialchars($p['nama']) ?>
+              </option>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <option value="<?= htmlspecialchars($userProdi) ?>" selected><?= htmlspecialchars($namaProdiUser ?: $userProdi) ?></option>
+          <?php endif; ?>
         </select>
       </div>
 
@@ -478,11 +499,15 @@ function get_status_style($statusName) {
             <div>
               <label for="mProdi" class="mb-1 block text-xs font-bold text-slate-700">Program Studi <span class="text-rose-500">*</span></label>
               <select id="mProdi" name="prodi" required
-                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white">
-                <option value="">Pilih Program Studi</option>
-                <?php foreach ($daftarProdi as $p): ?>
-                  <option value="<?= htmlspecialchars($p['kode']) ?>"><?= htmlspecialchars($p['nama']) ?></option>
-                <?php endforeach; ?>
+                class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none focus:border-orange-400 focus:bg-white <?= $isFilterProdi ? 'pointer-events-none opacity-80 cursor-not-allowed' : '' ?>">
+                <?php if ($isFilterProdi): ?>
+                  <option value="<?= htmlspecialchars($userProdi) ?>" selected><?= htmlspecialchars($namaProdiUser ?: $userProdi) ?></option>
+                <?php else: ?>
+                  <option value="">Pilih Program Studi</option>
+                  <?php foreach ($daftarProdi as $p): ?>
+                    <option value="<?= htmlspecialchars($p['kode']) ?>"><?= htmlspecialchars($p['nama']) ?></option>
+                  <?php endforeach; ?>
+                <?php endif; ?>
               </select>
             </div>
             <div>
@@ -535,7 +560,8 @@ function get_status_style($statusName) {
     </div>
   </div>
 
-  <!-- ===== Modal Reset Password ===== -->
+  <!-- ===== Modal Reset Password (hanya level 9) ===== -->
+  <?php if ($userLevel === 9): ?>
   <div class="modal-overlay" id="modalResetPw" role="dialog" aria-modal="true">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
       <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/50">
@@ -571,7 +597,10 @@ function get_status_style($statusName) {
     </div>
   </div>
 
-  <!-- ===== Modal Konfirmasi Hapus ===== -->
+  <?php endif; ?>
+
+  <!-- ===== Modal Konfirmasi Hapus (hanya level 6 dan 9) ===== -->
+  <?php if (in_array($userLevel, [6, 9], true)): ?>
   <div class="modal-overlay" id="modalHapus" role="dialog" aria-modal="true">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center">
       <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-2xl text-rose-600 mb-4">
@@ -589,6 +618,155 @@ function get_status_style($statusName) {
       <div class="flex justify-center gap-2">
         <button type="button" class="px-4 py-2 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium" data-modal-close>Batal</button>
         <button type="button" id="btnKonfirmasiHapus" data-text="Ya, Hapus" class="px-4 py-2 text-xs rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <?php endif; ?>
+
+  <!-- ===== Modal Import Excel / CSV Massal ===== -->
+  <div class="modal-overlay" id="modalImport" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh]">
+      <!-- Header Modal -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-500/20">
+            <i class="fas fa-file-excel"></i>
+          </div>
+          <div>
+            <h6 class="font-bold text-slate-900 text-sm">Import Mahasiswa Massal (Excel / CSV)</h6>
+            <p class="text-[11px] text-slate-500">Unggah berkas untuk mendaftarkan mahasiswa angkatan baru sekaligus.</p>
+          </div>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none" data-modal-close>&times;</button>
+      </div>
+
+      <!-- Body Modal -->
+      <div class="p-6 overflow-y-auto space-y-5">
+        
+        <!-- Baris Pengaturan Target Import: Prodi & Angkatan & Duplikasi -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+          <!-- Pilihan Program Studi Sasaran (Wajib & Terisolasi) -->
+          <div class="rounded-xl border border-orange-200 bg-orange-50/60 p-3.5 md:col-span-2">
+            <label for="importTargetProdi" class="block text-xs font-bold text-orange-900 mb-1 flex items-center justify-between">
+              <span>Program Studi Tujuan <span class="text-rose-500">*</span></span>
+              <span class="text-[10px] font-normal text-orange-700 bg-orange-200/60 px-1.5 py-0.5 rounded">Diunggah per Prodi</span>
+            </label>
+            <p class="text-[11px] text-orange-800/80 mb-2">Seluruh mahasiswa dalam berkas ini otomatis dimasukkan ke program studi yang dipilih:</p>
+            <select id="importTargetProdi" class="w-full rounded-lg border border-orange-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-orange-500 shadow-2xs">
+              <?php if (!$isFilterProdi || $userProdi === ''): ?>
+                <option value="">-- Pilih Program Studi --</option>
+              <?php endif; ?>
+              <?php foreach ($daftarProdi as $p): ?>
+                <?php if ($isFilterProdi && $userProdi !== '' && $p['kode'] !== $userProdi && $p['nama'] !== $userProdi) continue; ?>
+                <option value="<?= htmlspecialchars($p['kode']) ?>" <?= ($isFilterProdi && ($p['kode'] === $userProdi || $p['nama'] === $userProdi)) ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($p['nama']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <!-- Opsi Tahun Angkatan -->
+          <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+            <label for="importTargetAngkatan" class="block text-xs font-bold text-slate-700 mb-1">
+              Tahun Angkatan <span class="text-rose-500">*</span>
+            </label>
+            <p class="text-[11px] text-slate-500 mb-2">Angkatan mahasiswa yang diunggah.</p>
+            <input type="number" id="importTargetAngkatan" value="<?= (int)date('Y') ?>" min="2000" max="2099"
+                   class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 shadow-2xs">
+          </div>
+
+          <!-- Opsi Perlakuan Data Ganda -->
+          <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+            <label for="importModeGanda" class="block text-xs font-bold text-slate-700 mb-1">
+              Jika NIM Sudah Ada
+            </label>
+            <p class="text-[11px] text-slate-500 mb-2">Aksi bila NIM telah terdaftar.</p>
+            <select id="importModeGanda" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 shadow-2xs">
+              <option value="skip" selected>Lewati / Abaikan (Skip)</option>
+              <option value="update">Perbarui Profil (Update)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Banner Unduh Template CSV -->
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-start gap-2.5">
+            <i class="fas fa-file-csv text-emerald-600 text-lg mt-0.5"></i>
+            <div>
+              <div class="text-xs font-bold text-emerald-950">Format Berkas Pengunggahan</div>
+              <p class="text-[11px] text-emerald-800 mt-0.5">
+                Gunakan template resmi dengan susunan kolom: <span class="font-mono font-semibold bg-emerald-100/70 px-1 py-0.5 rounded">NIM</span>, <span class="font-mono font-semibold bg-emerald-100/70 px-1 py-0.5 rounded">Nama Lengkap</span>, <span class="font-mono text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded">No HP/WA</span>, <span class="font-mono text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded">Email</span>.
+              </p>
+            </div>
+          </div>
+          <button type="button" id="btnUnduhTemplateCsv"
+             class="inline-flex items-center justify-center gap-1.5 shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs px-3.5 py-2 shadow-xs transition cursor-pointer">
+            <i class="fas fa-download text-xs"></i> Unduh Template CSV
+          </button>
+        </div>
+
+        <!-- Dropzone / File Picker Area -->
+        <div class="rounded-2xl border-2 border-dashed border-slate-300 hover:border-emerald-400 bg-slate-50 hover:bg-emerald-50/30 transition p-6 text-center cursor-pointer relative group" id="dropzoneArea">
+          <input type="file" id="inputImportFile" accept=".csv,.xlsx,.xls,text/csv" class="hidden">
+          <div class="flex flex-col items-center">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-slate-200 text-emerald-600 shadow-sm mb-2.5 group-hover:scale-105 transition transform">
+              <i class="fas fa-file-arrow-up text-xl"></i>
+            </div>
+            <p class="text-sm font-bold text-slate-800" id="fileImportLabel">Pilih atau Seret (Drag & Drop) File CSV / Excel di sini</p>
+            <p class="text-xs text-slate-400 mt-0.5">Format .CSV, .XLSX, atau .XLS (NIM berawalan 0 tetap aman tersimpan)</p>
+            <button type="button" class="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition" onclick="document.getElementById('inputImportFile').click()">
+              <i class="fas fa-folder-open text-xs"></i> Telusuri Berkas
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview & Validasi Data Table (Hidden secara default, tampil saat file dipilih) -->
+        <div id="previewImportArea" class="hidden space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+            <div class="flex items-center gap-2">
+              <h6 class="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fas fa-table-list text-emerald-600"></i>
+                Pratinjau Data Mahasiswa:
+              </h6>
+              <span id="previewCountBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                0 baris siap diimpor
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-500 italic">
+              *Password default otomatis menggunakan NIM masing-masing mahasiswa
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white max-h-52">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200 sticky top-0">
+                <tr>
+                  <th class="py-2.5 px-3 w-12 text-center">No</th>
+                  <th class="py-2.5 px-3">NIM</th>
+                  <th class="py-2.5 px-3">Nama Lengkap</th>
+                  <th class="py-2.5 px-3">Prodi Tujuan</th>
+                  <th class="py-2.5 px-3">Angkatan</th>
+                  <th class="py-2.5 px-3">No. HP / WA</th>
+                  <th class="py-2.5 px-3">Email</th>
+                </tr>
+              </thead>
+              <tbody id="previewImportTbody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Baris preview dinamis diisi via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Modal -->
+      <div class="flex items-center justify-between px-6 py-3.5 border-t border-slate-200 bg-slate-50">
+        <button type="button" class="px-4 py-2 text-xs rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold transition" data-modal-close>Batal</button>
+        <button type="button" id="btnEksekusiImport" disabled data-text="Mulai Import Data" class="px-5 py-2 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5">
+          <i class="fas fa-file-import text-xs"></i>
+          <span>Mulai Import Data</span>
+        </button>
       </div>
     </div>
   </div>
@@ -870,26 +1048,50 @@ $(document).ready(function() {
   // Buka Modal Edit
   $(document).on('click', '.btnEdit', function() {
     var $btn = $(this);
-    var nim      = $btn.data('nim') || '';
-    var nama     = $btn.data('nama') || '';
-    var prodi    = $btn.data('prodi') || '';
-    var angkatan = $btn.data('angkatan') || '';
-    var status   = $btn.data('status') || 'Aktif';
-    var dosenPa  = $btn.data('dosen-pa') || '';
-    var email    = $btn.data('email') || '';
-    var noHp     = $btn.data('nohp') || '';
+    var nim       = $btn.data('nim') || '';
+    var nama      = $btn.data('nama') || '';
+    var prodi     = String($btn.data('prodi') || '').trim();
+    var namaProdi = String($btn.data('nama-prodi') || '').trim();
+    var angkatan  = $btn.data('angkatan') || '';
+    var status    = $btn.data('status') || 'Aktif';
+    var dosenPa   = $btn.data('dosen-pa') || '';
+    var email     = $btn.data('email') || '';
+    var noHp      = $btn.data('nohp') || '';
 
     $('#mMode').val('edit');
     $('#modalMahasiswaTitle').text('Edit Data Mahasiswa');
     $('#mNim').val(nim).prop('readonly', true).addClass('bg-slate-100 cursor-not-allowed').removeClass('bg-slate-50');
     $('#mNama').val(nama);
-    $('#mProdi').val(prodi);
     $('#mAngkatan').val(angkatan);
     $('#mStatus').val(status);
     $('#mDosenPa').val(dosenPa);
     $('#mEmail').val(email);
     $('#mNoHp').val(noHp);
     $('#wrapPassword').hide();
+
+    // Normalisasi alias prodi legacy (s1teknikomputer -> s1teknikkomputer)
+    if (prodi === 's1teknikomputer') {
+      prodi = 's1teknikkomputer';
+    }
+
+    // Set pilihan dropdown Program Studi
+    $('#mProdi').val(prodi);
+
+    // Jika belum terpilih (misal datanya nama lengkap atau beda format), cocokkan secara cerdas
+    if (!$('#mProdi').val()) {
+      $('#mProdi option').each(function() {
+        var optVal  = String($(this).val() || '').trim();
+        var optText = String($(this).text() || '').trim().toLowerCase();
+        if (
+          optVal.toLowerCase() === prodi.toLowerCase() ||
+          optText === prodi.toLowerCase() ||
+          (namaProdi && optText === namaProdi.toLowerCase())
+        ) {
+          $('#mProdi').val(optVal);
+          return false;
+        }
+      });
+    }
 
     bukaModal('#modalMahasiswa');
   });
@@ -1009,6 +1211,255 @@ $(document).ready(function() {
       complete: function() {
         setButtonLoading(btn, false);
         targetHapusNim = '';
+      }
+    });
+  });
+
+  // ================= 8. FITUR IMPORT EXCEL / CSV MASSAL =================
+  var fileImportTerpilih = null;
+
+  // Buka modal import
+  $('#btnBukaImport').on('click', function() {
+    fileImportTerpilih = null;
+    $('#inputImportFile').val('');
+    $('#fileImportLabel').text('Pilih atau Drag & Drop Berkas Excel (.xlsx, .xls) / CSV di sini');
+    $('#previewImportArea').addClass('hidden');
+    $('#previewImportTbody').empty();
+    $('#previewCountBadge').text('0 baris siap diproses');
+    $('#btnEksekusiImport').prop('disabled', true);
+    bukaModal('#modalImport');
+  });
+
+  // Handler Download Template CSV via JavaScript Blob (Pasti berhasil tanpa terpengaruh rewrite URL/sesi)
+  $('#btnUnduhTemplateCsv').on('click', function() {
+    // Header dan contoh data (UTF-8 BOM agar rapi langsung di Excel)
+    var baris = [
+      'NIM;Nama Lengkap;No HP/WA;Email',
+      '0531427001;Fauzan Ahmad;081234567890;fauzan@ung.ac.id',
+      '531427002;Dewi Lestari;082198765432;dewi.lestari@ung.ac.id',
+      '0521427003;Rahmat Hidayat;085211223344;rahmat@ung.ac.id'
+    ];
+    var csvContent = '\uFEFF' + baris.join('\r\n');
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_import_mahasiswa_siatek.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Template CSV berhasil diunduh.', 'success');
+  });
+
+  // Drag & drop listener
+  var dropzone = document.getElementById('dropzoneArea');
+  if (dropzone) {
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+      dropzone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('border-emerald-500', 'bg-emerald-50/50');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(function(eventName) {
+      dropzone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+      }, false);
+    });
+
+    dropzone.addEventListener('drop', function(e) {
+      var dt = e.dataTransfer;
+      var files = dt.files;
+      if (files && files.length > 0) {
+        handleFileImport(files[0]);
+      }
+    }, false);
+  }
+
+  // File input change
+  $('#inputImportFile').on('change', function() {
+    if (this.files && this.files.length > 0) {
+      handleFileImport(this.files[0]);
+    }
+  });
+
+  function handleFileImport(file) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(ext)) {
+      toast('Format file tidak didukung. Mohon gunakan format .csv, .xlsx, atau .xls', 'error');
+      return;
+    }
+
+    fileImportTerpilih = file;
+    $('#fileImportLabel').html('<span class="text-emerald-700 font-bold">' + file.name + '</span> (' + (file.size / 1024).toFixed(1) + ' KB)');
+
+    // Baca pratinjau jika file CSV langsung via FileReader di browser
+    if (ext === 'csv') {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result;
+        renderPreviewCsv(text);
+      };
+      reader.readAsText(file);
+    } else {
+      // Untuk xlsx/xls, tampilkan info siap import
+      $('#previewImportArea').removeClass('hidden');
+      $('#previewCountBadge').text('File Excel Terpilih');
+      $('#previewImportTbody').html('<tr><td colspan="7" class="py-4 text-center text-slate-500 italic"><i class="fas fa-file-excel text-emerald-600 mr-1.5"></i> File Excel "' + file.name + '" siap diuraikan dan diproses oleh server.</td></tr>');
+      $('#btnEksekusiImport').prop('disabled', false);
+    }
+  }
+
+  function toTitleCase(str) {
+    if (!str) return '';
+    return str.toLowerCase().replace(/(?:^|\s|-|\.)\S/g, function(char) {
+      return char.toUpperCase();
+    });
+  }
+
+  function renderPreviewCsv(csvText) {
+    var lines = csvText.split(/\r\n|\n/).filter(function(line) { return line.trim() !== ''; });
+    if (lines.length <= 1) {
+      toast('File CSV tampaknya kosong atau hanya berisi baris judul.', 'error');
+      $('#btnEksekusiImport').prop('disabled', true);
+      return;
+    }
+
+    var delimiter = lines[0].indexOf(';') > -1 ? ';' : ',';
+    var rows = [];
+    var startIndex = 0;
+
+    // Cek apakah baris 0 adalah header (ada tulisan nim/nama)
+    var headerRow = lines[0].toLowerCase();
+    if (headerRow.includes('nim') || headerRow.includes('nama')) {
+      startIndex = 1;
+    }
+
+    for (var i = startIndex; i < lines.length; i++) {
+      var cols = lines[i].split(delimiter).map(function(c) { return c.replace(/^["']|["']$/g, '').trim(); });
+      if (cols.length >= 2 && cols[0] !== '') {
+        rows.push(cols);
+      }
+    }
+
+    if (rows.length === 0) {
+      toast('Tidak ada data baris yang valid ditemukan dalam CSV.', 'error');
+      $('#btnEksekusiImport').prop('disabled', true);
+      return;
+    }
+
+    var namaProdiTujuan = $('#importTargetProdi option:selected').text().trim() || 'Prodi Terpilih';
+    var thAngkatan = $('#importTargetAngkatan').val() || '<?= date('Y') ?>';
+
+    $('#previewCountBadge').text(rows.length + ' mahasiswa ditemukan');
+    var tbodyHtml = '';
+    var previewLimit = Math.min(rows.length, 10);
+
+    for (var r = 0; r < previewLimit; r++) {
+      var d = rows[r];
+      // Jaga NIM sebagai teks murni (termasuk awalan 0)
+      var nim = String(d[0] || '').trim();
+      var nama = toTitleCase(String(d[1] || '').trim());
+      var noHp = String(d[2] || '').trim();
+      var email = String(d[3] || '').trim();
+
+      tbodyHtml += '<tr>' +
+        '<td class="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">' + (r + 1) + '</td>' +
+        '<td class="py-2 px-3 font-mono font-bold text-slate-800">' + (nim || '-') + '</td>' +
+        '<td class="py-2 px-3 font-medium text-slate-800">' + (nama || '-') + '</td>' +
+        '<td class="py-2 px-3 text-slate-600 font-semibold">' + namaProdiTujuan + '</td>' +
+        '<td class="py-2 px-3 text-slate-600">' + thAngkatan + '</td>' +
+        '<td class="py-2 px-3 text-slate-500 font-mono text-[11px]">' + (noHp || '-') + '</td>' +
+        '<td class="py-2 px-3 text-slate-500 text-[11px]">' + (email || '-') + '</td>' +
+      '</tr>';
+    }
+
+    if (rows.length > previewLimit) {
+      tbodyHtml += '<tr><td colspan="7" class="py-2.5 px-3 text-center text-slate-400 text-[11px] italic bg-slate-50">... dan ' + (rows.length - previewLimit) + ' mahasiswa lainnya akan diproses ke prodi ini</td></tr>';
+    }
+
+    $('#previewImportTbody').html(tbodyHtml);
+    $('#previewImportArea').removeClass('hidden');
+    $('#btnEksekusiImport').prop('disabled', false);
+  }
+
+  // Update preview bila operator mengganti prodi atau angkatan di modal
+  $('#importTargetProdi, #importTargetAngkatan').on('change', function() {
+    if (fileImportTerpilih && fileImportTerpilih.name.toLowerCase().endsWith('.csv')) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        renderPreviewCsv(e.target.result);
+      };
+      reader.readAsText(fileImportTerpilih);
+    }
+  });
+
+  // Eksekusi Import Mahasiswa
+  $('#btnEksekusiImport').on('click', function() {
+    var prodiPilihan = $('#importTargetProdi').val() || '';
+    if (!prodiPilihan) {
+      toast('Wajib memilih Program Studi tujuan import!', 'error');
+      $('#importTargetProdi').focus();
+      return;
+    }
+
+    var angkatanPilihan = $('#importTargetAngkatan').val() || '';
+    if (!angkatanPilihan) {
+      toast('Tahun angkatan wajib diisi!', 'error');
+      $('#importTargetAngkatan').focus();
+      return;
+    }
+
+    if (!fileImportTerpilih) {
+      toast('Silakan pilih berkas Excel atau CSV terlebih dahulu.', 'error');
+      return;
+    }
+
+    var btn = this;
+    setButtonLoading(btn, true);
+
+    var formData = new FormData();
+    formData.append('import-mahasiswa-massal', 1);
+    formData.append('file_import', fileImportTerpilih);
+    formData.append('prodi', prodiPilihan);
+    formData.append('angkatan', angkatanPilihan);
+    formData.append('mode_ganda', $('#importModeGanda').val() || 'skip');
+
+    $.ajax({
+      url: PROSES_URL,
+      method: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      dataType: 'json',
+      success: function(res) {
+        if (res.status) {
+          toast(res.pesan, 'success');
+          tutupModal();
+          muatUlangTabel();
+        } else {
+          toast(res.pesan || 'Gagal memproses import data', 'error');
+        }
+      },
+      error: function(xhr, status, error) {
+        var pesanError = 'Gagal menghubungi server saat memproses berkas import.';
+        if (xhr.responseJSON && xhr.responseJSON.pesan) {
+          pesanError = xhr.responseJSON.pesan;
+        } else if (xhr.responseText) {
+          // Bersihkan tag HTML jika PHP melempar pesan error/warning
+          var cleanText = xhr.responseText.replace(/<[^>]+>/g, '').trim();
+          if (cleanText) {
+            pesanError = cleanText.length > 150 ? cleanText.substring(0, 150) + '...' : cleanText;
+          }
+        }
+        toast(pesanError, 'error');
+      },
+      complete: function() {
+        setButtonLoading(btn, false);
       }
     });
   });

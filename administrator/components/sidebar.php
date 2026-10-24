@@ -129,7 +129,7 @@ $activePage = $activePage ?? '';
                 <?php endif; ?>
 
                 <!-- Pengguna (nested) -->
-                <?php $pengPages = ['pengguna-mahasiswa','pengguna-dosen']; $pengActive = in_array($activePage, $pengPages, true); ?>
+                <?php $showMenuPengguna = ($userLevel !== 1); if ($showMenuPengguna): $pengPages = ['pengguna-mahasiswa','pengguna-dosen']; $pengActive = in_array($activePage, $pengPages, true); ?>
                 <button class="sub-item sub-parent w-full flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $pengActive ? 'open has-active' : '' ?>" data-target="sub-pengguna">
                     <i class="fas fa-id-card w-5 text-center text-sm opacity-70"></i>
                     <span class="flex-1 text-left">Data Pengguna</span>
@@ -140,6 +140,7 @@ $activePage = $activePage ?? '';
                     <a href="/redesain-siatek/administrator/pengguna-dosen" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pengguna-dosen' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-user-tie w-5 text-center text-sm opacity-70"></i><span>Pengguna Dosen</span></a>
                 </div>
 
+                <?php endif; ?>
                 <a href="/redesain-siatek/administrator/pengelolaan-broadcast" class="sub-item flex items-center space-x-3 px-4 py-2 rounded-r-lg text-[13px] transition <?= $activePage === 'pengelolaan-broadcast' ? 'nav-active' : 'nav-item' ?>"><i class="fas fa-bullhorn w-5 text-center text-sm opacity-70"></i><span>Broadcast</span></a>
             </div>
         </div>
